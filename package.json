@@ -1,0 +1,29 @@
+{
+  "name": "node-js-start",
+  "version": "0.0.1-beta",
+  "description": "lightweight indexing/serving framework",
+  "engines": {
+    "node": "7.2.0"
+  },
+  "main": "index.js",
+  "scripts": {
+    "start": "node lepton.js",
+    "postinstall": ""
+  },
+  "dependencies": {
+    "async": "^2.6.0",
+    "body-parser": "^1.18.2",
+    "cookie-parser": "^1.4.3",
+    "express": "^4.16.2",
+    "redis": "^2.8.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cormacguerin/lepton"
+  },
+  "keywords": [
+    "node",
+    "express"
+  ],
+  "license": "proprietary"
+}
