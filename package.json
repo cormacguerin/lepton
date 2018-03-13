@@ -25,5 +25,6 @@
     "node",
     "express"
   ],
+  "private": true,
   "license": "proprietary"
 }
