@@ -32,5 +32,13 @@ Deps.
  make
  sudo make install
 
+ - rapidjson (https://github.com/Tencent/rapidjson.git)
+ git clone https://github.com/Tencent/rapidjson.git
+ cd rapidjson
+ cmake .
+ make
+ sudo make install
+
+
  - testing.
  curl -H "Content-Type: application/json" -X POST --data "@testdocs.json" '127.0.0.1:3000/addDocument?type=content'

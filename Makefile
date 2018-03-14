@@ -9,13 +9,13 @@ INCLUDES = -I$(LOCALINC) -I$(REDISINC)
 #
 # Compiler and Linker Options.
 #
-COMPOPTS = -O0 -c -g -std=c++11
-LINKOPTS = -O0 -g -lstdc++ -lm -std=c++11
+COMPOPTS = -O0 -c -g -std=c++11 -lpthread
+LINKOPTS = -O0 -g -lstdc++ -lm -std=c++11 -lpthread -lcpp_redis
 
 #
 # Library Files
 #
-REDIS_CLIENT_LIB = /usr/local/lib/libcpp_redis.a
+REDIS_CLIENT_LIB = /usr/local/lib/libtacopie.a /usr/local/lib/libtacopie.a
 
 #
 # Compiler
@@ -23,17 +23,25 @@ REDIS_CLIENT_LIB = /usr/local/lib/libcpp_redis.a
 COMPILER = g++
 
 #
-# Specify our compiler and linker settings
-# For Mac you need to add OBJCOPTS (this is to get cocoa to jam with sdl2)
+# Linker Flags
 #
-COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES)
-LINKER = $(COMPILER) $(LINKOPTS) $(REDIS_CLIENT_LIB)
+LD_FLAGS  = $(REDIS_CLIENT_LIB)
+CFLAGS    = ${INCLUDES} 
 
-all: proton.o
-	${LINKER} -o main proton.o
+#
+# Specify our compiler and linker settings
+#
+COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES) 
+LINKER = $(COMPILER) $(LINKOPTS)
 
-proton.o : proton.cc
+all: proton.o neutron.o
+	${LINKER} -o main proton.o neutron.o $(LD_FLAGS)
+
+proton.o : proton.cc proton.h
 	${COMPILE} proton.cc
+
+neutron.o : neutron.cc
+	${COMPILE} neutron.cc
 
 # clean
 .PHONY: clean

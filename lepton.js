@@ -31,23 +31,25 @@ app.post('/addDocument', function(req, res, next) {
 			var docs = req.body;
 			multi = client.multi();
 			for (var i in docs) {
-				var test;
 				if (docs.hasOwnProperty(i)) {
 	  				multi.hset("content_feed", i, JSON.stringify(docs[i]));
+					multi.sadd("feeds", i);
 				}
 			}
 			multi.exec(function(err, replies) {
 				if(err){
 					res.status(503);
 					console.log(err);
-					res.json({"status":"failed",
-							  "error":err
-							});
+					res.json({
+						"status":"failed",
+						"error":err
+					});
 				} else {
 					res.status(200);
-					res.json({"status":"successful",
-							  "response":replies
-							});
+					res.json({
+						"status":"successful",
+						"response":replies
+					});
 				}
 			});
 		}
