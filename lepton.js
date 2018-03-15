@@ -32,8 +32,43 @@ app.post('/addDocument', function(req, res, next) {
 			multi = client.multi();
 			for (var i in docs) {
 				if (docs.hasOwnProperty(i)) {
-	  				multi.hset("content_feed", i, JSON.stringify(docs[i]));
-					multi.sadd("feeds", i);
+	  				multi.hset("doc_feed", i, JSON.stringify(docs[i]));
+					multi.sadd("docfeeds", i);
+				}
+			}
+			multi.exec(function(err, replies) {
+				if(err){
+					res.status(503);
+					console.log(err);
+					res.json({
+						"status":"failed",
+						"error":err
+					});
+				} else {
+					res.status(200);
+					res.json({
+						"status":"successful",
+						"response":replies
+					});
+				}
+			});
+		}
+	}
+});
+
+/*
+ * A function to add a document(s) to our corpus.
+ */
+app.post('/addVocabulary', function(req, res, next) {
+	var queryData = url.parse(req.url, true).query;
+	if (queryData.type == "content") {
+		if (req.body){
+			var docs = req.body;
+			multi = client.multi();
+			for (var i in docs) {
+				if (docs.hasOwnProperty(i)) {
+	  				multi.hset("vocab_feed", i, JSON.stringify(docs[i]));
+					multi.sadd("vocabfeeds", i);
 				}
 			}
 			multi.exec(function(err, replies) {

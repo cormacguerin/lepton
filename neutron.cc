@@ -11,6 +11,7 @@ int main(int argc, char** argv)
 {
 	proton.init();
 	proton.processFeeds();
+	proton.processVocab();
 	return 0;
 }
 

@@ -1,10 +1,12 @@
 #include "proton.h"
 #include <iostream>
+#include <fstream>
 #include <cpp_redis/cpp_redis>
 #include <unistd.h>
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include "base64.h"
 
 
 using namespace std;
@@ -22,45 +24,116 @@ Proton::~Proton()
 
 void Proton::init() {
 	client.connect();
+	spp.init();
 }
 
 void Proton::processFeeds() {
-	std::cout << "processFeeds" << std::endl;
+	cout << "processFeeds" << endl;
 
-	std::vector<std::string> feeds;
+	vector<string> docfeeds;
 
-	client.smembers("feeds", [&feeds](cpp_redis::reply& reply) {
+	client.smembers("docfeeds", [&docfeeds](cpp_redis::reply& reply) {
 			for (auto k: reply.as_array()) {
-				feeds.push_back(k.as_string());
+				docfeeds.push_back(k.as_string());
 			}
 	});
 
 	client.sync_commit();
 	/*
-	for (std::map<std::string, std::string>::iterator mit = (*mechanics).begin(); mit != (*mechanics).end(); ++mit) {
-		Render::Node* node = Render::NodeManager::getInstance().getNode(mit->first);
-		cout << " MEHHHHH " << (mit->second).actors.size()  << endl;
-		cout << mit->second.test.name << endl;
+		for (map<string, string>::iterator mit = (*mechanics).begin(); mit != (*mechanics).end(); ++mit) {
+			Render::Node* node = Render::NodeManager::getInstance().getNode(mit->first);
+			cout << " MEHHHHH " << (mit->second).actors.size()  << endl;
+			cout << mit->second.test.name << endl;
 	*/
 
-	for(std::vector<std::string>::iterator it = feeds.begin(); it != feeds.end(); ++it) {
-		std::string unparsed_contents;
-		client.hget("content_feed", *it, [it, &unparsed_contents](cpp_redis::reply& reply) {
-			rapidjson::Document doc;
-			const char *cstr = reply.as_string().c_str();
-			doc.Parse(cstr);
-			std::string quote = "\"";
-			std::string key = quote + "test" + quote;
-			std::cout << "key " << key << std::endl;
-
-			const char *ckey = (*it).c_str();
-	//		const char *ckey = key.c_str();
-			std::cout << " : " << ckey << std::endl;
-	//		const rapidjson::Value& a = doc["test"].GetString();
-			printf("hello = %s\n", doc[ckey].GetString());
+	string feed;
+	for(vector<string>::iterator it = docfeeds.begin(); it != docfeeds.end(); ++it) {
+		client.hget("content_feed", *it, [it, &feed](cpp_redis::reply& reply) {
+			feed = reply.as_string();
 		});
+		client.sync_commit();
+		indexDocument(feed);
 	}
+}
+
+
+/*
+ * For each entry in the docfeeds table we ..
+ * - read the data 
+ * - parse the json
+ * - base64 decode the encoded contents.
+ * - segment the body
+ */
+void Proton::indexDocument(string rawdoc) {
+	rapidjson::Document doc;
+	const char *cstr = rawdoc.c_str();
+	try { 
+		doc.Parse(cstr);
+	} catch (const exception& e) {
+		cout << "Error : Aborting due to failed JSON parse attempt" << endl;
+		cout << "Error Message : " << e.what() << endl;
+		return;
+	}
+	//		const char *ckey = (*it).c_str();
+	const string display_url = doc["display_url"].GetString();
+	string doc_body;
+	try {
+		doc_body = doc["body"].GetString();
+	} catch (const exception& e) {
+		cout << "Warning : unable to parse display_url " << e.what() << endl;
+	}
+	// base64 decode
+	string decoded_doc_body = base64_decode(doc_body);
+	// tokenize
+	vector<string> tokenized_doc_body;
+	cout << " debug " << endl;
+	spp.tokenize(decoded_doc_body, &tokenized_doc_body);
+	cout << " decoded_doc_body " << decoded_doc_body << endl;
+	for(std::vector<std::string>::iterator it = tokenized_doc_body.begin(); it != tokenized_doc_body.end(); ++it) {
+		std::cout << " parsed_contents  b " << *it << std::endl;
+	}
+//	cout << tokenized_doc_body << endl;
+//		doc["body"].setString();
+}
+
+
+void Proton::processVocab() {
+	cout << "processFeeds" << endl;
+
+	vector<string> vocabfeeds;
+
+	client.smembers("vocabfeeds", [&vocabfeeds](cpp_redis::reply& reply) {
+		for (auto k: reply.as_array()) {
+			vocabfeeds.push_back(k.as_string());
+		}
+	});
+
 	client.sync_commit();
 
+	ofstream rawvocab ("rawvocab.txt");
+	for(vector<string>::iterator it = vocabfeeds.begin(); it != vocabfeeds.end(); ++it) {
+		string bodytext;
+		client.hget("content_feed", *it, [it, &bodytext](cpp_redis::reply& reply) {
+			rapidjson::Document vocab;
+			const char *cstr = reply.as_string().c_str();
+			try { 
+				vocab.Parse(cstr);
+			} catch (const exception& e) {
+				cout << "Error : Aborting due to failed JSON parse attempt" << endl;
+				cout << "Error Message : " << e.what() << endl;
+				return;
+			}
+			string vocab_body;
+			try {
+				vocab_body = vocab["body"].GetString();
+			} catch (const exception& e) {
+				cout << "Warning : unable to parse display_url " << e.what() << endl;
+			}
+			bodytext = base64_decode(vocab_body);
+		});
+		client.sync_commit();
+		rawvocab << bodytext;
+	}
+	rawvocab.close();
 }
 
