@@ -7,6 +7,8 @@
 class Proton {
 	private:
 		SentencePieceProcessor spp;
+		char *SPS;
+		std::string SPC;
 
 	public:
 	Proton();
@@ -15,7 +17,8 @@ class Proton {
 	void init();
 	void processFeeds();
 	void processVocab();
-	void indexDocument(std::string doc);
+	bool isSPS(char firstchar);
+	void indexDocument(std::string key, std::string doc);
 
 };
 

@@ -11,7 +11,7 @@ SentencePieceProcessor::~SentencePieceProcessor()
 
 void SentencePieceProcessor::init() {
 	//sentencepiece::SentencePieceProcessor processor;
-	processor.LoadOrDie("rock.model");
+	processor.LoadOrDie("word.model");
 	//spec = processor.model_proto().normalizer_spec();
 }
 

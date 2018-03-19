@@ -7,6 +7,7 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "base64.h"
+#include <algorithm>
 
 
 using namespace std;
@@ -23,6 +24,9 @@ Proton::~Proton()
 }
 
 void Proton::init() {
+	SPS = "\xe2\x96\x81";
+	SPC = "~`!@#$%^&*()_-+=|\\}]{[\"':;?/>.<, ";
+	//char SPC = {'~', '`', '!', '@', '#' , '$', '%', '^', '&', '*', '(', ')', '_', '+', '|', '\\', '{', '}', ':', '"', '|', '<', '>', '?', '/', '.', ',', '\'', ';', ']', '[', '-', '='};
 	client.connect();
 	spp.init();
 }
@@ -39,20 +43,20 @@ void Proton::processFeeds() {
 	});
 
 	client.sync_commit();
-	/*
-		for (map<string, string>::iterator mit = (*mechanics).begin(); mit != (*mechanics).end(); ++mit) {
-			Render::Node* node = Render::NodeManager::getInstance().getNode(mit->first);
-			cout << " MEHHHHH " << (mit->second).actors.size()  << endl;
-			cout << mit->second.test.name << endl;
-	*/
 
 	string feed;
 	for(vector<string>::iterator it = docfeeds.begin(); it != docfeeds.end(); ++it) {
-		client.hget("content_feed", *it, [it, &feed](cpp_redis::reply& reply) {
-			feed = reply.as_string();
+		feed = "";
+		client.hget("doc_feed", *it, [it, &feed](cpp_redis::reply& reply) {
+			if (reply != NULL) {
+				feed = reply.as_string();
+			}
 		});
 		client.sync_commit();
-		indexDocument(feed);
+		if (feed != "") {
+			std::cout << "start processing for " << *it << std::endl;
+			indexDocument(*it, feed);
+		}
 	}
 }
 
@@ -64,7 +68,8 @@ void Proton::processFeeds() {
  * - base64 decode the encoded contents.
  * - segment the body
  */
-void Proton::indexDocument(string rawdoc) {
+void Proton::indexDocument(string dockey, string rawdoc) {
+	// create main json doc and load rawdoc into it.
 	rapidjson::Document doc;
 	const char *cstr = rawdoc.c_str();
 	try { 
@@ -74,7 +79,7 @@ void Proton::indexDocument(string rawdoc) {
 		cout << "Error Message : " << e.what() << endl;
 		return;
 	}
-	//		const char *ckey = (*it).c_str();
+	// const char *ckey = (*it).c_str();
 	const string display_url = doc["display_url"].GetString();
 	string doc_body;
 	try {
@@ -86,14 +91,69 @@ void Proton::indexDocument(string rawdoc) {
 	string decoded_doc_body = base64_decode(doc_body);
 	// tokenize
 	vector<string> tokenized_doc_body;
-	cout << " debug " << endl;
 	spp.tokenize(decoded_doc_body, &tokenized_doc_body);
-	cout << " decoded_doc_body " << decoded_doc_body << endl;
+	
+	// string to acumulate the text into one doc.
+	string bodytext = "";
+	// map for counting word occurrences.
+	std::map<std::string, int> seg_weights;
 	for(std::vector<std::string>::iterator it = tokenized_doc_body.begin(); it != tokenized_doc_body.end(); ++it) {
-		std::cout << " parsed_contents  b " << *it << std::endl;
+		// concat unparsed(original) body text
+		bodytext = bodytext + *it;
+		// convert to lowercase
+		std::transform((*it).begin(), (*it).end(), (*it).begin(), ::tolower);
+		// remove sentencepiece leading space
+		if (isSPS((*it).at(0))) {
+			(*it).erase(0, 3);
+		}
+		// remove stop words
+		// normalize stems
+		// remove special characters.
+		for (int i=0; i < sizeof(SPC); i++) {
+			const char *a = (*it).c_str();
+			for (int j=(*it).size(); j>=0; j--) {
+				if (a[j] == SPC[i]) {
+					/*
+					cout << "*it " << *it << endl;
+					cout << "a[j] " << a[j] << endl;
+					cout << "SPC[i] " << SPC[i] << endl;
+					cout << "erase at j = " << j << endl;
+					*/
+					(*it).erase(j, 1);
+					/*
+					cout << "*it " << *it << endl;
+					cout << " - - -  " << endl;
+					*/
+				}
+			}
+		}
+		std::vector<string> key;
+		key.push_back(dockey);
+		client.sadd((*it).c_str(), key, [](cpp_redis::reply& reply) {
+		});
+		// add a weight for this term.
+		if (seg_weights.count(*it) == 1) {
+			seg_weights.at(*it) = seg_weights.at(*it)+1;
+		} else {
+			seg_weights.insert(std::pair<string,int>(*it,1));
+		}
 	}
-//	cout << tokenized_doc_body << endl;
-//		doc["body"].setString();
+	for (map<string, int>::iterator m = seg_weights.begin(); m != seg_weights.end(); ++m) {
+		cout << m->first << endl;
+		cout << m->second << endl;
+	}
+	client.sync_commit();
+	cout << bodytext << endl;
+}
+
+bool Proton::isSPS(char firstchar) {
+	if (firstchar == *SPS) {
+	//	std::cout << " firstchar matches " << std::endl;
+		return true;
+	} else {
+	//	std::cout << " firstchar doesn't match " << std::endl;
+		return false;
+	}
 }
 
 
@@ -116,7 +176,7 @@ void Proton::processVocab() {
 		client.hget("content_feed", *it, [it, &bodytext](cpp_redis::reply& reply) {
 			rapidjson::Document vocab;
 			const char *cstr = reply.as_string().c_str();
-			try { 
+			try {
 				vocab.Parse(cstr);
 			} catch (const exception& e) {
 				cout << "Error : Aborting due to failed JSON parse attempt" << endl;
