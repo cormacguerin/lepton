@@ -127,6 +127,9 @@ void Proton::indexDocument(string dockey, string rawdoc) {
 				}
 			}
 		}
+		// replace occurrence of SP spaces with real spaces.
+		//std::replace( (*it).begin(), (*it).end(), '\xe2\x96\x81', ' ');
+		// build the full segmented body and add it to redis.
 		std::vector<string> key;
 		key.push_back(dockey);
 		client.sadd((*it).c_str(), key, [](cpp_redis::reply& reply) {
