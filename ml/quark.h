@@ -2,9 +2,11 @@
 #define _QUARK_H_
 
 #include <string>
+#include "word2vec.h"
 
 class Quark {
 	private:
+                std::vector<std::string> Split(const std::string& subject);
 
 	public:
 	Quark();

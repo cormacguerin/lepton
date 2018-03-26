@@ -18,12 +18,6 @@
 
 
 #include <iostream>
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include "glm/ext.hpp"
 #include <vector>
 
 namespace Neuron {
@@ -34,11 +28,6 @@ namespace Neuron {
 			~Neuron();
 
 			std::vector<std::string> data;
-			glm::vec3 angular_velocity;
-//			glm::mat4 view_matrix;
-//			glm::quat qX;
-//			void setVisibility(bool v);
-//			glm::quat getRotation();
 	};
 }
 
