@@ -28,6 +28,8 @@ namespace Neuron {
 			~Neuron();
 
 			std::vector<std::string> data;
+			float syn_in, syn_out, syn_out_neg;
+			int id;
 	};
 }
 

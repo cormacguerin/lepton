@@ -13,12 +13,14 @@ class Word2Vec {
           long long vocab_max_size, vocab_size, layer1_size, local_iter;
           long long train_words, word_count_actual, iter, file_size, classes;
           clock_t start;
+		  unsigned long long next_random;
 
 	public:
 	Word2Vec();
 	~Word2Vec();
 		void init();
 		void processline(std::vector<std::string> line);
+		void initNeuron(float &syn_in, int num_neurons);
 
 };
 
