@@ -9,7 +9,7 @@ INCLUDES = -I$(LOCALINC)
 # Compiler and Linker Options.
 #
 COMPOPTS = -O0 -c -g -std=c++11 -lpthread
-LINKOPTS = -O0 -g -lstdc++ -lm -std=c++11 -lpthread -lcpp_redis
+LINKOPTS = -O0 -g -lstdc++ -lm -std=c++11 -lpthread
 
 #
 # Compiler
