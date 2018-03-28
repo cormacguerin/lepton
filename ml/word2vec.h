@@ -19,7 +19,7 @@ class Word2Vec {
 	Word2Vec();
 	~Word2Vec();
 		void init();
-		void processline(std::vector<std::string> line);
+		void trainCBOW(std::vector<std::string> line);
 		void initNeuron(float &syn_in, int num_neurons);
 
 };

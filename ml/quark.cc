@@ -46,9 +46,12 @@ void Quark::train(string trainfile) {
 	ifstream infile (trainfile);
 	if (infile.is_open()) {
 	        string line;
+			std::vector<string> trainData;
    	        while ( getline (infile, line) ) {
-            		word2Vec.processline(Split(line));
+					trainData.push_back(line);
    	        }
+       		data.addTrainData(trainData);
+       		word2Vec.trainCBOW(data.getTrainData());
    	        infile.close();
 	}
 }

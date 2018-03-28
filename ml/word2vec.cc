@@ -26,15 +26,23 @@ void Word2Vec::initNeuron(float &syn_in, int num_neurons) {
 	syn_in = (((next_random & 0xFFFF) / (float)65536) - 0.5) / num_neurons;
 }
 
-void Word2Vec::processline(std::vector<std::string> line) {
+
+void Word2Vec::trainCBOW(std::vector<std::string> content) {
+	next_random = next_random * (unsigned long long)25214903917 + 11;
+	long a;
+    long b = next_random % window;
+	for(std::vector<std::string>::iterator it = content.begin(); it != content.end(); ++it) {
+		for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
+		}
+		cout << *it << endl;
+	}
   clock_t now = clock();
   float progress_ = word_count_actual / (float)(window * train_words + 1) * 100;
   float wts_ = word_count_actual / ((float)(now - start + 1) / (float)CLOCKS_PER_SEC * 1000);
- // cout << "Alpha: " << "Progress: " << progress_ << " Words/thread/sec: " << wts_ << endl;
+  // cout << "Alpha: " << "Progress: " << progress_ << " Words/thread/sec: " << wts_ << endl;
   local_iter = window;
   alpha = starting_alpha * (1 - word_count_actual / (float)(window * train_words + 1));
   if (alpha < starting_alpha * 0.0001) alpha = starting_alpha * 0.0001;
   // cout << "process line " << line << endl;
   return;
 }
-
