@@ -3,7 +3,6 @@
 
 #include <string>
 #include "word2vec.h"
-#include "data.h"
 #include "neuron.h"
 
 class Quark {

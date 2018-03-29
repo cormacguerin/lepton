@@ -19,7 +19,6 @@ Quark::~Quark()
 
 Quark quark;
 Word2Vec word2Vec;
-Data data;
 
 void Quark::init(string corefile) {
 
@@ -28,15 +27,17 @@ void Quark::init(string corefile) {
 	}
 
 	for(std::vector<Neuron::Neuron*>::iterator it = neuron.begin(); it != neuron.end(); ++it) {
-      		word2Vec.initNeuron((*it)->syn_in, num_neurons);
-			//cout << (*it)->syn_in << endl;
+                Neuron::Neuron* p;
+                if (it != neuron.begin()) {
+                        p = *std::prev(it);
+                }
+      		word2Vec.initNeuron(num_neurons, *it, p);
 	}
 	
 	ifstream infile (corefile);
 	if (infile.is_open()) {
 	        string line;
    	        while ( getline (infile, line) ) {
-            		data.add(line);
    	        }
    	        infile.close();
   	}
@@ -44,16 +45,17 @@ void Quark::init(string corefile) {
 
 void Quark::train(string trainfile) {
 	ifstream infile (trainfile);
+	std::vector<string> trainData;
 	if (infile.is_open()) {
 	        string line;
-			std::vector<string> trainData;
    	        while ( getline (infile, line) ) {
-					trainData.push_back(line);
+			trainData.push_back(line);
    	        }
-       		data.addTrainData(trainData);
-       		word2Vec.trainCBOW(data.getTrainData());
    	        infile.close();
 	}
+	for(std::vector<Neuron::Neuron*>::iterator it = neuron.begin(); it != neuron.end(); ++it) {
+                word2Vec.trainCBOW(trainData, *it);
+        }
 }
 
 int main(int argc, char** argv) {

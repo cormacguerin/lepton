@@ -21,20 +21,33 @@ void Word2Vec::init() {
   //train_words = vocab.size();
 }
 
-void Word2Vec::initNeuron(float &syn_in, int num_neurons) {
-	next_random = next_random * (unsigned long long)25214903917 + 11;
-	syn_in = (((next_random & 0xFFFF) / (float)65536) - 0.5) / num_neurons;
+void Word2Vec::initNeuron(int num_neurons, Neuron::Neuron* n, Neuron::Neuron* p) {
+        for (int i = 0; i < 100; i++) {
+	        next_random = next_random * (unsigned long long)25214903917 + 11;
+                n->syn_in[i] = (((next_random & 0xFFFF) / (float)65536) - 0.5) / num_neurons;
+                n->previous_neuron = p;
+        }
 }
 
 
-void Word2Vec::trainCBOW(std::vector<std::string> content) {
+void Word2Vec::trainCBOW(std::vector<std::string> content, Neuron::Neuron* n) {
 	next_random = next_random * (unsigned long long)25214903917 + 11;
-	long a;
-    long b = next_random % window;
+	long a, b, c, p = 0;
+        b = next_random % window;
+        std::string last_word;
+        cout << "b " << b << endl;
 	for(std::vector<std::string>::iterator it = content.begin(); it != content.end(); ++it) {
 		for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
+                        c = p - window + a;
+                        // this needs to be in vocab index.
+                        last_word = *it;
+                        // we need to change this so the vocab index for the syn
+                        // is assigned to the neuron
+                        // n->weight += n->syn_out[last_word];
+                        n->weight += n->syn_out[a];
 		}
-		cout << *it << endl;
+                p++;
+		//cout << *it << endl;
 	}
   clock_t now = clock();
   float progress_ = word_count_actual / (float)(window * train_words + 1) * 100;

@@ -28,17 +28,14 @@ CFLAGS    = ${INCLUDES}
 COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES) 
 LINKER = $(COMPILER) $(LINKOPTS)
 
-all: quark.o neuron.o word2vec.o data.o
-	${LINKER} -o main quark.o neuron.o word2vec.o data.o $(LD_FLAGS)
+all: quark.o neuron.o word2vec.o
+	${LINKER} -o main quark.o neuron.o word2vec.o $(LD_FLAGS)
 
 quark.o : quark.cc quark.h
 	${COMPILE} quark.cc
 
 neuron.o : neuron.cc neuron.h
 	${COMPILE} neuron.cc
-
-data.o : data.cc data.h
-	${COMPILE} data.cc
 
 word2vec.o : word2vec.cc word2vec.h
 	${COMPILE} word2vec.cc

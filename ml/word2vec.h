@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <math.h>
+#include "neuron.h"
 
 class Word2Vec {
 	private:
@@ -19,8 +20,8 @@ class Word2Vec {
 	Word2Vec();
 	~Word2Vec();
 		void init();
-		void trainCBOW(std::vector<std::string> line);
-		void initNeuron(float &syn_in, int num_neurons);
+		void trainCBOW(std::vector<std::string> line, Neuron::Neuron* n);
+		void initNeuron(int num_neurons, Neuron::Neuron* n, Neuron::Neuron* p);
 
 };
 
