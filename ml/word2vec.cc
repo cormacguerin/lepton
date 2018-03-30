@@ -40,12 +40,14 @@ void Word2Vec::trainCBOW(std::vector<std::string> content, Neuron::Neuron* n) {
 	for(std::vector<std::string>::iterator it = content.begin(); it != content.end(); ++it) {
 		for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
                         c = p - window + a;
-                        // this needs to be in vocab index.
-                        last_word = *it;
-                        // we need to change this so the vocab index for the syn
-                        // is assigned to the neuron
-                        // n->weight += n->syn_out[last_word];
-                        n->weight += n->syn_out[a];
+                        if (c > 0 && c <= p) {
+                                // this needs to be in vocab index.
+                                // neu1[c] += syn0[c + last_word * layer1_size];
+                                // we need to change this so the vocab index for the syn
+                                // n->weight += n->syn_out[last_word];
+                                int index_of_word_c = c;
+                                n->weight += n->syn_in[index_of_word_c];
+                        }
 		}
                 p++;
 		cout << n->weight << endl;
