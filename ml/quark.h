@@ -10,6 +10,7 @@ class Quark {
         std::vector<std::string> Split(const std::string& subject);
 		std::vector<Neuron::Neuron*> neuron;
 		int num_neurons;
+                int data_size;
 
 	public:
 	Quark();

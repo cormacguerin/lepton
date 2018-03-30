@@ -21,10 +21,10 @@ namespace Neuron {
 
                         Neuron* previous_neuron;
 			std::vector<std::string> data;
-                        void init(long size);
+                        void init(int size);
                         float weight;
 			int id;
-			float syn_in[], syn_out[], syn_out_neg[];
+			float *syn_in, *syn_out, *syn_out_neg;
 	};
 }
 

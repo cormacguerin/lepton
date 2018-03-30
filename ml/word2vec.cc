@@ -26,6 +26,8 @@ void Word2Vec::initNeuron(int num_neurons, Neuron::Neuron* n, Neuron::Neuron* p)
 	        next_random = next_random * (unsigned long long)25214903917 + 11;
                 n->syn_in[i] = (((next_random & 0xFFFF) / (float)65536) - 0.5) / num_neurons;
                 n->previous_neuron = p;
+//                cout << "a n->syn_in[i] " << n->syn_in[i]  << endl;
+//                cout << "a p->syn_in[i] " << p->syn_in[i]  << endl;
         }
 }
 
@@ -35,7 +37,6 @@ void Word2Vec::trainCBOW(std::vector<std::string> content, Neuron::Neuron* n) {
 	long a, b, c, p = 0;
         b = next_random % window;
         std::string last_word;
-        cout << "b " << b << endl;
 	for(std::vector<std::string>::iterator it = content.begin(); it != content.end(); ++it) {
 		for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
                         c = p - window + a;
@@ -47,7 +48,7 @@ void Word2Vec::trainCBOW(std::vector<std::string> content, Neuron::Neuron* n) {
                         n->weight += n->syn_out[a];
 		}
                 p++;
-		//cout << *it << endl;
+		cout << n->weight << endl;
 	}
   clock_t now = clock();
   float progress_ = word_count_actual / (float)(window * train_words + 1) * 100;

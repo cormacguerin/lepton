@@ -21,8 +21,11 @@ Neuron::~Neuron()
 {
 }
 
-void Neuron::init(long size)
+void Neuron::init(int size)
 {
+  syn_in = new float[size];
+  syn_out = new float[size];
+  syn_out_neg = new float[size];
   for (int i = 0; i < size; i++) {
     syn_in[i] = 0;
     syn_out[i] = 0;
