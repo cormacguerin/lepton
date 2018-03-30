@@ -40,7 +40,7 @@ void Word2Vec::trainCBOW(std::vector<std::string> content, Neuron::Neuron* n) {
 	for(std::vector<std::string>::iterator it = content.begin(); it != content.end(); ++it) {
 		for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
                         c = p - window + a;
-                        if (c > 0 && c <= p) {
+                        if (c >= 0 && c < p) {
                                 // this needs to be in vocab index.
                                 // neu1[c] += syn0[c + last_word * layer1_size];
                                 // we need to change this so the vocab index for the syn
