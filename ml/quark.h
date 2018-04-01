@@ -17,7 +17,8 @@ class Quark {
 	~Quark();
 	void quit( int code );
 	void init( std::string file );
-	void train( std::string file );
+	void trainByWords( std::string file );
+	void trainBySentence( std::string file );
 
 };
 
