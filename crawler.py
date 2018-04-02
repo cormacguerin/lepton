@@ -2,6 +2,7 @@ import pycurl
 import json
 import base64
 import requests
+import urllib
 from io import BytesIO
 from bs4 import BeautifulSoup
 
@@ -12,6 +13,7 @@ goturls = set([])
 
 def main():
     for line in open('start.urls', 'r').readlines():
+        line = line.split("#")[0]
         starturls.append(line.strip());
     crawl()
 
@@ -23,17 +25,24 @@ def crawl():
         urls = geturls.copy()
 
     for url in urls:
+        url = sanitizeString(url);
         print('processing url ' + url)
-        body = getUrl(url)
+        try:
+            body = getUrl(url)
+        except Exception:
+            pass
         soup = BeautifulSoup(body, "lxml")
         data = buildPayload(url, soup)
         links = getLinks(url, soup)
         for link in links:
+            # remove anchors
+            link = link.split("#")[0]
             if not link in goturls:
                 geturls.add(link)
 
         # lets just remove now incase we get stuck in a loop
-        geturls.remove(url);
+        if url in geturls:
+            geturls.remove(url);
 
         # would be better to do this with curl maybe
         r = requests.post("http://127.0.0.1:3000/addDocument?type=content", data=data, headers=headers)
@@ -80,6 +89,10 @@ def getLinks(url, soup):
             if link[:1] == '/':
                  links.append(base_url + link);
     return set(links)
+
+def sanitizeString(s):
+    s.replace("–","-")
+    return s
 
 main()
 
