@@ -27,6 +27,7 @@ app.use(bodyParser.raw({type:'image/jpeg',limit: '5mb'}));
 app.post('/addDocument', function(req, res, next) {
 	var queryData = url.parse(req.url, true).query;
 	if (queryData.type == "content") {
+		console.log(req.body);
 		if (req.body){
 			var docs = req.body;
 			multi = client.multi();

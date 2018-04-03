@@ -20,7 +20,7 @@ class Word2Vec {
 	Word2Vec();
 	~Word2Vec();
 		void init();
-		void trainCBOW(std::vector<std::string> line, Neuron::Neuron* n);
+		void trainCBOW(std::string sentence, Neuron::Neuron* n);
 		void initNeuron(int num_neurons, Neuron::Neuron* n, Neuron::Neuron* p);
 
 };
