@@ -10,8 +10,8 @@ Proton proton;
 int main(int argc, char** argv)
 {
 	proton.init();
-	proton.processFeeds();
-	proton.processVocab();
+//	proton.processFeeds();
+//	proton.processVocab();
 	return 0;
 }
 

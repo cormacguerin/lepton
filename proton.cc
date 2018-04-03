@@ -141,12 +141,14 @@ void Proton::indexDocument(string dockey, string rawdoc) {
 			seg_weights.insert(std::pair<string,int>(*it,1));
 		}
 	}
+	/*
 	for (map<string, int>::iterator m = seg_weights.begin(); m != seg_weights.end(); ++m) {
 		cout << m->first << endl;
 		cout << m->second << endl;
 	}
+	*/
 	client.sync_commit();
-	cout << bodytext << endl;
+	//cout << bodytext << endl;
 }
 
 bool Proton::isSPS(char firstchar) {
@@ -165,7 +167,8 @@ void Proton::processVocab() {
 
 	vector<string> vocabfeeds;
 
-	client.smembers("vocabfeeds", [&vocabfeeds](cpp_redis::reply& reply) {
+	//client.smembers("vocabfeeds", [&vocabfeeds](cpp_redis::reply& reply) {
+	client.smembers("docfeeds", [&vocabfeeds](cpp_redis::reply& reply) {
 		for (auto k: reply.as_array()) {
 			vocabfeeds.push_back(k.as_string());
 		}
@@ -176,7 +179,8 @@ void Proton::processVocab() {
 	ofstream rawvocab ("rawvocab.txt");
 	for(vector<string>::iterator it = vocabfeeds.begin(); it != vocabfeeds.end(); ++it) {
 		string bodytext;
-		client.hget("content_feed", *it, [it, &bodytext](cpp_redis::reply& reply) {
+		//client.hget("content_feed", *it, [it, &bodytext](cpp_redis::reply& reply) {
+		client.hget("doc_feed", *it, [it, &bodytext](cpp_redis::reply& reply) {
 			rapidjson::Document vocab;
 			const char *cstr = reply.as_string().c_str();
 			try {

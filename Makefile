@@ -37,7 +37,7 @@ COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES)
 LINKER = $(COMPILER) $(LINKOPTS)
 
 all: proton.o neutron.o base64.o sentence_piece_processor.o
-	${LINKER} -o main proton.o neutron.o base64.o sentence_piece_processor.o $(LD_FLAGS)
+	${LINKER} -o atom proton.o neutron.o base64.o sentence_piece_processor.o $(LD_FLAGS)
 
 proton.o : proton.cc proton.h
 	${COMPILE} proton.cc
@@ -55,4 +55,4 @@ sentence_piece_processor.o : sentence_piece_processor.cc
 .PHONY: clean
 
 clean:
-	rm *.o main
+	rm *.o atom

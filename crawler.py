@@ -84,8 +84,10 @@ def getLinks(url, soup):
     for tag in hrefs:
         link = tag.get('href',None)
         if link is not None:
-#            if link[0:4] == 'http':
-#                links.append(link);
+            # again remove fragments
+            link = link.split("#")[0]
+            if link[0:4] == 'http':
+                links.append(link);
             if link[:1] == '/':
                  links.append(base_url + link);
     return set(links)
