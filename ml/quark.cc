@@ -33,8 +33,6 @@ void Quark::init(string corefile) {
                 if (it != neuron.begin()) {
                         p = *std::prev(it);
                 }
-                //cout << (*it)->id << endl;
-                //cout << p->id << endl;
       		word2Vec.initNeuron(num_neurons, *it, p);
 	}
 	
@@ -53,12 +51,9 @@ void Quark::train(string trainfile) {
 	if (infile.is_open()) {
 	        string line;
    	        while ( getline (infile, line) ) {
-                        cout << " test 1 " << line << endl;
                         std::string s(line);
 			trainData.push_back(line);
-                        cout << " test 2 " << endl;
    	        }
-                cout << " test 3 " << endl;
    	        infile.close();
 	}
 	for(std::vector<Neuron::Neuron*>::iterator it = neuron.begin(); it != neuron.end(); ++it) {

@@ -50,8 +50,8 @@ void Word2Vec::trainCBOW(std::vector<std::string> content, Neuron::Neuron* n) {
                         }
 		}
                 p++;
-		cout << n->weight << endl;
 	}
+	cout << n->weight << endl;
   clock_t now = clock();
   float progress_ = word_count_actual / (float)(window * train_words + 1) * 100;
   float wts_ = word_count_actual / ((float)(now - start + 1) / (float)CLOCKS_PER_SEC * 1000);
