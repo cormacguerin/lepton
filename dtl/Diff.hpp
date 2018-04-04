@@ -365,6 +365,47 @@ namespace dtl {
             printUnifiedFormat< ostream >(hunks, out);
         }
 
+
+        /**
+         * get difference between A and B.
+         */
+        stemdiff getUnifiedFormat () {
+            sesElemVec      shunk;
+            for (uniHunkVec_iter hit = uniHunks.begin() ; hit != uniHunks.end(); ++hit) {
+                joinSesVec(shunk, hit->common[0]);
+                joinSesVec(shunk, hit->change);
+                joinSesVec(shunk, hit->common[1]);
+            }
+            std::string d;
+            std::string c;
+            std::string a;
+            for (sesElemVec_iter sit = shunk.begin(); sit != shunk.end(); ++sit) {
+              /*
+              cout << "f " << (*sit).first << endl;
+              cout << " - " << endl;
+              cout << "b " << ((*sit).second).beforeIdx << endl;
+              cout << "a " << ((*sit).second).afterIdx << endl;
+              cout << "t " << ((*sit).second).type << endl;
+              */
+              edit_t t = ((*sit).second).type;
+              if (t== SES_DELETE) {
+                d+=(*sit).first;
+              } else if (t== SES_COMMON) {
+                c+=(*sit).first;
+              } else if (t== SES_ADD) {
+                a+=(*sit).first;
+              }
+            }
+            //cout << "d " << d << endl;
+            //cout << "c " << c << endl;
+            //cout << "a " << a << endl;
+            stemdiff stemDiff;
+            stemDiff.del = d;
+            stemDiff.common = c;
+            stemDiff.add = a;
+            return stemDiff;
+        }
+
         /**
          * compose Unified Format Hunks from Shortest Edit Script
          */

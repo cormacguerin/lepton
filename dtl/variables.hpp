@@ -91,7 +91,13 @@ namespace dtl {
             return (this->beforeIdx == other.beforeIdx && this->afterIdx == other.afterIdx && this->type == other.type);
         }
     } elemInfo;
-    
+
+    struct stemdiff {
+        std::string add;
+        std::string common;
+        std::string del;
+    };
+
     const long long DTL_SEPARATE_SIZE = 3;
     const long long DTL_CONTEXT_SIZE  = 3;
     
