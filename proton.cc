@@ -162,7 +162,7 @@ bool Proton::isSPS(char firstchar) {
 }
 
 
-void Proton::processVocab() {
+void Proton::exportVocab() {
 	cout << "processFeeds" << endl;
 
 	vector<string> vocabfeeds;

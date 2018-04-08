@@ -40,5 +40,25 @@ Deps.
  sudo make install
 
 
- - testing.
+ - testing api.
  curl -H "Content-Type: application/json" -X POST --data "@testdocs.json" '127.0.0.1:3000/addDocument?type=content'
+
+
+ - web crawler
+ add your start urls (start.urls) and start url follow patters (patterns.urls)
+ - to start the crawler type the below (ensure node lepton.js is running first!)
+ python crawler.py
+
+ - export the vocabulary.
+ ./main
+
+ - train the model on the exported vocab
+ - english example (you need to build the unigram and word models for english, for CJK just unigram)
+ spm_train --input=rawvocab.txt --model_type=unigram --model_prefix=unigram --model_type=unigram --vocab_size=10000
+ spm_train --input=rawvocab.txt --model_type=word --model_prefix=unigram --model_type=word --vocab_size=10000
+ - make an alphabetically sorted copy of these
+ sort word.vocab > word.vocab.sorted
+ sort unigram.vocab > unigram.vocab.sorted
+
+ - build synonyms with electron.
+ ./electron word.vocab.sorted
