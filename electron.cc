@@ -9,6 +9,8 @@
 #include <locale>
 #include <codecvt>
 #include <string>
+#include <exception>
+
 
 using namespace std;
 
@@ -59,15 +61,29 @@ std::wstring lcs( std::wstring a, std::wstring b ) {
 	return current_lcs;
 }
 
-std::string getMorphCandidate(string a, string b) {
+std::pair<string, float> getUnigrams(string line) {
+	int pos = line.find_first_of('\t');
+	std::istringstream iss(line);
+	std::string unigram = line.substr(0, pos);
+	float score = stof(line.substr(pos+1));
+	return std::pair<string, float>(unigram, score);
+}
 
-	//std::wstring wlcs = lcs(converter.from_bytes(a), converter.from_bytes(b));
-	//std::string lcs = converter.to_bytes(wlcs);
-	//cout << " - - - " << endl;
-	//cout << "a           : " << a << endl;
-	//cout << "b           : " << b << endl;
-	std::string lcs_ = converter.to_bytes(lcs(converter.from_bytes(a), converter.from_bytes(b)));
+/*
+ * Given two strings, get the root using lcs algorithm above
+ * From the root we can assume 
+ *  - the left of the stem is a potential left inflections (eg. kuma -> oguma, in japanese)
+ *  - the right of the stem is a potential right side inflection (eg. run -> (ing, er) in english)
+ *  We store these in a map, at insertion time we consider the following conditionals.
+ *  - that the inflection exitsts (is not empty).
+ *  - that the inflection is not a stop word(currently not implemented, might filter elsewhere).
+ *  - that the inflection is not longer than the stem (generally that would be weird for an inflection?).
+ *  - that the inflection is one of our extracted unigrams from our segmenter (should help filter out bad ones).
+ */
+void getMorphCandidate(string a, string b) {
+
 	inflection i;
+	std::string lcs_ = converter.to_bytes(lcs(converter.from_bytes(a), converter.from_bytes(b)));
 	if (!lcs_.empty()) {
 		i.root = lcs_;
 		roots.insert(std::pair<string, int>(lcs_, roots[lcs_]++));
@@ -79,49 +95,50 @@ std::string getMorphCandidate(string a, string b) {
 		std::string inflect_right_b = b.substr(b.find(lcs_)+lcs_.length(), b.length());
 		if (!inflect_left_a.empty()) {
 			if (inflect_left_a.length() <= lcs_.length()) {
-				i.left.push_back(inflect_left_a);
-				inflections_left.insert(std::pair<string, int>(inflect_left_a, inflections_left[inflect_left_a]++));
-				//			cout << "inflect_left_a " << inflect_left_a << endl;
+				map<string, float>::const_iterator it = unigrams.find(inflect_left_a);
+				if (it!=unigrams.end()) {
+					i.left.push_back(inflect_left_a);
+					inflections_left.insert(std::pair<string, int>(inflect_left_a, inflections_left[inflect_left_a]++));
+				}
 			}
 		}
 		if (!inflect_left_b.empty()) {
 			if (inflect_left_b.length() <= lcs_.length()) {
-				i.left.push_back(inflect_left_b);
-				inflections_left.insert(std::pair<string, int>(inflect_left_b, inflections_left[inflect_left_b]++));
-				//			cout << "inflect_left_b " << inflect_left_b << endl;
+				map<string, float>::const_iterator it = unigrams.find(inflect_left_b);
+				if (it!=unigrams.end()) {
+					i.left.push_back(inflect_left_b);
+					inflections_left.insert(std::pair<string, int>(inflect_left_b, inflections_left[inflect_left_b]++));
+				}
 			}
 		}
 		if (!inflect_right_a.empty()) {
 			if (inflect_right_a.length() <= lcs_.length()) {
-				i.right.push_back(inflect_right_a);
-				inflections_right.insert(std::pair<string, int>(inflect_right_a, inflections_right[inflect_right_a]++));
-				//			cout << "inflect_right_a " << inflect_right_a << endl;
+				map<string, float>::const_iterator it = unigrams.find(inflect_right_a);
+				if (it!=unigrams.end()) {
+					i.right.push_back(inflect_right_a);
+					inflections_right.insert(std::pair<string, int>(inflect_right_a, inflections_right[inflect_right_a]++));
+				}
 			}
 		}
 		if (!inflect_right_b.empty()) {
 			if (inflect_right_b.length() <= lcs_.length()) {
-				i.right.push_back(inflect_right_b);
-				inflections_right.insert(std::pair<string, int>(inflect_right_b, inflections_right[inflect_right_b]++));
-				//			cout << "inflect_right_b " << inflect_right_b << endl;
+				map<string, float>::const_iterator it = unigrams.find(inflect_right_b);
+				if (it!=unigrams.end()) {
+					i.right.push_back(inflect_right_b);
+					inflections_right.insert(std::pair<string, int>(inflect_right_b, inflections_right[inflect_right_b]++));
+				}
 			}
 		}
 	}
 	inflections.push_back(i);
-
-	return "s";
 }
 
 /*
- * WARNING - complicated function.
- *
  * This function sorts the map by the values rather than keys with most common at the end.
  * We then filter the common ones against known unigrams and gather as many as requested.
- * options: 
- * 	map - candidates map of inflections against occurrences.
- *  unigram - unigram vector from sentencepiece.
- *  no_to_gather - number of candidates we should gather.
+ * return a vector or pairs.
  */
-void gatherInflections(std::map<string, int> map, std::map<string, int> unigrams, int no_to_gather) {
+std::vector<std::pair<string,int>> mapToSortedVectorPair(std::map<string, int> map) {
 	std::vector<std::pair<string, int>> mapVector;
 	for (auto iterator = map.begin(); iterator != map.end(); ++iterator) {
 		mapVector.push_back(*iterator);
@@ -135,6 +152,20 @@ void gatherInflections(std::map<string, int> map, std::map<string, int> unigrams
 	for (std::vector<std::pair<string,int>>::const_iterator it = mapVector.begin() ; it != mapVector.end(); it++){
 		//cout << (*it).first << " " << (*it).second << endl;
 	}
+	return mapVector;
+}
+
+/*
+ * WARNING - complicated function.
+ *
+ * 	licvpao - left inflection candidates vector pair against occurrences.
+ * 	ricvpao - left inflection candidates vector pair against occurrences.
+ *  uvmpas - unigram vector map pair against score.
+ *  noctg - number of candidates to gather.
+ */
+void gatherInflections() {
+	std::vector<std::pair<string,int>> licvpao = mapToSortedVectorPair(inflections_left);
+	std::vector<std::pair<string,int>> ricvpao = mapToSortedVectorPair(inflections_right);
 }
 
 std::string trim(const std::string& str, const std::string& whitespace = " \t") {
@@ -148,57 +179,103 @@ std::string trim(const std::string& str, const std::string& whitespace = " \t") 
 	return str.substr(strBegin, strRange);
 }
 
-// todo: this is slow af, needs to do something about it.
 std::string sanitizeText(std::string str) {
 	auto isPunct = [](char c) { 
 		return std::ispunct(static_cast<unsigned char>(c));
+	};
+	auto isDigit = [](char c) { 
+		return std::isdigit(static_cast<unsigned char>(c));
 	};
 
 	// remove punctuations
 	str.erase(std::remove_if(str.begin(), str.end(), isPunct), str.end());
 	// remove digits
-	str.erase(std::remove_if(str.begin(), str.end(), isPunct), str.end());
+	str.erase(std::remove_if(str.begin(), str.end(), isDigit), str.end());
+}
 
-	// convert to lowercase
+// convert to lowercase
+std::string toLowerCase(std::string str) {
 	std::transform(str.begin(), str.end(), str.begin(), [](char c) {
 			return std::tolower(static_cast<unsigned char>(c));
 			});
 	return str;
 }
 
-void process(const char* a, const char* b, const char* c) {
-	ifstream vocab(a);
-	if (a) {
+// todo: this is slow af, needs to do something about it.
+bool isWord(std::string str) {
+	for (int i=0; i < str.size(); i++) {
+		if (isdigit(str.at(i))) {
+			return false;
+		}
+		if (ispunct(str.at(i))) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/*
+ * process inputs and build the inflections.
+ * 
+ * note: dictionary files should be space separated pairs of (word, float)
+ *  	 number closer to zero is more important. 	  
+ *  	 I'm using sentencepiece to train these files.
+ *  	 Typically latin languages will use both word and unigram dictionaries
+ *  	 However chinese for example you would just provide the unigram for both.
+ *
+ * options :
+ *
+ * 	w - word dictionary file ()
+ * 	u - unigram dictionary file ()
+ * 	n - number of inflections to gather.
+ */
+void process(const char* w, const char* u, const char* n) {
+	ifstream uni_dict(u);
+	if (u) {
+		string line;
+		while (getline(uni_dict, line)) {
+			try {
+				unigrams.insert(getUnigrams(line));
+			} catch (exception& e) {
+				cout << "Exception in getUnigrams: " << e.what() << endl;
+			}
+		}
+	}
+
+	ifstream word_dict(w);
+	if (w) {
 		string line;
 		string last_line = "";
-		while (getline(vocab, line)) {
+		while (getline(word_dict, line)) {
+			// extract the word (removing any weight / other componetns after)
 			line.erase(std::find(line.begin(), line.end(), '\t'), line.end());
-			line = sanitizeText(line);
-			getMorphCandidate(last_line, line);
+			line = toLowerCase(line);
+			if (isWord(line)) {
+				//line = sanitizeText(line);
+				getMorphCandidate(last_line, line);
+			}
 			last_line = line;
 		}
 	}
-	if (a) {
-		string line;
-		while (getline(vocab, line)) {
-			line.erase(std::find(line.begin(), line.end(), '\t'), line.end());
-			line = sanitizeText(line);
-			//getUnigrams(line);
-		}
-	}
-	//gatherInflections();
-	/*
-	   for (std::map<std::string, int>::const_iterator it = roots.begin(); it != roots.end(); ++it) {
+
+	gatherInflections();
+/*
+	for (std::map<std::string, int>::const_iterator it = roots.begin(); it != roots.end(); ++it) {
 	   cout << (*it).first << "     " << (*it).second << endl;
-	   }
-	// anything with occurrences than say 10 would be pretty pathetic, lets discard.
+	}
 	for (std::map<std::string, int>::const_iterator it = inflections_right.begin(); it != inflections_right.end(); ++it) {
-	cout << (*it).first << "     " << (*it).second << endl;
+		cout << (*it).first << "     " << (*it).second << endl;
 	}
 	for (std::map<std::string, int>::const_iterator it = inflections_left.begin(); it != inflections_left.end(); ++it) {
-	cout << (*it).first << "     " << (*it).second << endl;
+		cout << (*it).first << "     " << (*it).second << endl;
 	}
-	*/
+	for (std::map<std::string, float>::const_iterator it = unigrams.begin(); it != unigrams.end(); ++it) {
+		cout << (*it).first << "     " << (*it).second << endl;
+	}
+*/
+	for (std::map<std::string, int>::const_iterator it = inflections_right.begin(); it != inflections_right.end(); ++it) {
+		cout << (*it).first << "     " << (*it).second << endl;
+	}
 }
 
 
