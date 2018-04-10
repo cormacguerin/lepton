@@ -4,20 +4,25 @@
 #include <iostream>
 #include <algorithm>
 #include <iterator>
+#include <set>
 #include <map>
 #include <vector>
 #include <locale>
 #include <codecvt>
 #include <string>
 #include <exception>
+#include <regex>
+#include <numeric>
 
 
 using namespace std;
 
+std::set<std::string> words;
 std::map<std::string,int> roots;
 std::map<std::string,int> inflections_left;
 std::map<std::string,int> inflections_right;
 std::map<std::string,float> unigrams;
+std::map<std::string,std::vector<string>> synonyms;
 
 std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
 
@@ -168,6 +173,28 @@ void gatherInflections() {
 	std::vector<std::pair<string,int>> ricvpao = mapToSortedVectorPair(inflections_right);
 }
 
+void buildSynonyms() {
+	for (std::map<std::string, int>::const_iterator rit = roots.begin(); rit != roots.end(); ++rit) {
+		// cout << "stem : " << (*rit).first << " - "<< (*rit).second << endl;
+		std::vector<string> syns;
+		for (std::map<std::string, int>::const_iterator ilit = inflections_left.begin(); ilit != inflections_left.end(); ++ilit) {
+			std::string candidate = (*ilit).first + (*rit).first;
+			if(words.find(candidate) != words.end()) {
+				syns.push_back(candidate);
+			}
+		}
+		for (std::map<std::string, int>::const_iterator irit = inflections_right.begin(); irit != inflections_right.end(); ++irit) {
+			std::string candidate = (*rit).first + (*irit).first;
+			if(words.find(candidate) != words.end()) {
+				syns.push_back(candidate);
+			}
+		}
+		if (!syns.empty()) {
+			synonyms.insert(std::pair<string, std::vector<string>>((*rit).first, syns));
+		}
+	}
+}
+
 std::string trim(const std::string& str, const std::string& whitespace = " \t") {
 	const auto strBegin = str.find_first_not_of(whitespace);
 	if (strBegin == std::string::npos)
@@ -191,6 +218,7 @@ std::string sanitizeText(std::string str) {
 	str.erase(std::remove_if(str.begin(), str.end(), isPunct), str.end());
 	// remove digits
 	str.erase(std::remove_if(str.begin(), str.end(), isDigit), str.end());
+	return str;
 }
 
 // convert to lowercase
@@ -201,9 +229,11 @@ std::string toLowerCase(std::string str) {
 	return str;
 }
 
-// todo: this is slow af, needs to do something about it.
+/* 
+ * If this has special characters it's probably not a good candidate so just remove.
+ */
 bool isWord(std::string str) {
-	for (int i=0; i < str.size(); i++) {
+	for (int i=0; i < str.length(); i++) {
 		if (isdigit(str.at(i))) {
 			return false;
 		}
@@ -251,7 +281,8 @@ void process(const char* w, const char* u, const char* n) {
 			line.erase(std::find(line.begin(), line.end(), '\t'), line.end());
 			line = toLowerCase(line);
 			if (isWord(line)) {
-				//line = sanitizeText(line);
+				line = sanitizeText(line);
+				words.insert(line);
 				getMorphCandidate(last_line, line);
 			}
 			last_line = line;
@@ -259,6 +290,7 @@ void process(const char* w, const char* u, const char* n) {
 	}
 
 	gatherInflections();
+	buildSynonyms();
 /*
 	for (std::map<std::string, int>::const_iterator it = roots.begin(); it != roots.end(); ++it) {
 	   cout << (*it).first << "     " << (*it).second << endl;
@@ -272,9 +304,17 @@ void process(const char* w, const char* u, const char* n) {
 	for (std::map<std::string, float>::const_iterator it = unigrams.begin(); it != unigrams.end(); ++it) {
 		cout << (*it).first << "     " << (*it).second << endl;
 	}
+	for (std::map<std::string, std::vector<string>>::const_iterator it = synonyms.begin(); it != synonyms.end(); ++it) {
+		string syns = accumulate(synonyms.begin(), synonyms.end(), string(", "));
+		cout << (*it).first << "     " << syns << endl;
+	}
 */
-	for (std::map<std::string, int>::const_iterator it = inflections_right.begin(); it != inflections_right.end(); ++it) {
-		cout << (*it).first << "     " << (*it).second << endl;
+	for (std::map<std::string, std::vector<string>>::const_iterator it = synonyms.begin(); it != synonyms.end(); ++it) {
+		string syns; 
+		for (auto const& s : (*it).second) { syns += " ] [ " + s; }
+		syns.erase(0, 3);
+		syns += " ]";
+		cout << (*it).first << "     " << syns << endl;
 	}
 }
 
