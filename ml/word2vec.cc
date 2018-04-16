@@ -33,6 +33,13 @@ void Word2Vec::initNeuron(int num_neurons, Neuron::Neuron* n, Neuron::Neuron* p)
 
 
 void Word2Vec::trainCBOW(std::string sentence, Neuron::Neuron* n) {
+	// split each sentence into a vector of words.
+	std::stringstream ss(*dit);
+	std::istream_iterator<std::string> begin(ss);
+	std::istream_iterator<std::string> end;
+	std::vector<std::string> ss_sentence(begin, end);
+
+	cout << sentence << endl;
 
 	cout << n->weight << endl;
 	clock_t now = clock();
@@ -44,6 +51,7 @@ void Word2Vec::trainCBOW(std::string sentence, Neuron::Neuron* n) {
 	if (alpha < starting_alpha * 0.0001) alpha = starting_alpha * 0.0001;
 	// cout << "process line " << line << endl;
 
+	for(std::vector<std::string>::iterator sit = ss_sentence.begin(); sit != ss_sentence.end(); ++sit) {
 	next_random = next_random * (unsigned long long)25214903917 + 11;
 	long a, b, c, p = 0;
 	b = next_random % window;
@@ -56,7 +64,8 @@ void Word2Vec::trainCBOW(std::string sentence, Neuron::Neuron* n) {
 			// we need to change this so the vocab index for the syn
 			// n->weight += n->syn_out[last_word];
 			int index_of_word_c = c;
-			n->weight += n->syn_out[index_of_word_c];
+				n->weight += n->syn_out[index_of_word_c];
+			}
 		}
 		p++;
 	}

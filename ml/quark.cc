@@ -108,15 +108,8 @@ void Quark::trainBySentence(string trainfile) {
 		infile.close();
 	}
 	for(std::vector<std::string>::iterator dit = trainData.begin(); dit != trainData.end(); ++dit) {
-		// split each sentence into a vector of words.
-		std::stringstream ss(*dit);
-		std::istream_iterator<std::string> begin(ss);
-		std::istream_iterator<std::string> end;
-		std::vector<std::string> ss_sentence(begin, end);
-		for(std::vector<std::string>::iterator sit = ss_sentence.begin(); sit != ss_sentence.end(); ++sit) {
-			for(std::vector<Neuron::Neuron*>::iterator nit = neuron.begin(); nit != neuron.end(); ++nit) {
-				word2Vec.trainCBOW(*sit, *nit);
-			}
+		for(std::vector<Neuron::Neuron*>::iterator nit = neuron.begin(); nit != neuron.end(); ++nit) {
+			word2Vec.trainCBOW(*dit, *nit);
 		}
 	}
 }
@@ -133,7 +126,7 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 	quark.init(argv[1]);
-	//quark.trainBySentence(argv[2]);
+	quark.trainBySentence(argv[2]);
 	return 0;
 }
 
