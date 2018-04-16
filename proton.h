@@ -4,7 +4,7 @@
 #include <string>
 #include "sentence_piece_processor.h"
 
-class FlipMap {
+class Proton {
 	private:
 		SentencePieceProcessor spp;
 		char *SPS;
@@ -15,8 +15,8 @@ class FlipMap {
 	~Proton();
 	void quit( int code );
 	void init();
-	void processFeeds();
-	void exportVocab();
+	void processFeeds(std::string lang);
+	void exportVocab(std::string lang);
 	bool isSPS(char firstchar);
 	void indexDocument(std::string key, std::string doc);
 

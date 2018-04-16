@@ -9,6 +9,7 @@ from io import StringIO
 from bs4 import BeautifulSoup
 from bs4.element import Comment
 from urlmatch import urlmatch
+from urllib.parse import urlparse
 
 headers = {'content-type': 'application/json'}
 starturls = []
@@ -37,27 +38,29 @@ def crawl():
         print('processing url ' + url)
         try:
             urldata = getUrl(url)
-        except Exception(e):
-            print(e)
-            pass
-        body = urldata.body
-        head = urldata.head
-        soup = BeautifulSoup(body, "lxml")
-        data = buildPayload(url, soup, head)
-        links = getLinks(url, soup)
-        for link in links:
-            # remove anchors
-            link = link.split("#")[0]
-            if not link in goturls:
-                geturls.add(link)
-
-        # lets just remove now incase we get stuck in a loop
-        if url in geturls:
+        except Exception:
+            # we should set this to an error code and then mark for no recrawl
             geturls.remove(url);
+            continue
+        if urldata:
+            body = urldata.body
+            head = urldata.head
+            soup = BeautifulSoup(body, "lxml")
+            data = buildPayload(url, soup, head)
+            links = getLinks(url, soup)
+            for link in links:
+                # remove anchors
+                link = link.split("#")[0]
+                if not link in goturls:
+                    geturls.add(link)
 
-        # would be better to do this with curl maybe
-        r = requests.post("http://127.0.0.1:3000/addDocument?type=content", data=data, headers=headers)
-        print("url " + r.url + " : " + r.text)
+            # lets just remove now incase we get stuck in a loop
+            if url in geturls:
+                geturls.remove(url);
+
+            # would be better to do this with curl maybe
+            r = requests.post("http://127.0.0.1:3000/addDocument?type=content", data=data, headers=headers)
+            print("url " + r.url + " : " + r.text)
 
     crawl()
 
@@ -68,6 +71,13 @@ def urlMatch(url):
             return True;
         else:
             return False;
+
+
+def getDomain(url):
+    parsed_uri = urlparse(url)
+    domain = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri)
+    return domain
+
 
 def tag_visible(element):
     if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
@@ -117,7 +127,13 @@ def buildPayload(url, soup, head):
         pass
 
     rawdata = base64.b64encode(data.encode())
-    base64_string = rawdata.decode('UTF-8')
+    try:
+        base64_string = rawdata.decode('UTF-8')
+        #data = UrlData(body.decode('UTF-8'),head.decode('UTF-8'))
+    except UnicodeEncodeError as e:
+        print(str(e))
+        return None
+
     urldata = {}
     urldata['display_url'] = url
     urldata['shell'] = ''
@@ -143,15 +159,23 @@ def getUrl(url):
     c.setopt(c.URL, url)
     c.setopt(c.WRITEDATA, buffer)
     c.setopt(c.HEADERFUNCTION, headers.write)
-    c.perform()
+    try:
+        c.perform()
+    except pycurl.error:
+        return None
     c.close()
     body = buffer.getvalue()
     head = headers.getvalue()
-    data = UrlData(body.decode('UTF-8'),head.decode('UTF-8'))
+    try:
+        data = UrlData(body.decode('UTF-8'),head.decode('UTF-8'))
+    except UnicodeEncodeError as e:
+        print(str(e))
+        return None
     return data
 
 
 def getLinks(url, soup):
+    domain = getDomain(url)
     base_url = url.rsplit('/', 2)[0]
     hrefs = soup.find_all('a')
     links = []
@@ -162,7 +186,7 @@ def getLinks(url, soup):
             # again remove fragments
             link = link.split("#")[0]
             if link[:1] == '/':
-                 links.append(base_url + link);
+                 links.append(domain + link);
             if urlMatch(link):
                 links.append(link);
     return set(links)

@@ -33,8 +33,17 @@ app.post('/addDocument', function(req, res, next) {
 			multi = client.multi();
 			for (var i in docs) {
 				if (docs.hasOwnProperty(i)) {
-	  				multi.hset("doc_feed", i, JSON.stringify(docs[i]));
-					multi.sadd("docfeeds", i);
+					switch (docs[i].crawl_language) {
+						case "en":
+							console.log("CRAWL EN");
+			  				multi.hset("doc_feed_en", i, JSON.stringify(docs[i]));
+							multi.sadd("doc_id_en", i);
+						case "ja":
+							console.log("CRAWL JA");
+			  				multi.hset("doc_feed_ja", i, JSON.stringify(docs[i]));
+							multi.sadd("doc_id_ja", i);
+					}
+
 				}
 			}
 			multi.exec(function(err, replies) {

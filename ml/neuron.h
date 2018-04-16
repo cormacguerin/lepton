@@ -19,10 +19,10 @@ namespace Neuron {
 			Neuron();
 			~Neuron();
 
-                        Neuron* previous_neuron;
-			std::vector<std::string> data;
-                        void init(int size);
-                        float weight;
+            Neuron* previous_neuron;
+			std::vector<std::string> *data;
+            void init(std::vector<std::string> *data);
+            float weight;
 			int id;
 			float *syn_in, *syn_out, *syn_out_neg;
 	};

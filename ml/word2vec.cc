@@ -34,6 +34,16 @@ void Word2Vec::initNeuron(int num_neurons, Neuron::Neuron* n, Neuron::Neuron* p)
 
 void Word2Vec::trainCBOW(std::string sentence, Neuron::Neuron* n) {
 
+	cout << n->weight << endl;
+	clock_t now = clock();
+	float progress_ = word_count_actual / (float)(window * train_words + 1) * 100;
+	float wts_ = word_count_actual / ((float)(now - start + 1) / (float)CLOCKS_PER_SEC * 1000);
+	// cout << "Alpha: " << "Progress: " << progress_ << " Words/thread/sec: " << wts_ << endl;
+	local_iter = window;
+	alpha = starting_alpha * (1 - word_count_actual / (float)(window * train_words + 1));
+	if (alpha < starting_alpha * 0.0001) alpha = starting_alpha * 0.0001;
+	// cout << "process line " << line << endl;
+
 	next_random = next_random * (unsigned long long)25214903917 + 11;
 	long a, b, c, p = 0;
 	b = next_random % window;
@@ -46,18 +56,10 @@ void Word2Vec::trainCBOW(std::string sentence, Neuron::Neuron* n) {
 			// we need to change this so the vocab index for the syn
 			// n->weight += n->syn_out[last_word];
 			int index_of_word_c = c;
-			n->weight += n->syn_in[index_of_word_c];
+			n->weight += n->syn_out[index_of_word_c];
 		}
-                p++;
+		p++;
 	}
-	cout << n->weight << endl;
-        clock_t now = clock();
-        float progress_ = word_count_actual / (float)(window * train_words + 1) * 100;
-        float wts_ = word_count_actual / ((float)(now - start + 1) / (float)CLOCKS_PER_SEC * 1000);
-        // cout << "Alpha: " << "Progress: " << progress_ << " Words/thread/sec: " << wts_ << endl;
-        local_iter = window;
-        alpha = starting_alpha * (1 - word_count_actual / (float)(window * train_words + 1));
-        if (alpha < starting_alpha * 0.0001) alpha = starting_alpha * 0.0001;
-        // cout << "process line " << line << endl;
-        return;
+	return;
 }
+

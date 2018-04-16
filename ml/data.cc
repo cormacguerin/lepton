@@ -1,9 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include "data.h"
 #include <math.h>
 #include <functional>
+#include "data.h"
 
 using namespace std;
 

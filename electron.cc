@@ -289,9 +289,12 @@ void process(const char* w, const char* u, const char* n) {
 		}
 	}
 
-	gatherInflections();
+	//gatherInflections();
 	buildSynonyms();
 /*
+	for (std::map<std::string, int>::const_iterator it = inflections_right.begin(); it != inflections_right.end(); ++it) {
+		cout << (*it).first << "     " << (*it).second << endl;
+	}
 	for (std::map<std::string, int>::const_iterator it = roots.begin(); it != roots.end(); ++it) {
 	   cout << (*it).first << "     " << (*it).second << endl;
 	}
@@ -309,6 +312,7 @@ void process(const char* w, const char* u, const char* n) {
 		cout << (*it).first << "     " << syns << endl;
 	}
 */
+	// print the synonyms to stdout.
 	for (std::map<std::string, std::vector<string>>::const_iterator it = synonyms.begin(); it != synonyms.end(); ++it) {
 		string syns; 
 		for (auto const& s : (*it).second) { syns += " ] [ " + s; }
