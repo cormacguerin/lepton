@@ -5,6 +5,7 @@
 #include <iterator>
 #include <functional>
 #include <algorithm>
+#include <map>
 #include "quark.h"
 
 using namespace std;
@@ -13,7 +14,7 @@ Quark::Quark()
 {
 	num_neurons = 300;
 	data_size = 100;
-	vocab = new std::vector<string>();
+	vocab = new std::map<string,int>();
 }
 
 Quark::~Quark()
@@ -28,13 +29,15 @@ void Quark::init(std::string vocabfile) {
 	ifstream word_dict(vocabfile);
 	if (word_dict.is_open()) {
 		string line;
+		int i = 0;
 		while (getline(word_dict, line)) {
 			// extract the word (removing any weight / other componetns after)
 	//		line.erase(std::find(line.begin(), line.end(), '\t'), line.end());
 			line = toLowerCase(line);
 			if (isWord(line)) {
 				line = sanitizeText(line);
-				vocab->push_back(line);
+				vocab->insert(std::pair<std::string, int>(line, i));
+				i++;
 			}
 		}
 	} else {
@@ -42,13 +45,13 @@ void Quark::init(std::string vocabfile) {
 	}
 
 	for (int i = 0; i < num_neurons; i++) {
-		neuron.push_back(new Neuron::Neuron());
-		neuron.at(i)->init(vocab);
+		neurons.push_back(new Neuron::Neuron());
+		neurons.at(i)->init(vocab);
 	}
 
-	for(std::vector<Neuron::Neuron*>::iterator it = neuron.begin(); it != neuron.end(); ++it) {
+	for(std::vector<Neuron::Neuron*>::iterator it = neurons.begin(); it != neurons.end(); ++it) {
     		Neuron::Neuron* p;
-            if (it != neuron.begin()) {
+            if (it != neurons.begin()) {
                     p = *std::prev(it);
             }
       		word2Vec.initNeuron(num_neurons, *it, p);
@@ -108,8 +111,16 @@ void Quark::trainBySentence(string trainfile) {
 		infile.close();
 	}
 	for(std::vector<std::string>::iterator dit = trainData.begin(); dit != trainData.end(); ++dit) {
-		for(std::vector<Neuron::Neuron*>::iterator nit = neuron.begin(); nit != neuron.end(); ++nit) {
-			word2Vec.trainCBOW(*dit, *nit);
+		// split each sentence into a vector of words.
+		std::stringstream ss(*dit);
+		std::istream_iterator<std::string> begin(ss);
+		std::istream_iterator<std::string> end;
+		std::vector<std::string> ss_sentence(begin, end);
+		cout << "dit " << *dit << endl;
+		int s_index = 0;
+		for(std::vector<std::string>::iterator sit = ss_sentence.begin(); sit != ss_sentence.end(); ++sit) {
+			word2Vec.trainCBOW(s_index, sit, ss_sentence, neurons, vocab);
+			s_index++;
 		}
 	}
 }

@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <math.h>
 #include "neuron.h"
 
@@ -15,12 +16,18 @@ class Word2Vec {
           long long train_words, word_count_actual, iter, file_size, classes;
           clock_t start;
 		  unsigned long long next_random;
+		  int window_size;
 
 	public:
 	Word2Vec();
 	~Word2Vec();
 		void init();
-		void trainCBOW(std::string sentence, Neuron::Neuron* n);
+		void trainCBOW(
+			int index,
+			std::vector<std::string>::iterator i, 
+			std::vector<std::string> s, 
+			std::vector<Neuron::Neuron*> n, 
+			std::map<std::string,int> *v);
 		void initNeuron(int num_neurons, Neuron::Neuron* n, Neuron::Neuron* p);
 
 };

@@ -21,7 +21,7 @@ namespace Neuron {
 	{
 	}
 
-	void Neuron::init(std::vector<std::string> *data_)
+	void Neuron::init(std::map<std::string,int> *data_)
 	{
 		data = data_;
 		int size = (*data).size();

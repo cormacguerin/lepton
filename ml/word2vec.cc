@@ -32,16 +32,20 @@ void Word2Vec::initNeuron(int num_neurons, Neuron::Neuron* n, Neuron::Neuron* p)
 }
 
 
-void Word2Vec::trainCBOW(std::string sentence, Neuron::Neuron* n) {
-	// split each sentence into a vector of words.
-	std::stringstream ss(*dit);
-	std::istream_iterator<std::string> begin(ss);
-	std::istream_iterator<std::string> end;
-	std::vector<std::string> ss_sentence(begin, end);
+/*
+ * Args: 
+ * current iterator in sentence vector (sentence position)
+ * sentence vector, 
+ * neurons vector,
+ * vocab vector,
+ */
+void Word2Vec::trainCBOW(
+		int index,
+		std::vector<std::string>::iterator i, 
+		std::vector<std::string> s, 
+		std::vector<Neuron::Neuron*> n, 
+		std::map<std::string,int> *v) {
 
-	cout << sentence << endl;
-
-	cout << n->weight << endl;
 	clock_t now = clock();
 	float progress_ = word_count_actual / (float)(window * train_words + 1) * 100;
 	float wts_ = word_count_actual / ((float)(now - start + 1) / (float)CLOCKS_PER_SEC * 1000);
@@ -50,24 +54,32 @@ void Word2Vec::trainCBOW(std::string sentence, Neuron::Neuron* n) {
 	alpha = starting_alpha * (1 - word_count_actual / (float)(window * train_words + 1));
 	if (alpha < starting_alpha * 0.0001) alpha = starting_alpha * 0.0001;
 	// cout << "process line " << line << endl;
-
-	for(std::vector<std::string>::iterator sit = ss_sentence.begin(); sit != ss_sentence.end(); ++sit) {
+	
 	next_random = next_random * (unsigned long long)25214903917 + 11;
 	long a, b, c, p = 0;
-	b = next_random % window;
+	// b = next_random % window;
+	b = (std::rand() % (s.size() + 1)) % window;
 	std::string last_word;
+	p = index;
+	cout << "p " << p << endl;
+	cout << "*i " << *i << endl;
+	// for a random window between window and 2*window
 	for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
 		c = p - window + a;
+		cout << "c " << c << endl;
 		if (c >= 0 && c < p) {
 			// this needs to be in vocab index.
 			// neu1[c] += syn0[c + last_word * layer1_size];
 			// we need to change this so the vocab index for the syn
 			// n->weight += n->syn_out[last_word];
 			int index_of_word_c = c;
-				n->weight += n->syn_out[index_of_word_c];
+			for(std::vector<Neuron::Neuron*>::iterator nit = n.begin(); nit != n.end(); ++nit) {
+				if (v->count(*i) > 0) {
+					(*nit)->weight += (*nit)->syn_out[v->at(*i)];
+					cout << "weight : " << (*nit)->weight << endl;
+				}
 			}
 		}
-		p++;
 	}
 	return;
 }
