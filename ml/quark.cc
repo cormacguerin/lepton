@@ -12,7 +12,7 @@ using namespace std;
 
 Quark::Quark()
 {
-	num_neurons = 300;
+	num_neurons = 100;
 	data_size = 100;
 	vocab = new std::map<string,int>();
 }
@@ -25,6 +25,8 @@ Quark quark;
 Word2Vec word2Vec;
 
 void Quark::init(std::string vocabfile) {
+
+	word2Vec.init();
 
 	ifstream word_dict(vocabfile);
 	if (word_dict.is_open()) {
@@ -67,10 +69,14 @@ std::string Quark::sanitizeText(std::string str) {
 		return std::isdigit(static_cast<unsigned char>(c));
 	};
 
+	std::wstring seg = L"▁";
+
 	// remove punctuations
 	str.erase(std::remove_if(str.begin(), str.end(), isPunct), str.end());
 	// remove digits
 	str.erase(std::remove_if(str.begin(), str.end(), isDigit), str.end());
+	// remove en dash from sentence piece
+	//str.erase(std::remove(str.begin(), str.end(), seg), str.end());
 	return str;
 }
 
@@ -116,13 +122,17 @@ void Quark::trainBySentence(string trainfile) {
 		std::istream_iterator<std::string> begin(ss);
 		std::istream_iterator<std::string> end;
 		std::vector<std::string> ss_sentence(begin, end);
-		cout << "dit " << *dit << endl;
+		// cout << "dit " << *dit << endl;
 		int s_index = 0;
 		for(std::vector<std::string>::iterator sit = ss_sentence.begin(); sit != ss_sentence.end(); ++sit) {
-			word2Vec.trainCBOW(s_index, sit, ss_sentence, neurons, vocab);
+			int r = std::rand() + 11;
+			word2Vec.trainCBOW(s_index, sit, ss_sentence, neurons, vocab, r);
+			word2Vec.negSample(s_index, sit, ss_sentence, neurons, vocab);
+			word2Vec.learnWordVectors(s_index, sit, ss_sentence, neurons, vocab, r);
 			s_index++;
 		}
 	}
+	word2Vec.printWordVectors(neurons, vocab);
 }
 
 int main(int argc, char** argv) {

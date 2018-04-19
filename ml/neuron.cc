@@ -24,14 +24,16 @@ namespace Neuron {
 	void Neuron::init(std::map<std::string,int> *data_)
 	{
 		data = data_;
+		error = 0;
+		weight = 0;
 		int size = (*data).size();
-		syn_in = new float[size];
-		syn_out = new float[size];
-		syn_out_neg = new float[size];
+		//syn_in = new float[size];
+		//syn_out = new float[size];
+		//syn_out_neg = new float[size];
 		for (int i = 0; i < size; i++) {
-			syn_in[i] = 0;
-			syn_out[i] = 0;
-			syn_out_neg[i] = 0;
+			syn_in.push_back(0);
+			syn_out.push_back(0);
+			syn_out_neg.push_back(0);
 		}
 	}
 
