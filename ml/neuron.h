@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
 
 namespace Neuron {
 	class Neuron {
@@ -19,12 +20,16 @@ namespace Neuron {
 			Neuron();
 			~Neuron();
 
-                        Neuron* previous_neuron;
-			std::vector<std::string> data;
-                        void init(int size);
-                        float weight;
+            Neuron* previous_neuron;
+			std::map<std::string,int> *data;
+            void init(std::map<std::string,int> *data);
+			std::vector<float> syn_in;
+			std::vector<float> syn_out;
+			std::vector<float> syn_out_neg;
+			float error;
+            float weight;
 			int id;
-			float *syn_in, *syn_out, *syn_out_neg;
+			//float *syn_in, *syn_out, *syn_out_neg;
 	};
 }
 

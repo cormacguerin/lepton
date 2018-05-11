@@ -13,6 +13,7 @@
 #include <vector>
 
 class Data {
+
 	private:
 		struct item {
 			long hash;
@@ -24,8 +25,8 @@ class Data {
 		std::hash<std::string> hasher;
 
 	public:
-	Data();
-	~Data();
+		Data();
+		~Data();
 		void add(std::string line);
 		void addTrainData(std::vector<std::string> content);
 		std::vector<std::string> getTrainData();

@@ -31,12 +31,12 @@ void Proton::init() {
 	spp.init();
 }
 
-void Proton::processFeeds() {
-	cout << "processFeeds" << endl;
+void Proton::processFeeds(std::string lang) {
+	cout << "process feeds for " << lang << endl;
 
 	vector<string> docfeeds;
 
-	client.smembers("docfeeds", [&docfeeds](cpp_redis::reply& reply) {
+	client.smembers("doc_id_" + lang, [&docfeeds](cpp_redis::reply& reply) {
 			for (auto k: reply.as_array()) {
 				docfeeds.push_back(k.as_string());
 			}
@@ -45,9 +45,9 @@ void Proton::processFeeds() {
 	client.sync_commit();
 
 	string feed;
-	for(vector<string>::iterator it = docfeeds.begin(); it != docfeeds.end(); ++it) {
+	for (vector<string>::iterator it = docfeeds.begin(); it != docfeeds.end(); ++it) {
 		feed = "";
-		client.hget("doc_feed", *it, [it, &feed](cpp_redis::reply& reply) {
+		client.hget("doc_feed_" + lang, *it, [it, &feed](cpp_redis::reply& reply) {
 			if (reply != NULL) {
 				feed = reply.as_string();
 			}
@@ -97,7 +97,9 @@ void Proton::indexDocument(string dockey, string rawdoc) {
 	string bodytext = "";
 	// map for counting word occurrences.
 	std::map<std::string, int> seg_weights;
+
 	for(std::vector<std::string>::iterator it = tokenized_doc_body.begin(); it != tokenized_doc_body.end(); ++it) {
+
 		// concat unparsed(original) body text
 		bodytext = bodytext + *it;
 		// convert to lowercase
@@ -162,13 +164,13 @@ bool Proton::isSPS(char firstchar) {
 }
 
 
-void Proton::processVocab() {
-	cout << "processFeeds" << endl;
+void Proton::exportVocab(std::string lang) {
+	cout << "export vocab for " << lang << endl;
 
 	vector<string> vocabfeeds;
 
 	//client.smembers("vocabfeeds", [&vocabfeeds](cpp_redis::reply& reply) {
-	client.smembers("docfeeds", [&vocabfeeds](cpp_redis::reply& reply) {
+	client.smembers("doc_id_" +lang, [&vocabfeeds](cpp_redis::reply& reply) {
 		for (auto k: reply.as_array()) {
 			vocabfeeds.push_back(k.as_string());
 		}
@@ -176,11 +178,10 @@ void Proton::processVocab() {
 
 	client.sync_commit();
 
-	ofstream rawvocab ("rawvocab.txt");
+	ofstream crawled_contents ("crawled_contents_" +lang+ ".txt");
 	for(vector<string>::iterator it = vocabfeeds.begin(); it != vocabfeeds.end(); ++it) {
 		string bodytext;
-		//client.hget("content_feed", *it, [it, &bodytext](cpp_redis::reply& reply) {
-		client.hget("doc_feed", *it, [it, &bodytext](cpp_redis::reply& reply) {
+		client.hget("doc_feed_" +lang, *it, [it, &bodytext](cpp_redis::reply& reply) {
 			rapidjson::Document vocab;
 			const char *cstr = reply.as_string().c_str();
 			try {
@@ -199,8 +200,8 @@ void Proton::processVocab() {
 			bodytext = base64_decode(vocab_body);
 		});
 		client.sync_commit();
-		rawvocab << bodytext;
+		crawled_contents << bodytext;
 	}
-	rawvocab.close();
+	crawled_contents.close();
 }
 
