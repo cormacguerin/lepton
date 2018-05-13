@@ -78,8 +78,6 @@ float cosineDistance(std::string a, std::string b) {
   float gross_a = getRootOfSquaredSum(word_vectors.at(a));
   float gross_b = getRootOfSquaredSum(word_vectors.at(b));
   float result = dot_product / (gross_a*gross_b);
-  cout << result << endl;
-
   /*
   for (std::map<string, vector<float>>::iterator wvi = word_vectors.begin(); wvi != word_vectors.end(); ++wvi) {
     cout << wvi->first << endl;
