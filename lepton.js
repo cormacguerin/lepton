@@ -15,6 +15,21 @@ var async = require('async');
 
 const url = require('url');
 
+const { Pool, Client } = require('pg')
+
+const pool = new Pool({
+	user: 'clio',
+	host: 'localhost',
+	database: 'index',
+	password: 'secret',
+	port: 5432,
+})
+
+pool.query('SELECT NOW()', (err, res) => {
+	console.log(err, res)
+	pool.end()
+})
+
 app.use(cookieParser());
 app.use(bodyParser.json({limit: '1mb'}));
 app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
