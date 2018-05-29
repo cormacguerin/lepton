@@ -1,15 +1,21 @@
+# -*- coding: utf-8 -*-
 import pycurl
 import json
 import base64
 import requests
 import urllib
+import datetime
 import re
 from io import BytesIO
 from io import StringIO
 from bs4 import BeautifulSoup
 from bs4.element import Comment
 from urlmatch import urlmatch
-from urllib.parse import urlparse
+#from urllib.parse import urlparse
+try:
+    from urllib.parse import urlparse
+except ImportError:
+     from urlparse import urlparse
 
 headers = {'content-type': 'application/json'}
 starturls = []
@@ -110,11 +116,11 @@ def buildPayload(url, soup, head):
 
     for line in head.splitlines():
         if 'odified' in line: 
-            last_modified = re.sub('Last-Modified:', '', line)
+          last_modified = re.sub('Last-Modified:', '', line.strip())
         if 'anguage' in line: 
-            content_language = re.sub('Content-language:', '', line)
+          content_language = re.sub('Content-language:', '', line.strip())
         if 'Content-Type' in line: 
-            content_type = re.sub('Content-Type:', '', line)
+          content_type = re.sub('Content-Type:', '', line.strip())
 
     lang = ''
     data = "";
@@ -135,19 +141,19 @@ def buildPayload(url, soup, head):
         return None
 
     urldata = {}
-    urldata['display_url'] = url
-    urldata['shell'] = ''
-    urldata['tags'] = ''
-    urldata['title'] = title
-    urldata['metadata'] = ''
-    urldata['last_modified'] = last_modified
-    urldata['crawl_date'] = ''
-    urldata['fetch_status'] = ''
-    urldata['crawl_language'] = lang
-    urldata['content_language'] = content_language
-    urldata['content_type'] = content_type
-    urldata['encoding'] = 'base64'
-    urldata['body'] = base64_string
+    urldata["display_url"] = url
+    urldata["shell"] = ""
+    urldata["tags"] = ""
+    urldata["title"] = title
+    urldata["metadata"] = ""
+    urldata["last_modified"] = last_modified
+    urldata["crawl_date"] = ""
+    urldata["fetch_status"] = ""
+    urldata["crawl_language"] = lang
+    urldata["content_language"] = content_language
+    urldata["content_type"] = content_type
+    urldata["encoding"] = "base64"
+    urldata["body"] = base64_string
     data = {url:urldata}
     json_data = json.dumps(data)
     return json_data
