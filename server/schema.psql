@@ -2,6 +2,8 @@ CREATE TABLE docs (
 	url VARCHAR(2048) PRIMARY KEY,
 	feed jsonb,
 	docscore real,
+        lang VARCHAR(2),
+        crawl_date TIMESTAMP,
 	segmented_text text,
 	segmented_grams jsonb
 );
