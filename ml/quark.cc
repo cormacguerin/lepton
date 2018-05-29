@@ -1,11 +1,3 @@
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <iterator>
-#include <functional>
-#include <algorithm>
-#include <map>
 #include "quark.h"
 
 using namespace std;
@@ -33,8 +25,8 @@ void Quark::init(std::string vocabfile) {
 		string line;
 		int i = 0;
 		while (getline(word_dict, line)) {
-			// extract the word (removing any weight / other componetns after)
-	//		line.erase(std::find(line.begin(), line.end(), '\t'), line.end());
+	// 		extract the word (removing any weight / other componetns after)
+			line.erase(std::find(line.begin(), line.end(), '\t'), line.end());
 			line = toLowerCase(line);
 			if (isWord(line)) {
 				line = sanitizeText(line);
@@ -59,6 +51,16 @@ void Quark::init(std::string vocabfile) {
       		word2Vec.initNeuron(num_neurons, *it, p);
 	}
 
+}
+
+void Quark::readCommonWords(std::string commonwordsfile) {
+	ifstream infile (commonwordsfile);
+	std::string line;
+	if (infile.is_open()) {
+		while ( getline (infile, line) ) {
+			common_words.insert(line);
+		}
+	}
 }
 
 std::string Quark::sanitizeText(std::string str) {
@@ -125,6 +127,9 @@ void Quark::trainBySentence(string trainfile) {
 		// cout << "dit " << *dit << endl;
 		int s_index = 0;
 		for(std::vector<std::string>::iterator sit = ss_sentence.begin(); sit != ss_sentence.end(); ++sit) {
+  			if (common_words.count(*sit)) { 
+				continue;
+			}
 			int r = std::rand() + 11;
 			word2Vec.trainCBOW(s_index, sit, ss_sentence, neurons, vocab, r);
 			word2Vec.negSample(s_index, sit, ss_sentence, neurons, vocab);
@@ -147,6 +152,7 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 	quark.init(argv[1]);
+	quark.readCommonWords("common_words.txt");
 	quark.trainBySentence(argv[2]);
 	return 0;
 }

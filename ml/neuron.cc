@@ -27,14 +27,16 @@ namespace Neuron {
 		error = 0;
 		weight = 0;
 		int size = (*data).size();
-		//syn_in = new float[size];
-		//syn_out = new float[size];
-		//syn_out_neg = new float[size];
-		for (int i = 0; i < size; i++) {
+		syn_in = new float[size*2];
+		syn_out = new float[size*2];
+		syn_out_neg = new float[size*2];
+		/*
+		for (int i = 0; i < size*2; i++) {
 			syn_in.push_back(0);
 			syn_out.push_back(0);
 			syn_out_neg.push_back(0);
 		}
+		*/
 	}
 
 }

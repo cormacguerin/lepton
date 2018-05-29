@@ -1,10 +1,14 @@
 #ifndef _WORD2VEC_H_
 #define _WORD2VEC_H_
 
+#include <iostream>
 #include <string>
 #include <vector>
 #include <map>
 #include <math.h>
+//#include <cuda.h>
+//#include <cuda_runtime.h>
+#include <stdio.h>
 #include "neuron.h"
 
 class Word2Vec {

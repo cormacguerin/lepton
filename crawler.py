@@ -59,7 +59,11 @@ def crawl():
                 geturls.remove(url);
 
             # would be better to do this with curl maybe
-            r = requests.post("http://127.0.0.1:3000/addDocument?type=content", data=data, headers=headers)
+            try:
+                r = requests.post("http://127.0.0.1:3000/addDocument?type=content", data=data, headers=headers)
+            except Exception:
+                print('error')
+                continue
             print("url " + r.url + " : " + r.text)
 
     crawl()
@@ -75,7 +79,7 @@ def urlMatch(url):
 
 def getDomain(url):
     parsed_uri = urlparse(url)
-    domain = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri)
+    domain = '{uri.scheme}://{uri.netloc}'.format(uri=parsed_uri)
     return domain
 
 
@@ -158,6 +162,11 @@ def getUrl(url):
     c = pycurl.Curl()
     c.setopt(c.URL, url)
     c.setopt(c.WRITEDATA, buffer)
+    c.setopt(c.HTTPHEADER, [
+        'User-agent: KumaCrawl',
+        'accept:text/html,application/xhtml+xml,application/xml;',
+        'cache-control:max-age=0',
+        ])
     c.setopt(c.HEADERFUNCTION, headers.write)
     try:
         c.perform()

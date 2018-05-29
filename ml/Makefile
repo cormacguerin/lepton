@@ -29,7 +29,7 @@ COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES)
 LINKER = $(COMPILER) $(LINKOPTS)
 
 all: quark.o neuron.o word2vec.o
-	${LINKER} -o main quark.o neuron.o word2vec.o $(LD_FLAGS)
+	${LINKER} -o ml quark.o neuron.o word2vec.o $(LD_FLAGS)
 
 quark.o : quark.cc quark.h
 	${COMPILE} quark.cc
@@ -44,4 +44,4 @@ word2vec.o : word2vec.cc word2vec.h
 .PHONY: clean
 
 clean:
-	rm *.o main
+	rm *.o ml
