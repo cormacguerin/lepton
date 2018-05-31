@@ -9,8 +9,8 @@ INCLUDES = -I$(LOCALINC) -I$(REDISINC)
 #
 # Compiler and Linker Options.
 #
-COMPOPTS = -O0 -c -g -std=c++11 -lpthread
-LINKOPTS = -O0 -g -lstdc++ -lm -std=c++11 -lpthread -lcpp_redis
+COMPOPTS = -O0 -c -g -std=c++11 -std=c++1y -lpthread
+LINKOPTS = -O0 -g -lstdc++ -lm -std=c++11 -std=c++1y -lpthread -lcpp_redis -lpqxx -lpq
 
 #
 # Library Files

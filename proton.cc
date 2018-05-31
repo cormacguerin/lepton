@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <cpp_redis/cpp_redis>
+#include <pqxx/pqxx>
 #include <unistd.h>
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -11,6 +12,7 @@
 
 
 using namespace std;
+using namespace pqxx;
 
 cpp_redis::client client;
 
@@ -27,8 +29,21 @@ void Proton::init() {
 	SPS = "\xe2\x96\x81";
 	SPC = "~`!@#$%^&*()_-+=|\\}]{[\"':;?/>.<, ";
 	//char SPC = {'~', '`', '!', '@', '#' , '$', '%', '^', '&', '*', '(', ')', '_', '+', '|', '\\', '{', '}', ':', '"', '|', '<', '>', '?', '/', '.', ',', '\'', ';', ']', '[', '-', '='};
-	client.connect();
 	spp.init();
+
+//	client.connect();
+//
+	try {
+      connection C("dbname = index user = postgres password = FSa7+aE1vztVIUZiwAt03d4O7YO2Acm6YVyrGloDZKk= \
+      hostaddr = 127.0.0.1 port = 5432");
+      if (C.is_open()) {
+         cout << "Opened database successfully: " << C.dbname() << endl;
+      } else {
+         cout << "Can't open database" << endl;
+      }
+	} catch (const std::exception &e) {
+		cerr << e.what() << std::endl;
+	}
 }
 
 void Proton::processFeeds(std::string lang) {
@@ -48,7 +63,7 @@ void Proton::processFeeds(std::string lang) {
 	for (vector<string>::iterator it = docfeeds.begin(); it != docfeeds.end(); ++it) {
 		feed = "";
 		client.hget("doc_feed_" + lang, *it, [it, &feed](cpp_redis::reply& reply) {
-			if (reply != NULL) {
+			if (reply) {
 				feed = reply.as_string();
 			}
 		});

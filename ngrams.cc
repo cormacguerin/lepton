@@ -137,7 +137,7 @@ int main() {
   //
   // We are ok for ngrams with stop words in the middle,
   // eg. wizard of oz, 梅の花, over the moon.
-  // But thinks starting or ending with stopwords we remove.
+  // But things starting or ending with stopwords we remove.
   // eg. the smashing pumpkins = smashing punkins.
   //     the dark tower = dark tower
   //     top of the morning to you = top of the morning

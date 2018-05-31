@@ -15,8 +15,8 @@ int main(int argc, char** argv)
 	proton.init();
 
 	for (vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); ++lit) {
-	//	proton.processFeeds(*lit);
-		proton.exportVocab(*lit);
+		proton.processFeeds(*lit);
+	//	proton.exportVocab(*lit);
 	}
 	return 0;
 }
