@@ -2,11 +2,13 @@
 #define _PROTON_H_
 
 #include <string>
-#include "sentence_piece_processor.h"
+//#include "sentence_piece_processor.h"
+#include "segmenter.h"
 
 class Proton {
 	private:
-		SentencePieceProcessor spp;
+		// SentencePieceProcessor spp;
+		Segmenter seg;
 		char *SPS;
 		std::string SPC;
 

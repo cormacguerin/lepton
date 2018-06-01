@@ -29,10 +29,12 @@ void Proton::init() {
 	SPS = "\xe2\x96\x81";
 	SPC = "~`!@#$%^&*()_-+=|\\}]{[\"':;?/>.<, ";
 	//char SPC = {'~', '`', '!', '@', '#' , '$', '%', '^', '&', '*', '(', ')', '_', '+', '|', '\\', '{', '}', ':', '"', '|', '<', '>', '?', '/', '.', ',', '\'', ';', ']', '[', '-', '='};
-	spp.init();
+	// spp.init();
+	seg.init();
 
-//	client.connect();
-//
+	// this is a redis connection (were replacing this with postgres for the index)
+	//	client.connect();
+	// postgres connection
 	try {
       connection C("dbname = index user = postgres password = FSa7+aE1vztVIUZiwAt03d4O7YO2Acm6YVyrGloDZKk= \
       hostaddr = 127.0.0.1 port = 5432");
@@ -106,7 +108,10 @@ void Proton::indexDocument(string dockey, string rawdoc) {
 	string decoded_doc_body = base64_decode(doc_body);
 	// tokenize
 	vector<string> tokenized_doc_body;
-	spp.tokenize(decoded_doc_body, &tokenized_doc_body);
+	// this is the sentencepiece tokenizer
+	// spp.tokenize(decoded_doc_body, &tokenized_doc_body);
+	// this is the cormac tokenizer
+	seg.tokenize(decoded_doc_body, &tokenized_doc_body);
 	
 	// string to acumulate the text into one doc.
 	string bodytext = "";
