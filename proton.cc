@@ -36,13 +36,13 @@ void Proton::init() {
 	//	client.connect();
 	// postgres connection
 	try {
-      connection C("dbname = index user = postgres password = FSa7+aE1vztVIUZiwAt03d4O7YO2Acm6YVyrGloDZKk= \
-      hostaddr = 127.0.0.1 port = 5432");
-      if (C.is_open()) {
-         cout << "Opened database successfully: " << C.dbname() << endl;
-      } else {
-         cout << "Can't open database" << endl;
-      }
+		pqxx::Connection c("dbname = index user = postgres password = FSa7+aE1vztVIUZiwAt03d4O7YO2Acm6YVyrGloDZKk= \
+    	hostaddr = 127.0.0.1 port = 5432");
+    	if (c.is_open()) {
+    	   cout << "Opened database successfully: " << c.dbname() << endl;
+    	} else {
+    	   cout << "Can't open database" << endl;
+    	}
 	} catch (const std::exception &e) {
 		cerr << e.what() << std::endl;
 	}
