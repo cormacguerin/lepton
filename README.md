@@ -62,3 +62,7 @@ Deps.
 
  - build synonyms with electron.
  ./electron word.vocab.sorted
+
+
+# linker stuff for icu
+  g++  -o ngrams ngrams.cc  `/usr/bin/icu-config --ldflags --cppflags`

@@ -4,13 +4,16 @@
 #
 LOCALINC = /usr/local/include/
 REDISINC = /usr/local/include/cpp_redis/
-INCLUDES = -I$(LOCALINC) -I$(REDISINC)
+PQXXINC = /usr/include/pqxx/
+RAPIDJSONINC = /usr/include/rapidjson/
+INCLUDES = -I$(LOCALINC) -I$(REDISINC) -I$(PQXXINC) -I$(RAPIDJSONINC)
+ICUOPTS = `/usr/bin/icu-config --ldflags --cppflags`
 
 #
 # Compiler and Linker Options.
 #
-COMPOPTS = -O0 -c -g -std=c++11 -std=c++1y -lpthread
-LINKOPTS = -O0 -g -lstdc++ -lm -std=c++11 -std=c++1y -lpthread -lcpp_redis -lpqxx -lpq
+COMPOPTS = -O0 -c -g -std=c++11 -std=c++1y -lpthread -lpqxx -lpq
+LINKOPTS = -O0 -g -lstdc++ -lm -std=c++11 -std=c++1y -lpthread -lcpp_redis -lpqxx -lpq $(ICUOPTS)
 
 #
 # Library Files
@@ -36,8 +39,8 @@ CFLAGS    = ${INCLUDES}
 COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES) 
 LINKER = $(COMPILER) $(LINKOPTS)
 
-all: proton.o neutron.o base64.o sentence_piece_processor.o ngrams.o
-	${LINKER} -o atom proton.o neutron.o base64.o sentence_piece_processor.o ngrams.o $(LD_FLAGS)
+all: proton.o neutron.o base64.o sentence_piece_processor.o segmenter.o
+	${LINKER} -o atom proton.o neutron.o base64.o sentence_piece_processor.o segmenter.o $(LD_FLAGS)
 
 proton.o : proton.cc proton.h
 	${COMPILE} proton.cc
@@ -45,8 +48,8 @@ proton.o : proton.cc proton.h
 neutron.o : neutron.cc
 	${COMPILE} neutron.cc
 
-ngrams.o : ngrams.cc
-	${COMPILE} ngrams.cc
+segmenter.o : segmenter.cc segmenter.h
+	${COMPILE} segmenter.cc
 
 base64.o : base64.cc
 	${COMPILE} base64.cc base64.h

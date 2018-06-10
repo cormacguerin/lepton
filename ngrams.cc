@@ -139,7 +139,7 @@ int main() {
 	}
 
 	UErrorCode status = U_ZERO_ERROR;
-	BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("ja","JAPAN"), status);
+	BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("en","US"), status);
 	wordIterator->setText(uni_str);
 	int32_t p = wordIterator->first();
 	int32_t l = p;
@@ -172,6 +172,9 @@ int main() {
 
 	std::map<std::string,int> nGrams;
 	for (std::map<std::string, std::vector<int>>::iterator it = gramPositions.begin(); it != gramPositions.end(); it++ ) {
+
+	//	std::cout << " term : " << it->first << " : " << (it->second).size() << std::endl;
+
 		// do not process for single occurrences.
 		if ((it->second).size() > 1) {
 			for (std::vector<int>::iterator pit = it->second.begin(); pit != it->second.end(); pit++ ) {
@@ -185,7 +188,7 @@ int main() {
 						UnicodeString this_gram = grams.at(*pit+n);
 						this_gram.toUTF8String(converted_gram);
 						// skip ngrams ending in a stopword
-						if (n == 0 || n == N_GRAM_SIZE-1) {
+						if (n == 0) {
 							if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted_gram) != ja_stop_words.end() ) {
 								n++;
 								continue;
@@ -205,6 +208,16 @@ int main() {
 							n++;
 							continue;
 						} else {
+							if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted_gram) != ja_stop_words.end() ) {
+								n++;
+								continue;
+							} else if ( std::find(en_stop_words.begin(), en_stop_words.end(), converted_gram) != en_stop_words.end() ) {
+								n++;
+								continue;
+							} else if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted_gram) != ascii_spec.end() ) {
+								n++;
+								continue;
+							}
 							tmp.toUTF8String(converted);
 							trim(converted);
 							nGrams[converted]++;

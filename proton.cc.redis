@@ -3,12 +3,14 @@
 #include <fstream>
 #include <cpp_redis/cpp_redis>
 #include <unistd.h>
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 #include "base64.h"
 #include <algorithm>
 
 
 using namespace std;
-using namespace pqxx;
 
 cpp_redis::client client;
 
@@ -25,58 +27,37 @@ void Proton::init() {
 	SPS = "\xe2\x96\x81";
 	SPC = "~`!@#$%^&*()_-+=|\\}]{[\"':;?/>.<, ";
 	//char SPC = {'~', '`', '!', '@', '#' , '$', '%', '^', '&', '*', '(', ')', '_', '+', '|', '\\', '{', '}', ':', '"', '|', '<', '>', '?', '/', '.', ',', '\'', ';', ']', '[', '-', '='};
-	// spp.init();
-	seg.init();
-
-	// this is a redis connection (were replacing this with postgres for the index)
-	//	client.connect();
-	// postgres connection
-	try {
-		C = new pqxx::connection("dbname = index user = postgres password = FSa7+aE1vztVIUZiwAt03d4O7YO2Acm6YVyrGloDZKk= hostaddr = 127.0.0.1 port = 5432");
-    	if (C->is_open()) {
-    	   cout << "Opened database successfully: " << C->dbname() << endl;
-    	} else {
-    	   cout << "Can't open database" << endl;
-    	}
-	} catch (const std::exception &e) {
-		cerr << e.what() << std::endl;
-	}
+	client.connect();
+	spp.init();
 }
 
 void Proton::processFeeds(std::string lang) {
 	cout << "process feeds for " << lang << endl;
 
-	C->prepare("process", "SELECT * FROM docs ORDER BY index_date NULLS FIRST LIMIT $1");
-	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("process")("200").exec();
-	txn.commit();
+	vector<string> docfeeds;
 
-	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-//		for (pqxx::row::const_iterator field = row->begin(); field != row->end(); ++field) {
-//			std::cout << field->c_str() << std::endl;
-//		}
-		const pqxx::field url = (row)[0];
-		const pqxx::field feed = (row)[1];
-		std::cout << " - - - - - " << std::endl;
-		std::cout << "url : " << url.c_str() << std::endl;
-	//	std::cout << "feed : " << feed.c_str() << std::endl;
-		std::cout << "lang : " << lang.c_str() << std::endl;
-		if (url.is_null()) {
-			std::cout << "skip : url is null" << std::endl;;
-			continue;
+	client.smembers("doc_id_" + lang, [&docfeeds](cpp_redis::reply& reply) {
+			for (auto k: reply.as_array()) {
+				docfeeds.push_back(k.as_string());
+			}
+	});
+
+	client.sync_commit();
+
+	string feed;
+	for (vector<string>::iterator it = docfeeds.begin(); it != docfeeds.end(); ++it) {
+		feed = "";
+		client.hget("doc_feed_" + lang, *it, [it, &feed](cpp_redis::reply& reply) {
+			if (reply != NULL) {
+				feed = reply.as_string();
+			}
+		});
+		client.sync_commit();
+		if (feed != "") {
+			std::cout << "start processing for " << *it << std::endl;
+			indexDocument(*it, feed);
 		}
-		if (feed.is_null()) {
-			std::cout << "skip : feed is null" << std::endl;;
-			continue;
-		}
-		if (lang.empty()) {
-			std::cout << "skip : lang is null" << std::endl;;
-			continue;
-		}
-	
-		indexDocument(url.c_str(), feed.c_str(), lang);
 	}
-
 }
 
 
@@ -87,7 +68,7 @@ void Proton::processFeeds(std::string lang) {
  * - base64 decode the encoded contents.
  * - segment the body
  */
-void Proton::indexDocument(string dockey, string rawdoc, string lang) {
+void Proton::indexDocument(string dockey, string rawdoc) {
 	// create main json doc and load rawdoc into it.
 	rapidjson::Document doc;
 	const char *cstr = rawdoc.c_str();
@@ -110,10 +91,66 @@ void Proton::indexDocument(string dockey, string rawdoc, string lang) {
 	string decoded_doc_body = base64_decode(doc_body);
 	// tokenize
 	vector<string> tokenized_doc_body;
-	// this is the sentencepiece tokenizer
-	// spp.tokenize(decoded_doc_body, &tokenized_doc_body);
-	// this is the cormac tokenizer
-	seg.parse(dockey, lang, decoded_doc_body);
+	spp.tokenize(decoded_doc_body, &tokenized_doc_body);
+	
+	// string to acumulate the text into one doc.
+	string bodytext = "";
+	// map for counting word occurrences.
+	std::map<std::string, int> seg_weights;
+
+	for(std::vector<std::string>::iterator it = tokenized_doc_body.begin(); it != tokenized_doc_body.end(); ++it) {
+
+		// concat unparsed(original) body text
+		bodytext = bodytext + *it;
+		// convert to lowercase
+		std::transform((*it).begin(), (*it).end(), (*it).begin(), ::tolower);
+		// remove sentencepiece leading space
+		if (isSPS((*it).at(0))) {
+			(*it).erase(0, 3);
+		}
+		// remove stop words
+		// normalize stems
+		// remove special characters.
+		for (int i=0; i < sizeof(SPC); i++) {
+			const char *a = (*it).c_str();
+			for (int j=(*it).size(); j>=0; j--) {
+				if (a[j] == SPC[i]) {
+					/*
+					cout << "*it " << *it << endl;
+					cout << "a[j] " << a[j] << endl;
+					cout << "SPC[i] " << SPC[i] << endl;
+					cout << "erase at j = " << j << endl;
+					*/
+					(*it).erase(j, 1);
+					/*
+					cout << "*it " << *it << endl;
+					cout << " - - -  " << endl;
+					*/
+				}
+			}
+		}
+		// replace occurrence of SP spaces with real spaces.
+		//std::replace( (*it).begin(), (*it).end(), '\xe2\x96\x81', ' ');
+		// build the full segmented body and add it to redis.
+		std::vector<string> key;
+		key.push_back(dockey);
+		client.sadd((*it).c_str(), key, [](cpp_redis::reply& reply) {
+		});
+		// add a weight for this term.
+		if (seg_weights.count(*it) == 1) {
+			seg_weights.at(*it) = seg_weights.at(*it)+1;
+		} else {
+			seg_weights.insert(std::pair<string,int>(*it,1));
+		}
+	}
+	/*
+	for (map<string, int>::iterator m = seg_weights.begin(); m != seg_weights.end(); ++m) {
+		cout << m->first << endl;
+		cout << m->second << endl;
+	}
+	*/
+	client.sync_commit();
+	//cout << bodytext << endl;
 }
 
 bool Proton::isSPS(char firstchar) {
