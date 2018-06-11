@@ -14,8 +14,15 @@ Segmenter::~Segmenter()
 }
 
 void Segmenter::init() {
+	
 	//sentencepiece::Segmenter processor;
 	//spec = processor.model_proto().normalizer_spec();
+
+	std::ifstream ascii_spec_dict("data/ascii_special_characters.txt");
+	std::ifstream uni_spec_dict("data/unicode_special_chars.txt");
+	std::ifstream ja_stop_words_dict("data/japanese_stop_words.txt");
+	std::ifstream en_stop_words_dict("data/english_stop_words.txt");
+
 	try {
 		C = new pqxx::connection("dbname = index user = postgres password = FSa7+aE1vztVIUZiwAt03d4O7YO2Acm6YVyrGloDZKk= hostaddr = 127.0.0.1 port = 5432");
       if (C->is_open()) {
@@ -26,32 +33,6 @@ void Segmenter::init() {
 	} catch (const std::exception &e) {
 		std::cerr << e.what() << std::endl;
 	}
-}
-
-
-void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
-
-	// this is a redis connection (were replacing this with postgres for the index)
-	//	client.connect();
-	// postgres connection
-	std::cout << "INFO : Start parsing for " << url << std::endl;
-
-	/*
-	std::ifstream input("input.txt");
-
-	std::string str_in((std::istreambuf_iterator<char>(input)),
-			std::istreambuf_iterator<char>());
-	*/
-
-	// convert to lowercase
-	std::transform((str_in).begin(), (str_in).end(), (str_in).begin(), ::tolower);
-
-	UnicodeString uni_str = str_in.c_str();
-
-	std::ifstream ascii_spec_dict("data/ascii_special_characters.txt");
-	std::ifstream uni_spec_dict("data/unicode_special_chars.txt");
-	std::ifstream ja_stop_words_dict("data/japanese_stop_words.txt");
-	std::ifstream en_stop_words_dict("data/english_stop_words.txt");
 
 	std::string line;
 
@@ -86,6 +67,31 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 			std::cout << "Exception in getUnigrams: " << e.what() << std::endl;
 		}
 	}
+
+}
+
+
+void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
+
+	std::map<std::string,std::vector<int>> gramPositions;
+	std::vector<UnicodeString> grams;
+
+	// this is a redis connection (were replacing this with postgres for the index)
+	//	client.connect();
+	// postgres connection
+	std::cout << "INFO : Start parsing for " << url << std::endl;
+
+	/*
+	std::ifstream input("input.txt");
+
+	std::string str_in((std::istreambuf_iterator<char>(input)),
+			std::istreambuf_iterator<char>());
+	*/
+
+	// convert to lowercase
+	std::transform((str_in).begin(), (str_in).end(), (str_in).begin(), ::tolower);
+
+	UnicodeString uni_str = str_in.c_str();
 
 	UErrorCode status = U_ZERO_ERROR;
 	// BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("ja","JAPAN"), status);
@@ -208,6 +214,7 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 	docngrams.Parse("{}");
 	rapidjson::Document::AllocatorType& allocator = docngrams.GetAllocator();
 
+	pqxx::work txn_(*C);
 	for (std::map<std::string, int>::iterator git = nGrams.begin(); git != nGrams.end(); git++ ) {
 		if (git->second > 1) {
 			if (std::next(git) != nGrams.end()) {
@@ -224,6 +231,7 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 							// std::cout << git->first << " " << git->second << std::endl;
 							rapidjson::Value k((trim(git->first).c_str()), allocator);
 							docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
+							txn_.exec(update_grams_table(url, trim(git->first).c_str(), git->second));
 						} else {
 							// the next one is a longer maching candidate so skip this one.
 							continue;
@@ -233,33 +241,32 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 						// std::cout << git->first << " " << git->second << std::endl;
 						rapidjson::Value k((trim(git->first).c_str()), allocator);
 						docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
+						txn_.exec(update_grams_table(url, trim(git->first).c_str(), git->second));
 					}
 				} else {
 					// the next one has a greater length
 					// std::cout << git->first << " " << git->second << std::endl;
 					rapidjson::Value k((trim(git->first).c_str()), allocator);
 					docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
+					txn_.exec(update_grams_table(url, trim(git->first).c_str(), git->second));
 				}
 			}
 		}
 	}
+	txn_.commit();
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
 
-	C->prepare("update_docs", "UPDATE docs SET (index_date, segmented_grams) = (NOW(), $2) WHERE url = $1;");
 	pqxx::work txn(*C);
-	//pqxx::result r = txn.prepared("update_docs")(txn.quote(url))(buffer.GetString()).exec();
-	//
-	//txn.exec("UPDATE docs SET index_date=NOW() WHERE url=" + txn.quote(url) + ";");
-	//std::string update = "UPDATE docs SET index_date=NOW() WHERE url='" + url + "';";
-	std::string update = "UPDATE docs SET (index_date, segmented_grams) = (NOW(), " 
+
+	std::string update = "UPDATE docs SET (index_date, segmented_grams) = (NOW(), "
 		+ txn.quote((std::string)buffer.GetString())
-		+ ") WHERE url='" 
-		+ url 
+		+ ") WHERE url='"
+		+ url
 		+ "';";
-	std::cout << "update : " << update << std::endl;
 	txn.exec(update);
+
 	txn.commit();
 	//std::cout << r.size() << std::endl;
 	std::cout << "INFO : indexed " << std::endl;
@@ -267,6 +274,25 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 	delete wordIterator;
 }
 
+std::string Segmenter::update_grams_table(std::string url, std::string gram, int c) {
+
+	pqxx::work txn(*C);
+	std::string update_grams = "INSERT INTO grams (url, gram, count) VALUES ('"
+		+ url + "'," 
+		+ txn.quote(gram) + ","
+		+ std::to_string(c) + ")"
+		+ " ON CONFLICT ON CONSTRAINT grams_pkey DO UPDATE SET count = "
+		+ std::to_string(c)
+		+ " WHERE 'url' = '"
+		+ url
+		+ "' AND 'gram' = "
+		+ txn.quote(gram)
+		+ ";";
+	// std::cout << update_grams << std::endl;
+//	txn.exec(update_grams);
+//	txn.commit();
+	return update_grams;
+}
 
 void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {
 }

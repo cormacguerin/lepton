@@ -9,8 +9,11 @@ CREATE TABLE docs (
 	segmented_grams jsonb
 );
 
-CREATE TABLE ngrams (
-	gram VARCHAR(1024) PRIMARY KEY,
-	count integer
+CREATE TABLE grams (
+	id SERIAL,
+	url VARCHAR(2048) NOT NULL,
+	gram VARCHAR(1024) NOT NULL,
+	count integer NOT NULL,
+	primary key (url, gram)
 );
 

@@ -26,8 +26,6 @@
 class Segmenter {
 	private:
 		std::string str_in;
-		std::map<std::string,std::vector<int>> gramPositions;
-		std::vector<UnicodeString> grams;
 		std::vector<std::string> uni_spec;
 		std::vector<std::string> ascii_spec;
 		std::vector<std::string> ja_stop_words;
@@ -39,6 +37,7 @@ class Segmenter {
 		~Segmenter();
 		void init();
 		void parse(std::string lang, std::string url, std::string str_in);
+		std::string update_grams_table(std::string url, std::string gram, int c);
 		void tokenize(std::string text, std::vector<std::string> *pieces);
 		void detokenize(std::vector<std::string> pieces, std::string text);
 };
