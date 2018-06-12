@@ -214,7 +214,6 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 	docngrams.Parse("{}");
 	rapidjson::Document::AllocatorType& allocator = docngrams.GetAllocator();
 
-	pqxx::work txn_(*C);
 	for (std::map<std::string, int>::iterator git = nGrams.begin(); git != nGrams.end(); git++ ) {
 		if (git->second > 1) {
 			if (std::next(git) != nGrams.end()) {
@@ -231,7 +230,7 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 							// std::cout << git->first << " " << git->second << std::endl;
 							rapidjson::Value k((trim(git->first).c_str()), allocator);
 							docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-							txn_.exec(update_grams_table(url, trim(git->first).c_str(), git->second));
+							update_grams_table(url, trim(git->first).c_str(), git->second);
 						} else {
 							// the next one is a longer maching candidate so skip this one.
 							continue;
@@ -241,19 +240,18 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 						// std::cout << git->first << " " << git->second << std::endl;
 						rapidjson::Value k((trim(git->first).c_str()), allocator);
 						docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-						txn_.exec(update_grams_table(url, trim(git->first).c_str(), git->second));
+						update_grams_table(url, trim(git->first).c_str(), git->second);
 					}
 				} else {
 					// the next one has a greater length
 					// std::cout << git->first << " " << git->second << std::endl;
 					rapidjson::Value k((trim(git->first).c_str()), allocator);
 					docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-					txn_.exec(update_grams_table(url, trim(git->first).c_str(), git->second));
+					update_grams_table(url, trim(git->first).c_str(), git->second);
 				}
 			}
 		}
 	}
-	txn_.commit();
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
@@ -277,20 +275,15 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 std::string Segmenter::update_grams_table(std::string url, std::string gram, int c) {
 
 	pqxx::work txn(*C);
-	std::string update_grams = "INSERT INTO grams (url, gram, count) VALUES ('"
-		+ url + "'," 
-		+ txn.quote(gram) + ","
-		+ std::to_string(c) + ")"
-		+ " ON CONFLICT ON CONSTRAINT grams_pkey DO UPDATE SET count = "
-		+ std::to_string(c)
-		+ " WHERE 'url' = '"
-		+ url
-		+ "' AND 'gram' = "
-		+ txn.quote(gram)
-		+ ";";
-	// std::cout << update_grams << std::endl;
-//	txn.exec(update_grams);
-//	txn.commit();
+	std::string update_grams = "INSERT INTO grams (url_id, gram, count) VALUES (" 
+		" (SELECT id FROM docs WHERE url = '" + url + "')," + txn.quote(gram) + "," + std::to_string(c) + ")"
+		+ " ON CONFLICT ON CONSTRAINT grams_pkey DO UPDATE SET count = " + std::to_string(c)
+		+ " WHERE grams.url_id = (SELECT id FROM docs WHERE url = '" + url + "') "
+		+ " AND 'gram' = " + txn.quote(gram)
+		+ " ;";
+	std::cout << update_grams << std::endl;
+	txn.exec(update_grams);
+	txn.commit();
 	return update_grams;
 }
 

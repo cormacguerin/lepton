@@ -55,8 +55,8 @@ void Proton::processFeeds(std::string lang) {
 //		for (pqxx::row::const_iterator field = row->begin(); field != row->end(); ++field) {
 //			std::cout << field->c_str() << std::endl;
 //		}
-		const pqxx::field url = (row)[0];
-		const pqxx::field feed = (row)[1];
+		const pqxx::field url = (row)[1];
+		const pqxx::field feed = (row)[2];
 		std::cout << " - - - - - " << std::endl;
 		std::cout << "url : " << url.c_str() << std::endl;
 	//	std::cout << "feed : " << feed.c_str() << std::endl;

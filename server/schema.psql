@@ -1,5 +1,6 @@
 CREATE TABLE docs (
-	url VARCHAR(2048) PRIMARY KEY,
+	id SERIAL PRIMARY KEY,
+	url VARCHAR(2048) NOT NULL UNIQUE,
 	feed jsonb,
 	docscore real,
     lang VARCHAR(2),
@@ -10,10 +11,14 @@ CREATE TABLE docs (
 );
 
 CREATE TABLE grams (
-	id SERIAL,
-	url VARCHAR(2048) NOT NULL,
+	url_id INT4 NOT NULL REFERENCES docs (id),
 	gram VARCHAR(1024) NOT NULL,
 	count integer NOT NULL,
-	primary key (url, gram)
+	primary key (url_id, gram)
 );
+
+# Notes.
+# Use unique id serial as primary key, this has performance gains.
+# deduplication by reference as below. Should help performance and row size when we hit billions/trillions.
+# https://stackoverflow.com/questions/14753155/how-well-is-postgres-handling-duplicates
 
