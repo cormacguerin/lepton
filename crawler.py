@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
-import pycurl
-import json
 import base64
-import requests
-import urllib
 import datetime
+import json
+import pycurl
 import re
+import requests
+import threading
+import urllib
 from io import BytesIO
 from io import StringIO
 from bs4 import BeautifulSoup
 from bs4.element import Comment
 from urlmatch import urlmatch
+from multiprocessing.dummy import Pool as ThreadPool
+
 #from urllib.parse import urlparse
 try:
     from urllib.parse import urlparse
@@ -22,6 +25,7 @@ starturls = []
 urlpatterns = []
 geturls = set([])
 goturls = set([])
+num_threads = 8
 
 def main():
     for line in open('patterns.urls', 'r').readlines():
@@ -39,7 +43,21 @@ def crawl():
     else:
         urls = geturls.copy()
 
-    for url in urls:
+#  my way .. to do threading below but the threadpool seems nice too
+#  so leaving that for now.
+#
+#    for t in range(num_threads):
+#        if (urls):
+#            runCrawl(urls.pop(0))
+
+    pool = ThreadPool(num_threads) 
+    results = pool.map(runCrawl, urls)
+    print(results);
+
+    crawl()
+
+
+def runCrawl(url):
         url = sanitizeString(url);
         print('processing url ' + url)
         try:
@@ -47,7 +65,7 @@ def crawl():
         except Exception:
             # we should set this to an error code and then mark for no recrawl
             geturls.remove(url);
-            continue
+            return
         if urldata:
             body = urldata.body
             head = urldata.head
@@ -69,10 +87,9 @@ def crawl():
                 r = requests.post("http://127.0.0.1:3000/addDocument?type=content", data=data, headers=headers)
             except Exception:
                 print('error')
-                continue
+                return
             print("url " + r.url + " : " + r.text)
 
-    crawl()
 
 
 def urlMatch(url):
@@ -161,6 +178,7 @@ def buildPayload(url, soup, head):
     data = {url:urldata}
     json_data = json.dumps(data)
     return json_data
+
 
 def getUrl(url):
     buffer = BytesIO()

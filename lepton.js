@@ -47,61 +47,63 @@ app.use(bodyParser.raw({type:'image/jpeg',limit: '5mb'}));
 app.post('/addDocument', function(req, res, next) {
 	var queryData = url.parse(req.url, true).query;
 	if (queryData.type == "content") {
-		console.log(req.body);
-		if (req.body){
+		if (req.body) {
 			var docs = req.body;
-                        var hasError = false;
+            var hasError = false;
 			//multi = client.multi();
 			for (var i in docs) {
 				if (docs.hasOwnProperty(i)) {
-                                        var doc_feed_lang = "unknown";
-                                        var doc_id_lang = "unknown";
+                    var doc_feed_lang = "unknown";
+                    var doc_id_lang = "unknown";
 					switch (docs[i].crawl_language) {
 						case "en":
-                                                        doc_feed_lang = "en";
-                                                        doc_id_lang = "en";
+							doc_feed_lang = "en";
+							doc_id_lang = "en";
 						case "ja":
-                                                        doc_feed_lang = "ja";
-                                                        doc_id_lang = "ja";
+							doc_feed_lang = "ja";
+							doc_id_lang = "ja";
 					}
-                                        (async () => {
-                                          console.log(docs[i]);
-                                                const client = await pool.connect()
-                                                try {
-			  			        //multi.hset("doc_feed_ja", i, JSON.stringify(docs[i]));
-						        //multi.sadd("doc_id_ja", i);
-                                                        const reply = 
-                                                            await client.query("INSERT INTO docs(url, feed, lang, crawl_date)"
-                                                                + " VALUES("
-                                                                + "\'" + i + "\',"
-                                                                + "\'" + JSON.stringify(docs[i]) + "\'," 
-                                                                + "\'" + docs[i].crawl_language + "\',"
-                                                                + "NOW()"
-                                                                + ");");
-                                                        console.log("reply " + reply.rows[0]);
-                                                } finally {
-                                                        client.release()
-                                                }
-                                        })().catch(
-                                                e => {
-                                                        console.log(e.stack);
-                                                        hasError = true;
-                                                }
-                                        )
+					(async () => {
+						const client = await pool.connect()
+						try {
+							var insert_doc = "INSERT INTO docs(url, feed, lang, crawl_date)"
+								+ " VALUES("
+								+ "\'" + i + "\',"
+								+ "\'" + JSON.stringify(docs[i]) + "\',"
+								+ "\'" + docs[i].crawl_language + "\',"
+								+ "NOW()) ON CONFLICT ON CONSTRAINT docs_url_key DO UPDATE SET feed = "
+								+ "\'" + JSON.stringify(docs[i]) + "\', lang = "
+								+ "\'" + docs[i].crawl_language + "\', crawl_date = NOW() WHERE docs.url = "
+								+ "\'" + i + "\';";
+							// console.log(insert_doc);
+							const reply = await client.query(insert_doc);
+							for (r in reply) {
+								console.log("r : " + r);
+							}
+							console.log("i : " + i);
+						} finally {
+							client.release()
+						}
+					})().catch(
+						e => {
+							console.log(e.stack);
+							hasError = true;
+						}
+					)
 				}
 			}
-                        if (hasError) {
-                                res.status(503);
-                                return res.json({
-                                        "status":"failed",
-                                        "error":e.stack
-                                });
-                        } else {
-                                res.status(200);
-                                res.json({
-                                        "status":"successful"
-                                });
-                        } 
+			if (hasError) {
+					res.status(503);
+					return res.json({
+							"status":"failed",
+							"error":e.stack
+					});
+			} else {
+					res.status(200);
+					res.json({
+							"status":"successful"
+					});
+			}
 		}
 	}
 });

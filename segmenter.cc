@@ -281,7 +281,7 @@ std::string Segmenter::update_grams_table(std::string url, std::string gram, int
 		+ " WHERE grams.url_id = (SELECT id FROM docs WHERE url = '" + url + "') "
 		+ " AND 'gram' = " + txn.quote(gram)
 		+ " ;";
-	std::cout << update_grams << std::endl;
+	//std::cout << update_grams << std::endl;
 	txn.exec(update_grams);
 	txn.commit();
 	return update_grams;
