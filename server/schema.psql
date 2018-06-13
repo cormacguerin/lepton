@@ -3,8 +3,8 @@ CREATE TABLE docs (
 	url VARCHAR(2048) NOT NULL UNIQUE,
 	feed jsonb,
 	docscore real,
-    lang VARCHAR(2),
-    crawl_date TIMESTAMP,
+	lang VARCHAR(2),
+	crawl_date TIMESTAMP,
     index_date TIMESTAMP,
 	segmented_text text,
 	segmented_grams jsonb

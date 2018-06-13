@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <numeric>
 #include <pqxx>
 
 class Segmenter {

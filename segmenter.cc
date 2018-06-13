@@ -74,6 +74,8 @@ void Segmenter::init() {
 void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 
 	std::map<std::string,std::vector<int>> gramPositions;
+	std::map<std::vector<std::string>, int> gramCandidates;
+	std::vector<std::string> gramWindow;
 	std::vector<UnicodeString> grams;
 
 	// this is a redis connection (were replacing this with postgres for the index)
@@ -106,6 +108,7 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 
 	while (p != BreakIterator::DONE) {
 		// printf("Boundary at position %d\n", p);
+		bool isStopWord = false;
 		p = wordIterator->next();
 		std::string converted;
 		UnicodeString tmp = uni_str.tempSubString(l,p-l);
@@ -119,8 +122,10 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 			continue;
 		}
 		if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted) != ja_stop_words.end() ) {
+			isStopWord = true;
 			ja_stop_words_count++;
 		} else if ( std::find(en_stop_words.begin(), en_stop_words.end(), converted) != en_stop_words.end() ) {
+			isStopWord = true;
 			en_stop_words_count++;
 		}
 		// insert the vector occurrence position.
@@ -130,47 +135,58 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 		}
 		UnicodeString uc = UnicodeString::fromUTF8(converted);
 		grams.push_back(uc);
+//		std::cout << "gramPositions[converted].size() " << gramPositions[converted].size() << " : " << converted << std::endl;
+//		std::cout << "isStopWord : " << isStopWord << std::endl;
+		if (gramPositions[converted].size() == 0 && isStopWord == true) {
+			i++;
+			continue;
+		}
 		gramPositions[converted].push_back(i);
+		// This solution seems to be slower in my benchmarking...
+		// I really thought it would be faster but actually just looping
+		// the positions as further down seems to be a better algorithm.
+		/*
+		gramWindow.push_back(converted);
+		if (gramWindow.size() > N_GRAM_SIZE) {
+			gramWindow.erase(gramWindow.begin());
+		}
+		std::vector<std::string> tmpgram;
+		for (std::vector<std::string>::iterator it = gramWindow.begin(); it != gramWindow.end(); it++) {
+			tmpgram.push_back(*it);
+			gramCandidates[tmpgram]++;
+		}
+		*/
 		i++;
 	}
 	std::cout << "INFO : no. grams found " << gramPositions.size() << std::endl;
 
 	std::cout << "en stop cont " << en_stop_words_count << std::endl;
 	std::cout << "ja stop cont " << ja_stop_words_count << std::endl;
-	std::map<std::string,int> nGrams;
 	// this loop is very slow, I wonder if we just created a new map for all ngram candidates..
-	for (std::map<std::string, std::vector<int>>::iterator it = gramPositions.begin(); it != gramPositions.end(); it++ ) {
+	
+	for (std::map<std::string, std::vector<int>>::iterator it = gramPositions.begin(); it != gramPositions.end(); it++) {
 		// do not process for single occurrences.
 		if ((it->second).size() > 1) {
 			for (std::vector<int>::iterator pit = it->second.begin(); pit != it->second.end(); pit++ ) {
+				std::vector<std::string> tmpgram;
 				std::string converted_gram;
-				UnicodeString tmp;
 				UnicodeString this_gram = grams.at(*pit);
 				this_gram.toUTF8String(converted_gram);
-				// skip ngrams ending in a stopword
-				if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted_gram) != ja_stop_words.end() ) {
-					continue;
-				} else if ( std::find(en_stop_words.begin(), en_stop_words.end(), converted_gram) != en_stop_words.end() ) {
-					continue;
-				} else if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted_gram) != ascii_spec.end() ) {
-					continue;
-				}
-				int n = 1;
+				int n = 0;
 				while (n < N_GRAM_SIZE) {
+					UnicodeString tmp;
 					if (*pit < grams.size() - N_GRAM_SIZE) {
 						std::string converted;
 						std::string converted_gram;
 						UnicodeString this_gram = grams.at(*pit+n);
 						this_gram.toUTF8String(converted_gram);
 						// skip ngrams ending in a stopword
-						tmp += grams.at(*pit+n);
-						if (IS_CJK == false) {
-							tmp += " ";
-						}
+						tmp = grams.at(*pit+n);
 						if (converted_gram.empty()) {
 							n++;
 							continue;
 						} else {
+							// skip ngrams ending in a stopword
 							if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted_gram) != ja_stop_words.end() ) {
 								n++;
 								continue;
@@ -183,7 +199,8 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 							}
 							tmp.toUTF8String(converted);
 							trimInPlace(converted);
-							nGrams[converted]++;
+							tmpgram.push_back(converted);
+							gramCandidates[tmpgram]++;
 						}
 					}
 					n++;
@@ -191,10 +208,11 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 			}
 		}
 	}
-	std::cout << "INFO : no. ngrams found " << nGrams.size() << std::endl;
+	
+	std::cout << "INFO : no. ngrams found " << gramCandidates.size() << std::endl;
 
 	// At this point we have a map of nGram candidates and a map of words/terms/unigrams
-	// We perform some reduction on the nGrams (we only want the largest unique
+	// We perform some reduction on the gramCandidates (we only want the largest unique
 	// matches)
 	// eg. 3 instances of aAbBcC and we find 3 instances of each aA aAbB aAbBcC we
 	// want to remove aA and aAbB if there are no separate matches for these.
@@ -214,40 +232,43 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 	docngrams.Parse("{}");
 	rapidjson::Document::AllocatorType& allocator = docngrams.GetAllocator();
 
-	for (std::map<std::string, int>::iterator git = nGrams.begin(); git != nGrams.end(); git++ ) {
+	for (std::map<std::vector<std::string>, int>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
 		if (git->second > 1) {
-			if (std::next(git) != nGrams.end()) {
+			if (std::next(git) != gramCandidates.end()) {
 				//   std::cout << " - - - - " << std::endl;
 				//   std::cout << "current " << git->first << " " << git->second << std::endl;
 				//   std::cout << "next " << std::next(git)->first << " " << std::next(git)->second << std::endl;
-				int nextlen = (std::next(git)->first).length();
-				int currentlen = (git->first).length();
+				int nextlen = (std::next(git)->first).size();
+				int currentlen = (git->first).size();
 				// if the next match is longer maybe we should use that instead.
+				std::string gram;
+				for (auto const& s : git->first) { 
+					gram += s; 
+					if (IS_CJK == false) {
+						gram += " ";
+					}
+				}
 				if (nextlen >= currentlen) {
-					if ((std::next(git)->first).substr(0,currentlen) == git->first) {
+					if ((std::next(git)->first).at(currentlen-1) == (git->first).back()) {
 						if ((std::next(git)->second != git->second)) {
 							// the next one has less matches so this one is still valid. Add!
 							// std::cout << git->first << " " << git->second << std::endl;
-							rapidjson::Value k((trim(git->first).c_str()), allocator);
+							rapidjson::Value k((trim(gram).c_str()), allocator);
 							docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-							update_grams_table(url, trim(git->first).c_str(), git->second);
+							update_grams_table(url, trim(gram).c_str(), git->second);
 						} else {
 							// the next one is a longer maching candidate so skip this one.
 							continue;
 						}
 					} else {
-						// the next one is not matching meaning this is the last match. Add!
-						// std::cout << git->first << " " << git->second << std::endl;
-						rapidjson::Value k((trim(git->first).c_str()), allocator);
+						rapidjson::Value k((trim(gram).c_str()), allocator);
 						docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-						update_grams_table(url, trim(git->first).c_str(), git->second);
+						update_grams_table(url, trim(gram).c_str(), git->second);
 					}
 				} else {
-					// the next one has a greater length
-					// std::cout << git->first << " " << git->second << std::endl;
-					rapidjson::Value k((trim(git->first).c_str()), allocator);
+					rapidjson::Value k((trim(gram).c_str()), allocator);
 					docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-					update_grams_table(url, trim(git->first).c_str(), git->second);
+					update_grams_table(url, trim(gram).c_str(), git->second);
 				}
 			}
 		}
