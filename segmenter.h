@@ -32,6 +32,7 @@ class Segmenter {
 		std::vector<std::string> ja_stop_words;
 		std::vector<std::string> en_stop_words;
 		pqxx::connection* C;
+		pqxx::work* txn;
 
 	public:
 		Segmenter();

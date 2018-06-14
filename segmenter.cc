@@ -72,7 +72,10 @@ void Segmenter::init() {
 
 
 void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
+	// postgres worker
+	pqxx::work txn(*C);
 
+	// temp containsers we use for processing
 	std::map<std::string,std::vector<int>> gramPositions;
 	std::map<std::vector<std::string>, int> gramCandidates;
 	std::vector<std::string> gramWindow;
@@ -143,7 +146,7 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 		}
 		gramPositions[converted].push_back(i);
 		// This solution seems to be slower in my benchmarking...
-		// I really thought it would be faster but actually just looping
+		// I really thought it would be faster but actually looping
 		// the positions as further down seems to be a better algorithm.
 		/*
 		gramWindow.push_back(converted);
@@ -255,7 +258,7 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 							// std::cout << git->first << " " << git->second << std::endl;
 							rapidjson::Value k((trim(gram).c_str()), allocator);
 							docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-							update_grams_table(url, trim(gram).c_str(), git->second);
+							txn.exec(update_grams_table(url, txn.quote(trim(gram).c_str()), git->second));
 						} else {
 							// the next one is a longer maching candidate so skip this one.
 							continue;
@@ -263,12 +266,12 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 					} else {
 						rapidjson::Value k((trim(gram).c_str()), allocator);
 						docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-						update_grams_table(url, trim(gram).c_str(), git->second);
+						txn.exec(update_grams_table(url, txn.quote(trim(gram)).c_str(), git->second));
 					}
 				} else {
 					rapidjson::Value k((trim(gram).c_str()), allocator);
 					docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-					update_grams_table(url, trim(gram).c_str(), git->second);
+					txn.exec(update_grams_table(url, txn.quote(trim(gram).c_str()), git->second));
 				}
 			}
 		}
@@ -277,7 +280,7 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
 
-	pqxx::work txn(*C);
+	//pqxx::work txn(*C);
 
 	std::string update = "UPDATE docs SET (index_date, segmented_grams) = (NOW(), "
 		+ txn.quote((std::string)buffer.GetString())
@@ -295,16 +298,12 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 
 std::string Segmenter::update_grams_table(std::string url, std::string gram, int c) {
 
-	pqxx::work txn(*C);
 	std::string update_grams = "INSERT INTO grams (url_id, gram, count) VALUES (" 
-		" (SELECT id FROM docs WHERE url = '" + url + "')," + txn.quote(gram) + "," + std::to_string(c) + ")"
+		" (SELECT id FROM docs WHERE url = '" + url + "')," + gram + "," + std::to_string(c) + ")"
 		+ " ON CONFLICT ON CONSTRAINT grams_pkey DO UPDATE SET count = " + std::to_string(c)
 		+ " WHERE grams.url_id = (SELECT id FROM docs WHERE url = '" + url + "') "
-		+ " AND 'gram' = " + txn.quote(gram)
+		+ " AND 'gram' = " + gram
 		+ " ;";
-	//std::cout << update_grams << std::endl;
-	txn.exec(update_grams);
-	txn.commit();
 	return update_grams;
 }
 
