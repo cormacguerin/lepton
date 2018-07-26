@@ -66,3 +66,39 @@ Deps.
 
 # linker stuff for icu
   g++  -o ngrams ngrams.cc  `/usr/bin/icu-config --ldflags --cppflags`
+
+
+
+# FULL INSTALL ON DEBIAN AS ROOT
+
+apt-get install libicu57
+apt-get install libicu-dev
+apt-get install postgresql postgresql-server-dev-10 postgresql-server-dev-all postgresql-client
+
+git clone https://github.com/Tencent/rapidjson.git
+cd rapidjson/
+cmake .
+make
+make install
+cd ..
+
+git clone https://github.com/jtv/libpqxx.git
+cd libpqxx/
+cmake -DPostgreSQL_TYPE_INCLUDE_DIR=/usr/include/postgresql/
+./configure
+make 
+make install
+cd ..
+
+git clone https://github.com/Cylix/cpp_redis.git
+cd cpp_redis/
+# Get tacopie submodule
+git submodule init && git submodule update
+# Create a build directory and move into it
+mkdir build && cd build
+# Generate the Makefile using CMake
+cmake .. -DCMAKE_BUILD_TYPE=Release
+# Build the library
+make
+# Install the library
+make install

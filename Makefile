@@ -5,8 +5,9 @@
 LOCALINC = /usr/local/include/
 REDISINC = /usr/local/include/cpp_redis/
 PQXXINC = /usr/include/pqxx/
+PQXXINCLOCAL = /usr/local/include/pqxx/
 RAPIDJSONINC = /usr/include/rapidjson/
-INCLUDES = -I$(LOCALINC) -I$(REDISINC) -I$(PQXXINC) -I$(RAPIDJSONINC)
+INCLUDES = -I$(LOCALINC) -I$(REDISINC) -I$(PQXXINC) -I$(PQXXINCLOCAL) -I$(RAPIDJSONINC)
 ICUOPTS = `/usr/bin/icu-config --ldflags --cppflags`
 
 #
