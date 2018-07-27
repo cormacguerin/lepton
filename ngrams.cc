@@ -220,6 +220,12 @@ int main() {
 			}
 			if (stopholder[j].back() == false && stopholder[j].at(0) == false) {
 				gramCandidates[gramholder[j]]++;
+				gramholder[j].clear();
+				stopholder[j].clear();
+			}
+	//		std::cout << "j:" << j  << " " << converted << std::endl;
+			for (int x = 0 ; x < gramholder[j].size(); x++) {
+	//			std::cout << "x:" << x << " " << gramholder[j].at(x) << std::endl;
 			}
 		}
 	}
