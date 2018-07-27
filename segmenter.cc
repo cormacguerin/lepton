@@ -1,5 +1,5 @@
 #include "segmenter.h"
-#include "sentence_piece_processor.h"
+//#include "sentence_piece_processor.h"
 #include "texttools.h"
 #include <chrono>
 
@@ -109,64 +109,62 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 	int ja_stop_words_count = 0;
 	int en_stop_words_count = 0;
 
+	std::vector<std::string> gramholder[N_GRAM_SIZE];
+	std::vector<bool> stopholder[N_GRAM_SIZE];
+
 	while (p != BreakIterator::DONE) {
-		// printf("Boundary at position %d\n", p);
+		
 		bool isStopWord = false;
 		p = wordIterator->next();
 		std::string converted;
 		UnicodeString tmp = uni_str.tempSubString(l,p-l);
 		tmp.toUTF8String(converted);
 		l=p;
-		// skip special characters
+		
+		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
 		if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
 			continue;
 		}
 		if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
 			continue;
 		}
-		if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted) != ja_stop_words.end() ) {
-			isStopWord = true;
-			ja_stop_words_count++;
-		} else if ( std::find(en_stop_words.begin(), en_stop_words.end(), converted) != en_stop_words.end() ) {
-			isStopWord = true;
-			en_stop_words_count++;
-		}
+		
 		// insert the vector occurrence position.
 		trimInPlace(converted);
 		if (converted.empty()) {
 			continue;
 		}
-		UnicodeString uc = UnicodeString::fromUTF8(converted);
-		grams.push_back(uc);
-//		std::cout << "gramPositions[converted].size() " << gramPositions[converted].size() << " : " << converted << std::endl;
-//		std::cout << "isStopWord : " << isStopWord << std::endl;
-		if (gramPositions[converted].size() == 0 && isStopWord == true) {
-			i++;
-			continue;
-		}
-		gramPositions[converted].push_back(i);
-		// This solution seems to be slower in my benchmarking...
-		// I really thought it would be faster but actually looping
-		// the positions as further down seems to be a better algorithm.
-		/*
-		gramWindow.push_back(converted);
-		if (gramWindow.size() > N_GRAM_SIZE) {
-			gramWindow.erase(gramWindow.begin());
-		}
-		std::vector<std::string> tmpgram;
-		for (std::vector<std::string>::iterator it = gramWindow.begin(); it != gramWindow.end(); it++) {
-			tmpgram.push_back(*it);
-			gramCandidates[tmpgram]++;
-		}
-		*/
-		i++;
-	}
-	std::cout << "INFO : no. grams found " << gramPositions.size() << std::endl;
+		
+//		UnicodeString uc = UnicodeString::fromUTF8(converted);
+//		grams.push_back(uc);
 
-	std::cout << "en stop cont " << en_stop_words_count << std::endl;
-	std::cout << "ja stop cont " << ja_stop_words_count << std::endl;
-	// this loop is very slow, I wonder if we just created a new map for all ngram candidates..
+		if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted) != ja_stop_words.end() ) {
+			isStopWord = true;
+		} 
+		if ( std::find(en_stop_words.begin(), en_stop_words.end(), converted) != en_stop_words.end() ) {
+			isStopWord = true;
+		}
+
+		for (int j=0; j < N_GRAM_SIZE; j++) {
+			gramholder[j].push_back(converted);
+			stopholder[j].push_back(isStopWord);
+			if (gramholder[j].size() > N_GRAM_SIZE-j) {
+				gramholder[j].erase(gramholder[j].begin());
+				stopholder[j].erase(stopholder[j].begin());
+			}
+			if (stopholder[j].back() == false && stopholder[j].at(0) == false) {
+				gramCandidates[gramholder[j]]++;
+			}
+		}
+	}
 	
+
+	std::cout << "INFO : no. grams found " << gramPositions.size() << std::endl;
+	// I thought it would be better to do a double pass like this but it's about twice as slow unfortunately.
+	// The brute force above is much faster.. I think the only real way to make this much faster is not to use stl..
+
+	/*
+	// 80% of total time in this loop/
 	for (std::map<std::string, std::vector<int>>::iterator it = gramPositions.begin(); it != gramPositions.end(); it++) {
 		// do not process for single occurrences.
 		if ((it->second).size() > 1) {
@@ -211,6 +209,7 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 			}
 		}
 	}
+	*/
 	
 	std::cout << "INFO : no. ngrams found " << gramCandidates.size() << std::endl;
 

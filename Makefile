@@ -31,7 +31,8 @@ COMPILER = g++
 #
 # Linker Flags
 #
-LD_FLAGS  = $(REDIS_CLIENT_LIB) $(SENTENCE_PIECE_LIB) $(PROTOBUFFER_LIB)
+#LD_FLAGS  = $(REDIS_CLIENT_LIB) $(SENTENCE_PIECE_LIB) $(PROTOBUFFER_LIB)
+LD_FLAGS  = $(REDIS_CLIENT_LIB)
 CFLAGS    = ${INCLUDES} 
 
 #
@@ -40,8 +41,8 @@ CFLAGS    = ${INCLUDES}
 COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES) 
 LINKER = $(COMPILER) $(LINKOPTS)
 
-all: proton.o neutron.o base64.o sentence_piece_processor.o segmenter.o
-	${LINKER} -o atom proton.o neutron.o base64.o sentence_piece_processor.o segmenter.o $(LD_FLAGS)
+all: proton.o neutron.o base64.o segmenter.o
+	${LINKER} -o atom proton.o neutron.o base64.o segmenter.o $(LD_FLAGS)
 
 proton.o : proton.cc proton.h
 	${COMPILE} proton.cc
@@ -55,8 +56,8 @@ segmenter.o : segmenter.cc segmenter.h
 base64.o : base64.cc
 	${COMPILE} base64.cc base64.h
 
-sentence_piece_processor.o : sentence_piece_processor.cc
-	${COMPILE} sentence_piece_processor.cc sentence_piece_processor.h
+#sentence_piece_processor.o : sentence_piece_processor.cc
+#	${COMPILE} sentence_piece_processor.cc sentence_piece_processor.h
 
 # clean
 .PHONY: clean

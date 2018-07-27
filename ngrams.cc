@@ -94,6 +94,15 @@ std::vector<std::string> en_stop_words;
 
 int main() {
 
+	std::string lang = "en";
+	std::string locale = "US";
+	/*
+	std::string lang = "ja";
+	std::string locale = "JAPAN";
+	std::string lang = "hb";
+	std::string locale = "IL";
+	*/
+
 	std::ifstream ascii_spec_dict("data/ascii_special_characters.txt");
 	std::ifstream uni_spec_dict("data/unicode_special_chars.txt");
 	std::ifstream ja_stop_words_dict("data/japanese_stop_words.txt");
@@ -156,9 +165,8 @@ int main() {
 	UnicodeString uni_str = str_in.c_str();
 
 	UErrorCode status = U_ZERO_ERROR;
-	// BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("ja","JAPAN"), status);
-	BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("en","US"), status);
-	// BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("hb","IL"), status);
+
+	BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale(lang.c_str(),locale.c_str()), status);
 	wordIterator->setText(uni_str);
 	int32_t p = wordIterator->first();
 	int32_t l = p;
@@ -167,44 +175,60 @@ int main() {
 	int ja_stop_words_count = 0;
 	int en_stop_words_count = 0;
 
+	std::vector<std::string> gramholder[N_GRAM_SIZE];
+	std::vector<bool> stopholder[N_GRAM_SIZE];
+
 	while (p != BreakIterator::DONE) {
 		
-		// printf("Boundary at position %d\n", p);
 		bool isStopWord = false;
 		p = wordIterator->next();
 		std::string converted;
 		UnicodeString tmp = uni_str.tempSubString(l,p-l);
 		tmp.toUTF8String(converted);
 		l=p;
-		// skip special characters
+		
+		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
 		if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
 			continue;
 		}
 		if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
 			continue;
 		}
+		
 		// insert the vector occurrence position.
 		trimInPlace(converted);
 		if (converted.empty()) {
 			continue;
 		}
-		UnicodeString uc = UnicodeString::fromUTF8(converted);
-		grams.push_back(uc);
-
-//		std::cout << "gramPositions[converted].size() " << gramPositions[converted].size() << " : " << converted << std::endl;
-//		std::cout << "isStopWord : " << isStopWord << std::endl;
-
-		if (gramPositions[converted].size() == 0 && isStopWord == true) {
-			i++;
-			continue;
-		}
-		gramPositions[converted].push_back(i);
 		
-		i++;
+//		UnicodeString uc = UnicodeString::fromUTF8(converted);
+//		grams.push_back(uc);
+
+		if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted) != ja_stop_words.end() ) {
+			isStopWord = true;
+		} 
+		if ( std::find(en_stop_words.begin(), en_stop_words.end(), converted) != en_stop_words.end() ) {
+			isStopWord = true;
+		}
+
+		for (int j=0; j < N_GRAM_SIZE; j++) {
+			gramholder[j].push_back(converted);
+			stopholder[j].push_back(isStopWord);
+			if (gramholder[j].size() > N_GRAM_SIZE-j) {
+				gramholder[j].erase(gramholder[j].begin());
+				stopholder[j].erase(stopholder[j].begin());
+			}
+			if (stopholder[j].back() == false && stopholder[j].at(0) == false) {
+				gramCandidates[gramholder[j]]++;
+			}
+		}
 	}
 	
 	std::cout << "INFO : no. grams found " << gramPositions.size() << std::endl;
+	// I thought it would be better to do a double pass like this but it's about twice as slow unfortunately.
+	// The brute force above is much master.. I think the only real way to make this much faster is not to use stl..
 
+	/*
 	// 80% of total time in this loop/
 	for (std::map<std::string, std::vector<int>>::iterator it = gramPositions.begin(); it != gramPositions.end(); it++) {
 		// do not process for single occurrences.
@@ -258,6 +282,7 @@ int main() {
 			}
 		}
 	}
+	*/
 	
 	std::cout << "INFO : no. ngrams found " << arrGramCandidates.size() << std::endl;
 
@@ -282,7 +307,7 @@ int main() {
 	docngrams.Parse("{}");
 	rapidjson::Document::AllocatorType& allocator = docngrams.GetAllocator();
 
-	// This loop is actually really fast
+	// This loop is actually really fast (10% of total time in worst case)
 	for (std::map<std::vector<std::string>, int>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
 		if (git->second > 1) {
 			if (std::next(git) != gramCandidates.end()) {
