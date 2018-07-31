@@ -159,7 +159,7 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 	}
 	
 
-	std::cout << "INFO : no. grams found " << gramPositions.size() << std::endl;
+	//std::cout << "INFO : no. grams found " << gramPositions.size() << std::endl;
 	// I thought it would be better to do a double pass like this but it's about twice as slow unfortunately.
 	// The brute force above is much faster.. I think the only real way to make this much faster is not to use stl..
 
@@ -236,6 +236,10 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 
 	for (std::map<std::vector<std::string>, int>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
 		if (git->second > 1) {
+			// I notices a lot of bad trigrams, let's make sure there are 3 matches for ngrams of 3 or more.
+			if ((git->first).size() > 2 && git->second < 3) {
+				continue;
+			}
 			if (std::next(git) != gramCandidates.end()) {
 				//   std::cout << " - - - - " << std::endl;
 				//   std::cout << "current " << git->first << " " << git->second << std::endl;
@@ -257,7 +261,8 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 							// std::cout << git->first << " " << git->second << std::endl;
 							rapidjson::Value k((trim(gram).c_str()), allocator);
 							docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-							txn.exec(update_grams_table(url, txn.quote(trim(gram).c_str()), git->second));
+							txn.exec(update_ngrams_table(txn.quote(trim(gram).c_str())));
+							txn.exec(update_docngrams_table(txn.quote(url), txn.quote(trim(gram).c_str()), git->second));
 						} else {
 							// the next one is a longer maching candidate so skip this one.
 							continue;
@@ -265,12 +270,14 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 					} else {
 						rapidjson::Value k((trim(gram).c_str()), allocator);
 						docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-						txn.exec(update_grams_table(url, txn.quote(trim(gram)).c_str(), git->second));
+						txn.exec(update_ngrams_table(txn.quote(trim(gram).c_str())));
+						txn.exec(update_docngrams_table(txn.quote(url), txn.quote(trim(gram).c_str()), git->second));
 					}
 				} else {
 					rapidjson::Value k((trim(gram).c_str()), allocator);
 					docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-					txn.exec(update_grams_table(url, txn.quote(trim(gram).c_str()), git->second));
+					txn.exec(update_ngrams_table(txn.quote(trim(gram).c_str())));
+					txn.exec(update_docngrams_table(txn.quote(url), txn.quote(trim(gram).c_str()), git->second));
 				}
 			}
 		}
@@ -295,13 +302,20 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 	delete wordIterator;
 }
 
-std::string Segmenter::update_grams_table(std::string url, std::string gram, int c) {
+std::string Segmenter::update_ngrams_table(std::string gram) {
 
-	std::string update_grams = "INSERT INTO grams (url_id, gram, count) VALUES (" 
-		" (SELECT id FROM docs WHERE url = '" + url + "')," + gram + "," + std::to_string(c) + ")"
-		+ " ON CONFLICT ON CONSTRAINT grams_pkey DO UPDATE SET count = " + std::to_string(c)
-		+ " WHERE grams.url_id = (SELECT id FROM docs WHERE url = '" + url + "') "
-		+ " AND 'gram' = " + gram
+	std::string update_grams = "INSERT INTO ngrams (gram, incidence) VALUES (" + gram + ", 0) ON CONFLICT DO NOTHING;";
+	return update_grams;
+}
+
+std::string Segmenter::update_docngrams_table(std::string url, std::string gram, int c) {
+
+	std::string update_grams = "INSERT INTO docngrams (url_id, gram_id, incidence) VALUES (" 
+		" (SELECT id FROM docs WHERE url = " + url + "),"
+		+ " (SELECT id FROM ngrams WHERE gram = " + gram + ")," + std::to_string(c) + ")"
+		+ " ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = " + std::to_string(c)
+		+ " WHERE docngrams.url_id = (SELECT id FROM docs WHERE url = " + url + ") "
+		+ " AND docngrams.gram_id = (SELECT id FROM ngrams WHERE gram = " + gram + ") "
 		+ " ;";
 	return update_grams;
 }

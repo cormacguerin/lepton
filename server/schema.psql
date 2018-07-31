@@ -5,16 +5,22 @@ CREATE TABLE docs (
 	docscore real,
 	lang VARCHAR(2),
 	crawl_date TIMESTAMP,
-    index_date TIMESTAMP,
+	index_date TIMESTAMP,
 	segmented_text text,
 	segmented_grams jsonb
 );
 
-CREATE TABLE grams (
+CREATE TABLE ngrams (
+	id SERIAL PRIMARY KEY,
+	gram VARCHAR(1024) NOT NULL UNIQUE,
+	incidence INTEGER NOT NULL
+);
+
+CREATE TABLE docngrams (
 	url_id INT4 NOT NULL REFERENCES docs (id),
-	gram VARCHAR(1024) NOT NULL,
-	count integer NOT NULL,
-	primary key (url_id, gram)
+	gram_id INT4 NOT NULL REFERENCES ngrams (id),
+	incidence INTEGER NOT NULL,
+	primary key (url_id, gram_id)
 );
 
 # Notes.

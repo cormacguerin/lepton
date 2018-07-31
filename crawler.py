@@ -75,7 +75,7 @@ def runCrawl(url):
             for link in links:
                 # remove anchors
                 link = link.split("#")[0]
-                if not link in goturls:
+                if (not link in goturls) and (len(geturls) < 10000):
                     geturls.add(link)
 
             # lets just remove now incase we get stuck in a loop

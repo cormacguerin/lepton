@@ -39,7 +39,8 @@ class Segmenter {
 		~Segmenter();
 		void init();
 		void parse(std::string lang, std::string url, std::string str_in);
-		std::string update_grams_table(std::string url, std::string gram, int c);
+		std::string update_docngrams_table(std::string url, std::string gram, int c);
+		std::string update_ngrams_table(std::string gram);
 		void tokenize(std::string text, std::vector<std::string> *pieces);
 		void detokenize(std::vector<std::string> pieces, std::string text);
 };

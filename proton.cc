@@ -48,7 +48,7 @@ void Proton::processFeeds(std::string lang) {
 
 	C->prepare("process", "SELECT * FROM docs ORDER BY index_date NULLS FIRST LIMIT $1");
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("process")("100").exec();
+	pqxx::result r = txn.prepared("process")("100000").exec();
 	txn.commit();
 
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
