@@ -25,7 +25,7 @@ class Proton {
 	void processFeeds(std::string lang);
 	void exportVocab(std::string lang);
 	bool isSPS(char firstchar);
-	void indexDocument(std::string key, std::string doc, std::string lang);
+	void indexDocument(std::string id, std::string key, std::string doc, std::string lang);
 
 };
 

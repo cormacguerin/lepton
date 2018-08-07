@@ -23,6 +23,7 @@
 #include <map>
 #include <numeric>
 #include <pqxx>
+#include <postgresql/libpq-fe.h>
 
 class Segmenter {
 	private:
@@ -38,9 +39,12 @@ class Segmenter {
 		Segmenter();
 		~Segmenter();
 		void init();
-		void parse(std::string lang, std::string url, std::string str_in);
-		std::string update_docngrams_table(std::string url, std::string gram, int c);
+		void parse(std::string id, std::string url, std::string lang, std::string str_in);
+		std::string update_docngrams_table(std::string url, std::string gram, std::string c);
 		std::string update_ngrams_table(std::string gram);
+		std::string update_all_tables(std::string id, std::string url, std::string gram, std::string c);
+		void prepare_insert(pqxx::connection_base &c);
+		void prepare_known_insert(pqxx::connection_base &c);
 		void tokenize(std::string text, std::vector<std::string> *pieces);
 		void detokenize(std::vector<std::string> pieces, std::string text);
 };

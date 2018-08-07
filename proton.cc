@@ -48,18 +48,18 @@ void Proton::processFeeds(std::string lang) {
 
 	C->prepare("process", "SELECT * FROM docs ORDER BY index_date NULLS FIRST LIMIT $1");
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("process")("100000").exec();
+	pqxx::result r = txn.prepared("process")("50").exec();
 	txn.commit();
 
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
 //		for (pqxx::row::const_iterator field = row->begin(); field != row->end(); ++field) {
 //			std::cout << field->c_str() << std::endl;
 //		}
+		const pqxx::field id = (row)[0];
 		const pqxx::field url = (row)[1];
 		const pqxx::field feed = (row)[2];
 		std::cout << " - - - - - " << std::endl;
 		std::cout << "url : " << url.c_str() << std::endl;
-	//	std::cout << "feed : " << feed.c_str() << std::endl;
 		std::cout << "lang : " << lang.c_str() << std::endl;
 		if (url.is_null()) {
 			std::cout << "skip : url is null" << std::endl;;
@@ -74,7 +74,7 @@ void Proton::processFeeds(std::string lang) {
 			continue;
 		}
 	
-		indexDocument(url.c_str(), feed.c_str(), lang);
+		indexDocument(id.c_str(), url.c_str(), feed.c_str(), lang);
 	}
 
 }
@@ -87,7 +87,7 @@ void Proton::processFeeds(std::string lang) {
  * - base64 decode the encoded contents.
  * - segment the body
  */
-void Proton::indexDocument(string dockey, string rawdoc, string lang) {
+void Proton::indexDocument(string id, string dockey, string rawdoc, string lang) {
 	// create main json doc and load rawdoc into it.
 	rapidjson::Document doc;
 	const char *cstr = rawdoc.c_str();
@@ -113,7 +113,7 @@ void Proton::indexDocument(string dockey, string rawdoc, string lang) {
 	// this is the sentencepiece tokenizer
 	// spp.tokenize(decoded_doc_body, &tokenized_doc_body);
 	// this is the cormac tokenizer
-	seg.parse(dockey, lang, decoded_doc_body);
+	seg.parse(id, dockey, lang, decoded_doc_body);
 }
 
 bool Proton::isSPS(char firstchar) {

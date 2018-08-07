@@ -25,11 +25,11 @@ void Segmenter::init() {
 
 	try {
 		C = new pqxx::connection("dbname = index user = postgres password = FSa7+aE1vztVIUZiwAt03d4O7YO2Acm6YVyrGloDZKk= hostaddr = 127.0.0.1 port = 5432");
-      if (C->is_open()) {
+	if (C->is_open()) {
 		  std::cout << "Opened database successfully: " << C->dbname() << std::endl;
-      } else {
+	} else {
 		  std::cout << "Can't open database" << std::endl;
-      }
+		}
 	} catch (const std::exception &e) {
 		std::cerr << e.what() << std::endl;
 	}
@@ -71,7 +71,7 @@ void Segmenter::init() {
 }
 
 
-void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
+void Segmenter::parse(std::string id, std::string url, std::string lang, std::string str_in) {
 	// postgres worker
 	pqxx::work txn(*C);
 
@@ -234,22 +234,26 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 	docngrams.Parse("{}");
 	rapidjson::Document::AllocatorType& allocator = docngrams.GetAllocator();
 
+	prepare_insert(*C);
+	prepare_known_insert(*C);
+
 	for (std::map<std::vector<std::string>, int>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
 		if (git->second > 1) {
+			pqxx::result r;
 			// I notices a lot of bad trigrams, let's make sure there are 3 matches for ngrams of 3 or more.
-			if ((git->first).size() > 2 && git->second < 3) {
+			if ((git->first).size() > 2 && git->second < 2) {
 				continue;
 			}
 			if (std::next(git) != gramCandidates.end()) {
-				//   std::cout << " - - - - " << std::endl;
-				//   std::cout << "current " << git->first << " " << git->second << std::endl;
-				//   std::cout << "next " << std::next(git)->first << " " << std::next(git)->second << std::endl;
+				// std::cout << " - - - - " << std::endl;
+				// std::cout << "current " << git->first << " " << git->second << std::endl;
+				// std::cout << "next " << std::next(git)->first << " " << std::next(git)->second << std::endl;
 				int nextlen = (std::next(git)->first).size();
 				int currentlen = (git->first).size();
 				// if the next match is longer maybe we should use that instead.
 				std::string gram;
-				for (auto const& s : git->first) { 
-					gram += s; 
+				for (auto const& s : git->first) {
+					gram += s;
 					if (IS_CJK == false) {
 						gram += " ";
 					}
@@ -257,12 +261,10 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 				if (nextlen >= currentlen) {
 					if ((std::next(git)->first).at(currentlen-1) == (git->first).back()) {
 						if ((std::next(git)->second != git->second)) {
-							// the next one has less matches so this one is still valid. Add!
-							// std::cout << git->first << " " << git->second << std::endl;
 							rapidjson::Value k((trim(gram).c_str()), allocator);
 							docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-							txn.exec(update_ngrams_table(txn.quote(trim(gram).c_str())));
-							txn.exec(update_docngrams_table(txn.quote(url), txn.quote(trim(gram).c_str()), git->second));
+							r = txn.prepared("insert_grams")(txn.quote(trim(gram).c_str()))(id)(std::to_string(git->second)).exec();
+	//						r = txn.prepared("insert_known_grams")(100)(id)(std::to_string(git->second)).exec();
 						} else {
 							// the next one is a longer maching candidate so skip this one.
 							continue;
@@ -270,14 +272,14 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 					} else {
 						rapidjson::Value k((trim(gram).c_str()), allocator);
 						docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-						txn.exec(update_ngrams_table(txn.quote(trim(gram).c_str())));
-						txn.exec(update_docngrams_table(txn.quote(url), txn.quote(trim(gram).c_str()), git->second));
+						r = txn.prepared("insert_grams")(txn.quote(trim(gram).c_str()))(id)(std::to_string(git->second)).exec();
+	//					r = txn.prepared("insert_known_grams")(100)(id)(std::to_string(git->second)).exec();
 					}
 				} else {
 					rapidjson::Value k((trim(gram).c_str()), allocator);
 					docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-					txn.exec(update_ngrams_table(txn.quote(trim(gram).c_str())));
-					txn.exec(update_docngrams_table(txn.quote(url), txn.quote(trim(gram).c_str()), git->second));
+					r = txn.prepared("insert_grams")(txn.quote(trim(gram).c_str()))(id)(std::to_string(git->second)).exec();
+	//				r = txn.prepared("insert_known_grams")(100)(id)(std::to_string(git->second)).exec();
 				}
 			}
 		}
@@ -285,8 +287,6 @@ void Segmenter::parse(std::string url, std::string lang, std::string str_in) {
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
-
-	//pqxx::work txn(*C);
 
 	std::string update = "UPDATE docs SET (index_date, segmented_grams) = (NOW(), "
 		+ txn.quote((std::string)buffer.GetString())
@@ -308,14 +308,61 @@ std::string Segmenter::update_ngrams_table(std::string gram) {
 	return update_grams;
 }
 
-std::string Segmenter::update_docngrams_table(std::string url, std::string gram, int c) {
+std::string Segmenter::update_docngrams_table(std::string url, std::string gram, std::string c) {
 
 	std::string update_grams = "INSERT INTO docngrams (url_id, gram_id, incidence) VALUES (" 
 		" (SELECT id FROM docs WHERE url = " + url + "),"
-		+ " (SELECT id FROM ngrams WHERE gram = " + gram + ")," + std::to_string(c) + ")"
-		+ " ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = " + std::to_string(c)
+		+ " (SELECT id FROM ngrams WHERE gram = " + gram + ")," + c + ")"
+		+ " ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = " + c
 		+ " WHERE docngrams.url_id = (SELECT id FROM docs WHERE url = " + url + ") "
 		+ " AND docngrams.gram_id = (SELECT id FROM ngrams WHERE gram = " + gram + ") "
+		+ " ;";
+	return update_grams;
+}
+
+/* 
+ * prepared CTE function to insert the gram into ngrams table
+ * returning the gram id value for updating the docngrams tables 
+ * The returning gives about 70% overall performance gain compared with separate insert/select.
+ * The prepare gives about 30% overall performance.
+ * CTE gives slight performance gain.
+ * So basically this improved speed from about 3 docs per second to 6.5 docs per second.
+ */
+void Segmenter::prepare_insert(pqxx::connection_base &c) {
+	c.prepare("insert_grams", 
+		"WITH t as (INSERT INTO ngrams (gram, incidence) VALUES ($1, 0) "
+		"ON CONFLICT (gram) DO UPDATE SET gram = $1 RETURNING id) "
+		"INSERT INTO docngrams (url_id, gram_id, incidence) "
+		"VALUES ($2, (SELECT id FROM t), $3) "
+		"ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = $3 "
+		"WHERE docngrams.url_id = $2 "
+		"AND docngrams.gram_id = (SELECT id FROM t)"
+		);
+}
+
+/*
+ * This does the same as above but with a known gramid.
+ */
+void Segmenter::prepare_known_insert(pqxx::connection_base &c) {
+	c.prepare("insert_known_grams", 
+		"INSERT INTO docngrams (url_id, gram_id, incidence) "
+		"VALUES ($2, $1, $3) "
+		"ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = $3 "
+		"WHERE docngrams.url_id = $2 "
+		"AND docngrams.gram_id = $1"
+		);
+}
+
+/* CTE function to insert the gram into ngrams table returing the gram id value for updating the docngrams tables */
+std::string Segmenter::update_all_tables(std::string id, std::string url, std::string gram, std::string c) {
+
+	std::string update_grams = "WITH t as (INSERT INTO ngrams (gram, incidence) VALUES (" 
+		+ gram + ", 0) ON CONFLICT (gram) DO UPDATE SET gram = " + gram + " RETURNING id) "
+		"INSERT INTO docngrams (url_id, gram_id, incidence) VALUES (" + id + ","
+		+ " (SELECT id FROM t)," + c + ")"
+		+ " ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = " + c
+		+ " WHERE docngrams.url_id = " + id 
+		+ " AND docngrams.gram_id = (SELECT id FROM t) "
 		+ " ;";
 	return update_grams;
 }
