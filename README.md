@@ -20,6 +20,8 @@ Deps.
  # Install the library
  sudo make install
 
+ - python
+ pip install pycurl requests bs4 urlmatch lxml --user
 
  - sentencepiece (https://github.com/google/sentencepiece)
  # install autotools if it's not already installed.
@@ -75,12 +77,14 @@ apt-get install libicu57
 apt-get install libicu-dev
 apt-get install postgresql postgresql-server-dev-10 postgresql-server-dev-all postgresql-client
 
+
 git clone https://github.com/Tencent/rapidjson.git
 cd rapidjson/
 cmake .
 make
 make install
 cd ..
+
 
 git clone https://github.com/jtv/libpqxx.git
 cd libpqxx/
@@ -89,6 +93,7 @@ cmake -DPostgreSQL_TYPE_INCLUDE_DIR=/usr/include/postgresql/
 make 
 make install
 cd ..
+
 
 git clone https://github.com/Cylix/cpp_redis.git
 cd cpp_redis/
@@ -102,3 +107,4 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make
 # Install the library
 make install
+

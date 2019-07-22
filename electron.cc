@@ -24,10 +24,10 @@ std::map<std::string,int> inflections_left;
 std::map<std::string,int> inflections_right;
 std::map<std::string,float> unigrams;
 std::map<std::string,std::vector<string>> synonyms;
+std::vector<std::pair<string,int>> licvpao;
+std::vector<std::pair<string,int>> ricvpao;
 
 std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-
-wstring seg;
 
 struct inflection {
 	std::string root;
@@ -60,15 +60,14 @@ std::wstring lcs( std::wstring a, std::wstring b ) {
 			fpos = b.find(a[i], fpos+1);
 		}
 	}
-	if (current_lcs == seg ||
-			current_lcs.length() < 2) {
+	if (current_lcs.length() < 2) {
 		current_lcs = L"";
 	}
 	return current_lcs;
 }
 
 std::pair<string, float> getUnigrams(string line) {
-	int pos = line.find_first_of('\t');
+	int pos = line.find_first_of(' ');
 	std::istringstream iss(line);
 	std::string unigram = line.substr(0, pos);
 	float score = stof(line.substr(pos+1));
@@ -101,38 +100,38 @@ void getMorphCandidate(string a, string b) {
 		std::string inflect_right_b = b.substr(b.find(lcs_)+lcs_.length(), b.length());
 		if (!inflect_left_a.empty()) {
 			if (inflect_left_a.length() <= lcs_.length()) {
-				map<string, float>::const_iterator it = unigrams.find(inflect_left_a);
-				if (it!=unigrams.end()) {
+//				map<string, float>::const_iterator it = unigrams.find(inflect_left_a);
+//				if (it!=unigrams.end()) {
 					i.left.push_back(inflect_left_a);
 					inflections_left.insert(std::pair<string, int>(inflect_left_a, inflections_left[inflect_left_a]++));
-				}
+//				}
 			}
 		}
 		if (!inflect_left_b.empty()) {
 			if (inflect_left_b.length() <= lcs_.length()) {
-				map<string, float>::const_iterator it = unigrams.find(inflect_left_b);
-				if (it!=unigrams.end()) {
+//				map<string, float>::const_iterator it = unigrams.find(inflect_left_b);
+//				if (it!=unigrams.end()) {
 					i.left.push_back(inflect_left_b);
 					inflections_left.insert(std::pair<string, int>(inflect_left_b, inflections_left[inflect_left_b]++));
-				}
+//				}
 			}
 		}
 		if (!inflect_right_a.empty()) {
 			if (inflect_right_a.length() <= lcs_.length()) {
-				map<string, float>::const_iterator it = unigrams.find(inflect_right_a);
-				if (it!=unigrams.end()) {
+//				map<string, float>::const_iterator it = unigrams.find(inflect_right_a);
+//				if (it!=unigrams.end()) {
 					i.right.push_back(inflect_right_a);
 					inflections_right.insert(std::pair<string, int>(inflect_right_a, inflections_right[inflect_right_a]++));
-				}
+//				}
 			}
 		}
 		if (!inflect_right_b.empty()) {
 			if (inflect_right_b.length() <= lcs_.length()) {
-				map<string, float>::const_iterator it = unigrams.find(inflect_right_b);
-				if (it!=unigrams.end()) {
+//				map<string, float>::const_iterator it = unigrams.find(inflect_right_b);
+//				if (it!=unigrams.end()) {
 					i.right.push_back(inflect_right_b);
 					inflections_right.insert(std::pair<string, int>(inflect_right_b, inflections_right[inflect_right_b]++));
-				}
+//				}
 			}
 		}
 	}
@@ -143,11 +142,14 @@ void getMorphCandidate(string a, string b) {
  * This function sorts the map by the values rather than keys with most common at the end.
  * We then filter the common ones against known unigrams and gather as many as requested.
  * return a vector or pairs.
+ * Only process potential inflections for 10 or more mathes. This should be configurable.
  */
 std::vector<std::pair<string,int>> mapToSortedVectorPair(std::map<string, int> map) {
 	std::vector<std::pair<string, int>> mapVector;
 	for (auto iterator = map.begin(); iterator != map.end(); ++iterator) {
-		mapVector.push_back(*iterator);
+		if (std::get<1>(*iterator) > 99) {
+			mapVector.push_back(*iterator);
+		}
 	}
 	std::sort(mapVector.begin(), mapVector.end(),
 			[](const std::pair<string, int> &x,
@@ -156,7 +158,7 @@ std::vector<std::pair<string,int>> mapToSortedVectorPair(std::map<string, int> m
 			return x.second < y.second;
 			});
 	for (std::vector<std::pair<string,int>>::const_iterator it = mapVector.begin() ; it != mapVector.end(); it++){
-		//cout << (*it).first << " " << (*it).second << endl;
+		cout << (*it).first << " " << (*it).second << endl;
 	}
 	return mapVector;
 }
@@ -170,24 +172,33 @@ std::vector<std::pair<string,int>> mapToSortedVectorPair(std::map<string, int> m
  *  noctg - number of candidates to gather.
  */
 void gatherInflections() {
-	std::vector<std::pair<string,int>> licvpao = mapToSortedVectorPair(inflections_left);
-	std::vector<std::pair<string,int>> ricvpao = mapToSortedVectorPair(inflections_right);
+	licvpao = mapToSortedVectorPair(inflections_left);
+	ricvpao = mapToSortedVectorPair(inflections_right);
 }
 
+/*
+ * There are two filters for generating synonyms.
+ * 1. The root must be longer than the inflection.
+ * 2. The synonym must be in the corpus of words.
+ */
 void buildSynonyms() {
 	for (std::map<std::string, int>::const_iterator rit = roots.begin(); rit != roots.end(); ++rit) {
 		// cout << "stem : " << (*rit).first << " - "<< (*rit).second << endl;
 		std::vector<string> syns;
-		for (std::map<std::string, int>::const_iterator ilit = inflections_left.begin(); ilit != inflections_left.end(); ++ilit) {
+		for (std::vector<std::pair<string, int>>::const_iterator ilit = licvpao.begin(); ilit != licvpao.end(); ++ilit) {
 			std::string candidate = (*ilit).first + (*rit).first;
-			if(words.find(candidate) != words.end()) {
-				syns.push_back(candidate);
+			if ((*rit).first.length() > (*ilit).first.length()) {
+				if(words.find(candidate) != words.end()) {
+					syns.push_back(candidate);
+				}
 			}
 		}
-		for (std::map<std::string, int>::const_iterator irit = inflections_right.begin(); irit != inflections_right.end(); ++irit) {
+		for (std::vector<std::pair<std::string, int>>::const_iterator irit = ricvpao.begin(); irit != ricvpao.end(); ++irit) {
 			std::string candidate = (*rit).first + (*irit).first;
-			if(words.find(candidate) != words.end()) {
-				syns.push_back(candidate);
+			if ((*rit).first.length() > (*irit).first.length()) {
+				if (words.find(candidate) != words.end()) {
+					syns.push_back(candidate);
+				}
 			}
 		}
 		if (!syns.empty()) {
@@ -211,10 +222,13 @@ void buildSynonyms() {
  * 	u - unigram dictionary file ()
  * 	n - number of inflections to gather.
  */
-void process(const char* w, const char* u, const char* n) {
-	ifstream uni_dict(u);
-	if (u) {
+void process(const char* w) {
+
+	ifstream word_dict(w);
+	if (w) {
+
 		string line;
+		/*
 		while (getline(uni_dict, line)) {
 			try {
 				unigrams.insert(getUnigrams(line));
@@ -222,15 +236,12 @@ void process(const char* w, const char* u, const char* n) {
 				cout << "Exception in getUnigrams: " << e.what() << endl;
 			}
 		}
-	}
+		*/
 
-	ifstream word_dict(w);
-	if (w) {
-		string line;
 		string last_line = "";
 		while (getline(word_dict, line)) {
 			// extract the word (removing any weight / other componetns after)
-			line.erase(std::find(line.begin(), line.end(), '\t'), line.end());
+			line.erase(std::find(line.begin(), line.end(), ' '), line.end());
 			line = toLowerCase(line);
 			if (isWord(line)) {
 				line = sanitizeText(line);
@@ -241,7 +252,7 @@ void process(const char* w, const char* u, const char* n) {
 		}
 	}
 
-	//gatherInflections();
+	gatherInflections();
 	buildSynonyms();
 /*
 	for (std::map<std::string, int>::const_iterator it = inflections_right.begin(); it != inflections_right.end(); ++it) {
@@ -277,7 +288,6 @@ void process(const char* w, const char* u, const char* n) {
 
 int main(int argc, char** argv)
 {
-	seg = L'▁';
-	process(argv[1], argv[2], argv[3]);
+	process(argv[1]);
 }
 

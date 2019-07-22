@@ -263,7 +263,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 						if ((std::next(git)->second != git->second)) {
 							rapidjson::Value k((trim(gram).c_str()), allocator);
 							docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-							r = txn.prepared("insert_grams")(txn.quote(trim(gram).c_str()))(id)(std::to_string(git->second)).exec();
+							r = txn.prepared("insert_grams")(trim(gram).c_str())(id)(std::to_string(git->second)).exec();
 	//						r = txn.prepared("insert_known_grams")(100)(id)(std::to_string(git->second)).exec();
 						} else {
 							// the next one is a longer maching candidate so skip this one.
@@ -272,13 +272,13 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 					} else {
 						rapidjson::Value k((trim(gram).c_str()), allocator);
 						docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-						r = txn.prepared("insert_grams")(txn.quote(trim(gram).c_str()))(id)(std::to_string(git->second)).exec();
+						r = txn.prepared("insert_grams")(trim(gram).c_str())(id)(std::to_string(git->second)).exec();
 	//					r = txn.prepared("insert_known_grams")(100)(id)(std::to_string(git->second)).exec();
 					}
 				} else {
 					rapidjson::Value k((trim(gram).c_str()), allocator);
 					docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-					r = txn.prepared("insert_grams")(txn.quote(trim(gram).c_str()))(id)(std::to_string(git->second)).exec();
+					r = txn.prepared("insert_grams")(trim(gram).c_str())(id)(std::to_string(git->second)).exec();
 	//				r = txn.prepared("insert_known_grams")(100)(id)(std::to_string(git->second)).exec();
 				}
 			}
@@ -288,9 +288,9 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
 
-	std::string update = "UPDATE docs SET (index_date, segmented_grams) = (NOW(), "
-		+ txn.quote((std::string)buffer.GetString())
-		+ ") WHERE url='"
+	std::string update = "UPDATE docs SET (index_date, segmented_grams) = (NOW(), $escape$"
+		+ (std::string)buffer.GetString()
+		+ "$escape$) WHERE url='"
 		+ url
 		+ "';";
 	txn.exec(update);
@@ -302,12 +302,15 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	delete wordIterator;
 }
 
+/*
 std::string Segmenter::update_ngrams_table(std::string gram) {
 
 	std::string update_grams = "INSERT INTO ngrams (gram, incidence) VALUES (" + gram + ", 0) ON CONFLICT DO NOTHING;";
 	return update_grams;
 }
+*/
 
+/*
 std::string Segmenter::update_docngrams_table(std::string url, std::string gram, std::string c) {
 
 	std::string update_grams = "INSERT INTO docngrams (url_id, gram_id, incidence) VALUES (" 
@@ -319,6 +322,7 @@ std::string Segmenter::update_docngrams_table(std::string url, std::string gram,
 		+ " ;";
 	return update_grams;
 }
+*/
 
 /* 
  * prepared CTE function to insert the gram into ngrams table
@@ -331,7 +335,7 @@ std::string Segmenter::update_docngrams_table(std::string url, std::string gram,
 void Segmenter::prepare_insert(pqxx::connection_base &c) {
 	c.prepare("insert_grams", 
 		"WITH t as (INSERT INTO ngrams (gram, incidence) VALUES ($1, 0) "
-		"ON CONFLICT (gram) DO UPDATE SET gram = $1 RETURNING id) "
+		"ON CONFLICT ON CONSTRAINT ngrams_gram_key DO UPDATE SET incidence = ngrams.incidence + 1 RETURNING ngrams.id) "
 		"INSERT INTO docngrams (url_id, gram_id, incidence) "
 		"VALUES ($2, (SELECT id FROM t), $3) "
 		"ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = $3 "
@@ -354,6 +358,7 @@ void Segmenter::prepare_known_insert(pqxx::connection_base &c) {
 }
 
 /* CTE function to insert the gram into ngrams table returing the gram id value for updating the docngrams tables */
+/*
 std::string Segmenter::update_all_tables(std::string id, std::string url, std::string gram, std::string c) {
 
 	std::string update_grams = "WITH t as (INSERT INTO ngrams (gram, incidence) VALUES (" 
@@ -366,6 +371,7 @@ std::string Segmenter::update_all_tables(std::string id, std::string url, std::s
 		+ " ;";
 	return update_grams;
 }
+*/
 
 void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {
 }

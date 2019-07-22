@@ -48,7 +48,7 @@ void Proton::processFeeds(std::string lang) {
 
 	C->prepare("process", "SELECT * FROM docs ORDER BY index_date NULLS FIRST LIMIT $1");
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("process")("50").exec();
+	pqxx::result r = txn.prepared("process")("1000").exec();
 	txn.commit();
 
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
@@ -128,6 +128,18 @@ bool Proton::isSPS(char firstchar) {
 
 
 void Proton::exportVocab(std::string lang) {
+	C->prepare("export_vocab", "select gram, incidence from ngrams WHERE gram NOT LIKE '% %' ORDER BY gram");
+	pqxx::work txn(*C);
+	pqxx::result r = txn.prepared("export_vocab").exec();
+	txn.commit();
+
+	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+		const pqxx::field gram = (row)[0];
+		const pqxx::field incidence = (row)[1];
+		std::cout << gram.c_str() << " " << incidence.c_str() << std::endl;
+	}
+
+	/*
 	cout << "export vocab for " << lang << endl;
 
 	vector<string> vocabfeeds;
@@ -166,5 +178,7 @@ void Proton::exportVocab(std::string lang) {
 		crawled_contents << bodytext;
 	}
 	crawled_contents.close();
+	*/
 }
+
 

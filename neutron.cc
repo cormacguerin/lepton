@@ -2,10 +2,12 @@
 #include <core/client.hpp>
 
 #include "proton.h"
+#include "quark.h"
 
 using namespace std;
 
 Proton proton;
+Quark quark;
 
 int main(int argc, char** argv)
 {
@@ -14,11 +16,16 @@ int main(int argc, char** argv)
 	std::vector<std::string> langs (lar, lar + sizeof(lar)/sizeof(lar[0]));
 
 	proton.init();
+	quark.init();
 
+	/*
 	for (vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); ++lit) {
 		proton.processFeeds(*lit);
-	//	proton.exportVocab(*lit);
 	}
+	*/
+	quark.buildIndex();
+
+	//proton.exportVocab("en");
 	return 0;
 }
 

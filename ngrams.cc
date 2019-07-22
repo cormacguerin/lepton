@@ -224,9 +224,9 @@ int main() {
 				stopholder[j].clear();
 			}
 	//		std::cout << "j:" << j  << " " << converted << std::endl;
-			for (int x = 0 ; x < gramholder[j].size(); x++) {
+	//		for (int x = 0 ; x < gramholder[j].size(); x++) {
 	//			std::cout << "x:" << x << " " << gramholder[j].at(x) << std::endl;
-			}
+	//		}
 		}
 	}
 	
@@ -316,6 +316,10 @@ int main() {
 	// This loop is actually really fast (10% of total time in worst case)
 	for (std::map<std::vector<std::string>, int>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
 		if (git->second > 1) {
+			// I notices a lot of bad trigrams, let's make sure there are 3 matches for ngrams of 3 or more.
+			if ((git->first).size() > 2 && git->second < 3) {
+				continue;
+			}
 			if (std::next(git) != gramCandidates.end()) {
 				//   std::cout << " - - - - " << std::endl;
 				//   std::cout << "current " << git->first << " " << git->second << std::endl;

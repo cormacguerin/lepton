@@ -25,7 +25,7 @@ starturls = []
 urlpatterns = []
 geturls = set([])
 goturls = set([])
-num_threads = 8
+num_threads = 10
 
 def main():
     for line in open('patterns.urls', 'r').readlines():
@@ -52,6 +52,8 @@ def crawl():
 
     pool = ThreadPool(num_threads) 
     results = pool.map(runCrawl, urls)
+    pool.close();
+    pool.join();
     print(results);
 
     crawl()
@@ -85,8 +87,9 @@ def runCrawl(url):
             # would be better to do this with curl maybe
             try:
                 r = requests.post("http://127.0.0.1:3000/addDocument?type=content", data=data, headers=headers)
+                print(r);
             except Exception:
-                print('error')
+                print('error unable to post to redis')
                 return
             print("url " + r.url + " : " + r.text)
 

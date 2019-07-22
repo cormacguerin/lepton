@@ -18,14 +18,15 @@ class Proton {
 		std::string SPC;
 
 	public:
-	Proton();
-	~Proton();
-	void quit( int code );
-	void init();
-	void processFeeds(std::string lang);
-	void exportVocab(std::string lang);
-	bool isSPS(char firstchar);
-	void indexDocument(std::string id, std::string key, std::string doc, std::string lang);
+		Proton();
+		~Proton();
+		void quit( int code );
+		void init();
+		void prepare_export_vocab(pqxx::connection_base &c);
+		void processFeeds(std::string lang);
+		void exportVocab(std::string lang);
+		bool isSPS(char firstchar);
+		void indexDocument(std::string id, std::string key, std::string doc, std::string lang);
 
 };
 
