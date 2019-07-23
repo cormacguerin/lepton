@@ -189,6 +189,8 @@ def getUrl(url):
     c = pycurl.Curl()
     c.setopt(c.URL, url)
     c.setopt(c.WRITEDATA, buffer)
+    # https://stackoverflow.com/questions/9191668/error-longjmp-causes-uninitialized-stack-frame
+    c.setopt(c.NOSIGNAL, 1)
     c.setopt(c.HTTPHEADER, [
         'User-agent: KumaCrawl',
         'accept:text/html,application/xhtml+xml,application/xml;',

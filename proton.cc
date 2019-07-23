@@ -1,7 +1,6 @@
 #include "proton.h"
 #include <iostream>
 #include <fstream>
-#include <cpp_redis/cpp_redis>
 #include <unistd.h>
 #include "base64.h"
 #include <algorithm>
@@ -9,8 +8,6 @@
 
 using namespace std;
 using namespace pqxx;
-
-cpp_redis::client client;
 
 
 Proton::Proton()

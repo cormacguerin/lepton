@@ -3,11 +3,15 @@
 
 #include "proton.h"
 #include "quark.h"
+#include "server.h"
 
 using namespace std;
 
+std::string port = "3333";
+
 Proton proton;
 Quark quark;
+Server server(std::atoi(port.c_str()));
 
 int main(int argc, char** argv)
 {
@@ -17,6 +21,7 @@ int main(int argc, char** argv)
 
 	proton.init();
 	quark.init();
+	server.run();
 
 	/*
 	for (vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); ++lit) {

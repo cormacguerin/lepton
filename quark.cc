@@ -3,6 +3,7 @@
 #include <fstream>
 #include <unistd.h>
 #include <algorithm>
+#include <unistd.h>
 
 using namespace pqxx;
 
@@ -43,11 +44,8 @@ void Quark::buildIndex() {
 		pqxx::field url_id = (row)[0];
 		pqxx::field gram_id = (row)[1];
 		pqxx::field incidence = (row)[2];
-		std::cout << "gram tracker " << gram_tracker << std::endl;
-		std::cout << "url_id.c_str " << gram_id.c_str() << std::endl;
 		if (gram_tracker != gram_id.c_str()) {
 			urls.empty();
-			std::cout << "new gram" << std::endl;
 		} else {
 			urls.push_back(atoi(url_id.c_str()));
 		}
@@ -110,5 +108,8 @@ void Quark::buildIndex() {
 	}
 	*/
 
+}
+
+void Quark::startServing() {
 }
 

@@ -1,0 +1,32 @@
+#include "server.h"
+#include "session.h"
+#include <string>
+#include <cstdlib>
+#include <iostream>
+#include <list>
+#include <memory>
+#include <set>
+#include <utility>
+
+Server::Server(short port) : acceptor_(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
+{
+	do_accept();
+}
+
+Server::~Server()
+{
+}
+
+void Server::do_accept() {
+	acceptor_.async_accept([this](std::error_code ec, asio::ip::tcp::socket socket) {
+		if (!ec) {
+				std::make_shared<session>(std::move(socket))->start();
+		}
+		do_accept();
+	});
+}
+
+void Server::run() {
+	io_context.run();
+}
+
