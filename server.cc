@@ -16,7 +16,7 @@ Server::~Server()
 void Server::do_accept() {
 	acceptor_.async_accept([this](std::error_code ec, asio::ip::tcp::socket socket) {
 		if (!ec) {
-			std::make_shared<session>(std::move(socket))->start();
+			std::make_shared<Session>(std::move(socket))->start();
 		}
 	});
 }

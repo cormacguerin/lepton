@@ -1,13 +1,11 @@
 
 var express = require('express');
 var app = express();
+var net = require('net');
 
 var cookieParser = require('cookie-parser');
 
 var bodyParser = require('body-parser');
-
-var redis = require("redis"),
-	client = redis.createClient(process.env.REDIS_URL);
 
 var async = require('async');
 
@@ -111,6 +109,49 @@ app.post('/addDocument', function(req, res, next) {
 /*
  * A function to add a document(s) to our corpus.
  */
+app.get('/search', function(req, res, next) {
+	try {
+	var queryData = url.parse(req.url, true).query;
+	var client = new net.Socket();
+	client.connect(3333, '127.0.0.1', function() {
+		console.log('Connected');
+		console.log("write : " + queryData.query);
+		client.write(queryData.query,'utf8', function(r) {
+			console.log(r);
+		});
+		client.end();
+	});
+		/*
+	const client = net.createConnection({ port: 3333 }, () => {
+		console.log('connected to server!');
+		console.log("write : " + queryData.query);
+		client.write(queryData.query + '\r\n');
+	});*/
+	client.on('data', (data) => {
+		console.log(data.toString());
+		res.send(data.toString());
+		client.end();
+	});
+	client.on('end', () => {
+		console.log('disconnected from server');
+	});
+	client.on('unhandledRejection', (error, promise) => {
+		console.log(error);
+	});
+	client.on('uncaughtException', (error, promise) => {
+		console.log(error);
+	});
+	client.on('error', (error, promise) => {
+		console.log(error);
+	});
+	} catch(e) { 
+		console.log(e);
+	}
+});
+
+/*
+ * A function to add a document(s) to our corpus.
+ */
 /*
 app.post('/addVocabulary', function(req, res, next) {
 	var queryData = url.parse(req.url, true).query;
@@ -145,7 +186,10 @@ app.post('/addVocabulary', function(req, res, next) {
 });
 */
 
-// start the server. heroku choses it's own ports, || 3000 is for local only.
+// web root
+app.use('/', express.static(__dirname + '/websrc/build/default/'));
+
+// start the server.
 var server = app.listen(process.env.PORT || 3000, function () {
 	console.log('Web app listening on port 3000!')
 });

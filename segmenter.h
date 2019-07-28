@@ -22,7 +22,7 @@
 #include <vector>
 #include <map>
 #include <numeric>
-#include <pqxx>
+#include <pqxx/pqxx>
 #include <postgresql/libpq-fe.h>
 
 class Segmenter {

@@ -1,6 +1,3 @@
-//
-// message.hpp
-//
 
 #ifndef _MESSAGE_H_
 #define _MESSAGE_H_
@@ -11,41 +8,39 @@
 #include <fstream>
 
 // class template message
-template<bool isRequest, class Body>
-struct message {
-	Body b;
-};
+template<bool isRequest, class T>
+struct message;
 
 // class template request specialization:
-template<class Body>
-struct message<true, Body> {
+template<class T>
+struct message<true, T> {
 
 	int version;
-	enum {header_length};
-	enum {max_body_length};
+	enum {header_length = 32};
+	enum {max_body_length = 512};
 
 	char* header;
-	Body body;
+	T body;
 };
 
 // class template response specialization:
-template<class Body>
-struct message<false, Body> {
+template<class T>
+struct message<false, T> {
 
 	int version;
-	enum {header_length};
-	enum {max_body_length};
+	enum {header_length = 32};
+	enum {max_body_length = 512};
 
 	char* header;
-	Body body;
+	T body;
 //	Response response;
 };
 
-template<class Body>
-using request = message<true, Body>;
+template<class T>
+using request = message<true, T>;
 
-template<class Body>
-using response = message<false, Body>;
+template<class T>
+using response = message<false, T>;
 
 //class Message {
 
@@ -54,9 +49,9 @@ using response = message<false, Body>;
 //private:
 
 /*
-typedef char* Body;
-template<bool isRequest, class Body>
-void write(std::ostream&, message<isRequest, Body> const& msg);
+typedef char* T;
+template<bool isRequest, class T>
+void write(std::ostream&, message<isRequest, T> const& msg);
 */
 	/*
 		enum { header_length = 16 };
