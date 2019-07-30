@@ -131,6 +131,7 @@ app.get('/search', function(req, res, next) {
 		client.write(queryData.query + '\r\n');
 	});*/
 	client.on('data', (data) => {
+		console.log('data received');
 		console.log(data.toString());
 		res.send(data.toString());
 		client.end();

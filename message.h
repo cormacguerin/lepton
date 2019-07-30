@@ -14,7 +14,7 @@ struct BaseMessage {
 	size_t body_length;
 	enum {header_length = 14};
 	enum {max_body_length = 1048576};
-	char header[header_length-1];
+	char header[header_length];
 };
 
 // class template Message
@@ -24,11 +24,9 @@ struct Message;
 // class template request specialization:
 template<class T>
 struct Message<true, T> : BaseMessage {
-	const bool decode_header()
-	{
+	const bool decode_header() {
 	       	strncpy(len, header+strlen("length:"), 13);
-		if (body_length > max_body_length)
-		{
+		if (body_length > max_body_length) {
 			body_length = 0;
 			return false;
 		} else {
@@ -45,7 +43,6 @@ template<class T>
 struct Message<false, T> : BaseMessage {
 	T body;
 };
-
 
 template<class T>
 using request = Message<true, T>;

@@ -16,5 +16,8 @@ class Session : public std::enable_shared_from_this<Session> {
 		asio::ip::tcp::socket socket_;
 		void do_read_header();
 		void do_read_body();
+		void do_write();
+		request<char*> req;
+		response<char*> res;
 
 };

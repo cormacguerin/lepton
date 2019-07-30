@@ -18,6 +18,7 @@ void Server::do_accept() {
 		if (!ec) {
 			std::make_shared<Session>(std::move(socket))->start();
 		}
+		do_accept();
 	});
 }
 
