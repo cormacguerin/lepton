@@ -116,7 +116,10 @@ app.get('/search', function(req, res, next) {
 	client.connect(3333, '127.0.0.1', function() {
 		console.log('Connected');
 		console.log("write : " + queryData.query);
-		client.write(queryData.query,'utf8', function(r) {
+		var data_length = queryData.query.length;
+		var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":"; 
+		console.log("header : " + header);
+		client.write(header.concat(queryData.query),'utf8', function(r) {
 			console.log(r);
 		});
 		client.end();
