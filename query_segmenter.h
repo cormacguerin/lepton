@@ -1,38 +1,58 @@
-#include "segmenter.h"
-//#include "sentence_piece_processor.h"
-#include "texttools.h"
-#include <chrono>
+#ifndef _QUERY_SEGMENTER_H_
+#define _QUERY_SEGMENTER_H_
 
-Segmenter::Segmenter()
+#include <unicode/ures.h>
+#include <unicode/unistr.h>
+#include <unicode/resbund.h>
+#include <unicode/ustdio.h>
+#include <unicode/putil.h>
+#include <unicode/msgfmt.h>
+#include <unicode/calendar.h>
+#include <unicode/brkiter.h>
+#include <unicode/uniset.h>
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
+#include <exception>
+#include <streambuf>
+#include <algorithm>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <map>
+#include <numeric>
+
+/*
+ * a helper to parse a query similar to how we index in segmenter.h
+ */
+
+class QuerySegmenter {
+	private:
+		std::string str_in;
+		std::vector<std::string> uni_spec;
+		std::vector<std::string> ascii_spec;
+		std::vector<std::string> ja_stop_words;
+
+QuerySegmenter::QuerySegmenter()
 {
 #define N_GRAM_SIZE 3
 #define IS_CJK false
 }
 
-Segmenter::~Segmenter()
+QuerySegmenter::~QuerySegmenter()
 {
 }
 
-void Segmenter::init() {
+void QuerySegmenter::init() {
 	
-	//sentencepiece::Segmenter processor;
+	//sentencepiece::QuerySegmenter processor;
 	//spec = processor.model_proto().normalizer_spec();
 
 	std::ifstream ascii_spec_dict("data/ascii_special_characters.txt");
 	std::ifstream uni_spec_dict("data/unicode_special_chars.txt");
 	std::ifstream ja_stop_words_dict("data/japanese_stop_words.txt");
 	std::ifstream en_stop_words_dict("data/english_stop_words.txt");
-
-	try {
-		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
-	if (C->is_open()) {
-		  std::cout << "Opened database successfully: " << C->dbname() << std::endl;
-	} else {
-		  std::cout << "Can't open database" << std::endl;
-		}
-	} catch (const std::exception &e) {
-		std::cerr << e.what() << std::endl;
-	}
 
 	std::string line;
 
@@ -71,7 +91,7 @@ void Segmenter::init() {
 }
 
 
-void Segmenter::parse(std::string id, std::string url, std::string lang, std::string str_in) {
+void QuerySegmenter::parse(std::string id, std::string url, std::string lang, std::string str_in) {
 	// postgres worker
 	pqxx::work txn(*C);
 
@@ -216,8 +236,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	// At this point we have a map of nGram candidates and a map of words/terms/unigrams
 	// We perform some reduction on the gramCandidates (we only want the largest unique
 	// matches)
-	//
-	// NEXT 6 LINES ARE WROONG> IT will break query matching
 	// eg. 3 instances of aAbBcC and we find 3 instances of each aA aAbB aAbBcC we
 	// want to remove aA and aAbB if there are no separate matches for these.
 	// 
@@ -232,9 +250,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	//     the dark tower = dark tower
 	//     top of the morning to you = top of the morning
 	// 
-	rapidjson::Document docngrams;
-	docngrams.Parse("{}");
-	rapidjson::Document::AllocatorType& allocator = docngrams.GetAllocator();
 
 	prepare_insert(*C);
 	prepare_known_insert(*C);
@@ -260,129 +275,24 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 						gram += " ";
 					}
 				}
-				rapidjson::Value k((trim(gram).c_str()), allocator);
-				docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-				r = txn.prepared("insert_grams")(trim(gram).c_str())(id)(std::to_string(git->second)).exec();
-				/*
 				if (nextlen >= currentlen) {
 					if ((std::next(git)->first).at(currentlen-1) == (git->first).back()) {
 						if ((std::next(git)->second != git->second)) {
-							rapidjson::Value k((trim(gram).c_str()), allocator);
-							docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-							r = txn.prepared("insert_grams")(trim(gram).c_str())(id)(std::to_string(git->second)).exec();
-	//						r = txn.prepared("insert_known_grams")(100)(id)(std::to_string(git->second)).exec();
+							std::cout << trim(gram) << endl;
 						} else {
 							// the next one is a longer maching candidate so skip this one.
 							continue;
 						}
 					} else {
-						rapidjson::Value k((trim(gram).c_str()), allocator);
-						docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-						r = txn.prepared("insert_grams")(trim(gram).c_str())(id)(std::to_string(git->second)).exec();
-	//					r = txn.prepared("insert_known_grams")(100)(id)(std::to_string(git->second)).exec();
+						std::cout << trim(gram) << endl;
 					}
 				} else {
-					rapidjson::Value k((trim(gram).c_str()), allocator);
-					docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
-					r = txn.prepared("insert_grams")(trim(gram).c_str())(id)(std::to_string(git->second)).exec();
-	//				r = txn.prepared("insert_known_grams")(100)(id)(std::to_string(git->second)).exec();
+					std::cout << trim(gram) << endl;
 				}
-				*/
 			}
 		}
 	}
-	rapidjson::StringBuffer buffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-	docngrams.Accept(writer);
-
-	std::string update = "UPDATE docs SET (index_date, segmented_grams) = (NOW(), $escape$"
-		+ (std::string)buffer.GetString()
-		+ "$escape$) WHERE url='"
-		+ url
-		+ "';";
-	txn.exec(update);
-
-	txn.commit();
-	//std::cout << r.size() << std::endl;
-	std::cout << "INFO : indexed " << std::endl;
 
 	delete wordIterator;
-}
-
-/*
-std::string Segmenter::update_ngrams_table(std::string gram) {
-
-	std::string update_grams = "INSERT INTO ngrams (gram, incidence) VALUES (" + gram + ", 0) ON CONFLICT DO NOTHING;";
-	return update_grams;
-}
-*/
-
-/*
-std::string Segmenter::update_docngrams_table(std::string url, std::string gram, std::string c) {
-
-	std::string update_grams = "INSERT INTO docngrams (url_id, gram_id, incidence) VALUES (" 
-		" (SELECT id FROM docs WHERE url = " + url + "),"
-		+ " (SELECT id FROM ngrams WHERE gram = " + gram + ")," + c + ")"
-		+ " ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = " + c
-		+ " WHERE docngrams.url_id = (SELECT id FROM docs WHERE url = " + url + ") "
-		+ " AND docngrams.gram_id = (SELECT id FROM ngrams WHERE gram = " + gram + ") "
-		+ " ;";
-	return update_grams;
-}
-*/
-
-/* 
- * prepared CTE function to insert the gram into ngrams table
- * returning the gram id value for updating the docngrams tables 
- * The returning gives about 70% overall performance gain compared with separate insert/select.
- * The prepare gives about 30% overall performance.
- * CTE gives slight performance gain.
- * So basically this improved speed from about 3 docs per second to 6.5 docs per second.
- */
-void Segmenter::prepare_insert(pqxx::connection_base &c) {
-	c.prepare("insert_grams", 
-		"WITH t as (INSERT INTO ngrams (gram, incidence) VALUES ($1, 0) "
-		"ON CONFLICT ON CONSTRAINT ngrams_gram_key DO UPDATE SET incidence = ngrams.incidence + 1 RETURNING ngrams.id) "
-		"INSERT INTO docngrams (url_id, gram_id, incidence) "
-		"VALUES ($2, (SELECT id FROM t), $3) "
-		"ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = $3 "
-		"WHERE docngrams.url_id = $2 "
-		"AND docngrams.gram_id = (SELECT id FROM t)"
-		);
-}
-
-/*
- * This does the same as above but with a known gramid.
- */
-void Segmenter::prepare_known_insert(pqxx::connection_base &c) {
-	c.prepare("insert_known_grams", 
-		"INSERT INTO docngrams (url_id, gram_id, incidence) "
-		"VALUES ($2, $1, $3) "
-		"ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = $3 "
-		"WHERE docngrams.url_id = $2 "
-		"AND docngrams.gram_id = $1"
-		);
-}
-
-/* CTE function to insert the gram into ngrams table returing the gram id value for updating the docngrams tables */
-/*
-std::string Segmenter::update_all_tables(std::string id, std::string url, std::string gram, std::string c) {
-
-	std::string update_grams = "WITH t as (INSERT INTO ngrams (gram, incidence) VALUES (" 
-		+ gram + ", 0) ON CONFLICT (gram) DO UPDATE SET gram = " + gram + " RETURNING id) "
-		"INSERT INTO docngrams (url_id, gram_id, incidence) VALUES (" + id + ","
-		+ " (SELECT id FROM t)," + c + ")"
-		+ " ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = " + c
-		+ " WHERE docngrams.url_id = " + id 
-		+ " AND docngrams.gram_id = (SELECT id FROM t) "
-		+ " ;";
-	return update_grams;
-}
-*/
-
-void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {
-}
-
-void Segmenter::detokenize(std::vector<std::string> pieces, std::string text) {
 }
 

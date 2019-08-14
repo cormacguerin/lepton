@@ -189,6 +189,7 @@ def getUrl(url):
     c = pycurl.Curl()
     c.setopt(c.URL, url)
     c.setopt(c.WRITEDATA, buffer)
+    c.setopt(c.CONNECTTIMEOUT, 10)
     # https://stackoverflow.com/questions/9191668/error-longjmp-causes-uninitialized-stack-frame
     c.setopt(c.NOSIGNAL, 1)
     c.setopt(c.HTTPHEADER, [

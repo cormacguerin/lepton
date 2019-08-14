@@ -15,6 +15,8 @@ struct BaseMessage {
 	enum {header_length = 14};
 	enum {max_body_length = 1048576};
 	char header[header_length];
+	const bool deserialize() {
+	}
 };
 
 // class template Message
@@ -49,69 +51,5 @@ using request = Message<true, T>;
 
 template<class T>
 using response = Message<false, T>;
-
-//class Message {
-
-//public:
-
-//private:
-
-/*
-typedef char* T;
-template<bool isRequest, class T>
-void write(std::ostream&, Message<isRequest, T> const& msg);
-*/
-	/*
-		enum { header_length = 16 };
-		enum { max_body_length = 512 };
-
-		const char* data() const
-		{
-			return data_;
-		}
-
-		char* data()
-		{
-			return data_;
-		}
-
-		size_t length() const
-		{
-			return header_length + body_length_;
-		}
-
-		const char* body() const
-		{
-			return data_ + header_length;
-		}
-
-		char* body()
-		{
-			return data_ + header_length;
-		}
-
-		size_t body_length() const
-		{
-			return body_length_;
-		}
-
-		void body_length(size_t new_length)
-		{
-			body_length_ = new_length;
-			if (body_length_ > max_body_length)
-				body_length_ = max_body_length;
-		}
-
-		void encode_header()
-		{
-			using namespace std; // For sprintf and memcpy.
-			char header[header_length + 1] = "";
-			sprintf(header, "%4d", static_cast<int>(body_length_));
-			memcpy(data_, header, header_length);
-		}
-
-		size_t body_length_;
-		*/
-//};
 
 #endif

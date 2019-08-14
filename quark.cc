@@ -19,7 +19,7 @@ void Quark::init() {
 
 	// postgres connection
 	try {
-		C = new pqxx::connection("dbname = index user = postgres password = FSa7+aE1vztVIUZiwAt03d4O7YO2Acm6YVyrGloDZKk= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
     	if (C->is_open()) {
 			std::cout << "Opened database successfully: " << C->dbname() << std::endl;
     	} else {

@@ -23,8 +23,9 @@ CREATE TABLE docngrams (
 	primary key (url_id, gram_id)
 );
 
-# Notes.
-# Use unique id serial as primary key, this has performance gains.
-# deduplication by reference as below. Should help performance and row size when we hit billions/trillions.
-# https://stackoverflow.com/questions/14753155/how-well-is-postgres-handling-duplicates
-
+/*
+ * Notes.
+ * Use unique id serial as primary key, this has performance gains.
+ * deduplication by reference as below. Should help performance and row size when we hit billions/trillions.
+ * https://stackoverflow.com/questions/14753155/how-well-is-postgres-handling-duplicates
+ */

@@ -3,6 +3,7 @@
 #include "proton.h"
 #include "quark.h"
 #include "server.h"
+#include "query.h"
 
 using namespace std;
 
@@ -18,16 +19,19 @@ int main(int argc, char** argv)
 	static const std::string lar[] = {"en"};
 	std::vector<std::string> langs (lar, lar + sizeof(lar)/sizeof(lar[0]));
 
-	//proton.init();
-	//quark.init();
-	server.run();
+	std::string raw_query = "running up that hill";
+	Query query(true, raw_query);
 
-	/*
+	proton.init();
+	quark.init();
+	//server.run();
+
 	for (vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); ++lit) {
 		proton.processFeeds(*lit);
 	}
+	/*
 	*/
-	//quark.buildIndex();
+	quark.buildIndex();
 
 	//proton.exportVocab("en");
 	return 0;

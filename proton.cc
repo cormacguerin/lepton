@@ -29,7 +29,7 @@ void Proton::init() {
 	//	client.connect();
 	// postgres connection
 	try {
-		C = new pqxx::connection("dbname = index user = postgres password = FSa7+aE1vztVIUZiwAt03d4O7YO2Acm6YVyrGloDZKk= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
     	if (C->is_open()) {
     	   cout << "Opened database successfully: " << C->dbname() << endl;
     	} else {
@@ -45,7 +45,7 @@ void Proton::processFeeds(std::string lang) {
 
 	C->prepare("process", "SELECT * FROM docs ORDER BY index_date NULLS FIRST LIMIT $1");
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("process")("1000").exec();
+	pqxx::result r = txn.prepared("process")("5500").exec();
 	txn.commit();
 
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
