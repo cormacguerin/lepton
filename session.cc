@@ -3,6 +3,8 @@
 #include <set>
 #include <utility>
 #include <iostream>
+#include <thread>
+#include <future>
 
 
 Session::Session(asio::ip::tcp::socket socket) : socket_(std::move(socket))
@@ -54,7 +56,11 @@ void Session::do_read_body() {
 			[this, self](std::error_code ec, std::size_t) {
 				if (!ec) {
 					std::cout << "body : " << req.body << std::endl;
-					do_write();
+					std::promise<std::string> promiseObj;
+					std::future<std::string> futureObj = promiseObj.get_future();
+					std::thread th(queryParser.execute, &promiseObj);
+					th.join();
+					do_write(futureObj.get().c_str());
 				} else {
 					std::cout << "error" << std::endl;
 					std::cout << ec << std::endl;
@@ -62,11 +68,12 @@ void Session::do_read_body() {
 	});
 }
 
-void Session::do_write() {
-	res.body = (char*)malloc(12+req.body_length);
-	strcpy(res.body,"response: ");
-	strncat(res.body,req.body,req.body_length);
-	strncat(res.body," ",1);
+void Session::do_write(const char* response) {
+	res.body = (char*)malloc(12+ sizeof(response));
+	strcpy(res.body, "response: ");
+	strcat(res.body, response);
+//	strncat(res.body, req.body, req.body_length);
+	strncat(res.body, " ", 1);
 	auto self(shared_from_this());
 	asio::async_write(socket_,
 			asio::buffer(res.body,
@@ -77,4 +84,3 @@ void Session::do_write() {
 				}
 	});
 }
-

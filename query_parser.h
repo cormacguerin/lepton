@@ -22,6 +22,7 @@
 #include <vector>
 #include <map>
 #include <numeric>
+#include <future>
 
 /*
  * a helper to parse a query similar to how we index in segmenter.h
@@ -60,6 +61,7 @@ class QueryParser {
 		~QueryParser();
 		void init();
 		void parse(std::string lang, std::string query_str);
+		static void execute(std::promise<std::string> *promiseObj);
 };
 
 #endif

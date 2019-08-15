@@ -16,18 +16,17 @@ int main(int argc, char** argv)
 	std::vector<std::string> langs (lar, lar + sizeof(lar)/sizeof(lar[0]));
 
 	std::string raw_query = "running up that hill";
-	//Query query(true, raw_query);
 
-	proton.init();
-	quark.init();
-	//server.run();
+	// proton.init();
+	// quark.init();
+	server.run();
 
+	/*
 	for (vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); ++lit) {
 		proton.processFeeds(*lit);
 	}
-	/*
-	*/
 	quark.buildIndex();
+	*/
 
 	//proton.exportVocab("en");
 	return 0;

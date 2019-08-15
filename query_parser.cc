@@ -132,3 +132,8 @@ void QueryParser::parse(std::string lang, std::string query_str) {
 	delete wordIterator;
 }
 
+void QueryParser::execute(std::promise<std::string> *promiseObj) {
+	std::string s = "this is the response";
+	promiseObj->set_value(s);
+}
+

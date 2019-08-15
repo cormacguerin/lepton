@@ -42,8 +42,10 @@ Deps.
  sudo make install
 
 
- - testing api.
+ - testing indexing api.
  curl -H "Content-Type: application/json" -X POST --data "@testdocs.json" '127.0.0.1:3000/addDocument?type=content'
+ - testing query api
+curl 'https://35.239.29.200/search?query=test%20timing%202' -H 'accept: application/json' -H 'Connection: keep-alive' -H 'Accept-Encoding: gzip, deflate, br' -H 'Referer: https://35.239.29.200/' -H 'Accept-Language: en-US,en;q=0.9' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36' --compressed --insecure -s -o /dev/null -w  "%{time_starttransfer}\n"
 
 
  - web crawler
