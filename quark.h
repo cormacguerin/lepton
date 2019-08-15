@@ -2,7 +2,7 @@
 #define _QUARK_H_
 
 #include <string>
-#include "segmenter.h"
+//#include "segmenter.h"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"

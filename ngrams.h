@@ -14,6 +14,7 @@
 #include <unicode/calendar.h>
 #include <unicode/brkiter.h>
 #include <unicode/uniset.h>
+#include "texttools.h"
 
 class Ngrams {
 	private:

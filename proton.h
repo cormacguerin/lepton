@@ -3,11 +3,11 @@
 
 #include <string>
 //#include "sentence_piece_processor.h"
-#include "segmenter.h"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include <pqxx/pqxx>
+#include "segmenter.h"
 
 class Proton {
 	private:

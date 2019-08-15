@@ -1,7 +1,7 @@
 #include "segmenter.h"
 //#include "sentence_piece_processor.h"
-#include "texttools.h"
 #include <chrono>
+#include "texttools.h"
 
 Segmenter::Segmenter()
 {

@@ -7,6 +7,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <iostream>
 
 // some notes
 // sorting is done by idf -ln(probability)
@@ -58,6 +59,15 @@ class Query {
 
 	public:
 
+		/*
+Query(bool root, std::string raw_query)
+{
+}
+
+Query()
+{
+}
+*/
 		Query(bool root, std::string raw_query);
 		~Query();
 

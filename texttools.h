@@ -1,7 +1,10 @@
+#ifndef _TEXTTOOLS_H_
+#define _TEXTTOOLS_H_
+
 #include <algorithm>
 #include <string>
 
-std::string trim(const std::string& str, const std::string& whitespace = " \t") {
+extern std::string trim(const std::string& str, const std::string& whitespace = " \t") {
 	const auto strBegin = str.find_first_not_of(whitespace);
 	if (strBegin == std::string::npos)
 		return ""; // no content
@@ -12,7 +15,7 @@ std::string trim(const std::string& str, const std::string& whitespace = " \t") 
 	return str.substr(strBegin, strRange);
 }
 
-std::string sanitizeText(std::string str) {
+extern std::string sanitizeText(std::string str) {
 	auto isPunct = [](char c) { 
 		return std::ispunct(static_cast<unsigned char>(c));
 	};
@@ -28,7 +31,7 @@ std::string sanitizeText(std::string str) {
 }
 
 // convert to lowercase
-std::string toLowerCase(std::string str) {
+extern std::string toLowerCase(std::string str) {
 	std::transform(str.begin(), str.end(), str.begin(), [](char c) {
 			return std::tolower(static_cast<unsigned char>(c));
 			});
@@ -69,3 +72,5 @@ static inline void trimInPlace(std::string &s) {
 		ltrim(s);
 		rtrim(s);
 }
+
+#endif

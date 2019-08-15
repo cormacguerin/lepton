@@ -1,9 +1,5 @@
 #include <iostream>
-
-#include "proton.h"
-#include "quark.h"
-#include "server.h"
-#include "query.h"
+#include "neutron.h"
 
 using namespace std;
 
@@ -20,7 +16,7 @@ int main(int argc, char** argv)
 	std::vector<std::string> langs (lar, lar + sizeof(lar)/sizeof(lar[0]));
 
 	std::string raw_query = "running up that hill";
-	Query query(true, raw_query);
+	//Query query(true, raw_query);
 
 	proton.init();
 	quark.init();

@@ -19,7 +19,6 @@
 #include <vector>
 #include <map>
 #include <set>
-#include "texttools.h"
 #include <chrono>
 
 #define N_GRAM_SIZE 3
