@@ -23,6 +23,9 @@ CREATE TABLE docngrams (
 	primary key (url_id, gram_id)
 );
 
+CREATE INDEX ngrams_id_idx ON ngrams(id);
+CREATE INDEX docngrams_gram_incidence_idx ON docngrams(gram_id, incidence ASC);
+
 /*
  * Notes.
  * Use unique id serial as primary key, this has performance gains.
