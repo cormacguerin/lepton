@@ -22,12 +22,11 @@
 
 class Query {
 	private:
+	public:
 
 		enum Operator { AND=0, OR=1, NOT=2, RESTRICT=3 };
 		enum Type { ORIGINAL=0, SYNONYM=1, CONCEPT=2 };
-		enum Modifier { LITERAL=0, CONFIDENCE=1, COLLECTION=2 };
-		enum Flag { SYNCONF=0 };
-		enum AttrType { DOUBLE=0, STRING=1 };
+		enum Modifier { LITERAL=0, CONFIDENCE=1, COLLECTION=2, SYNCONF=3, STOPWORD=4 };
 
 		//TODO:  move to std::variant 
 		struct AttributeValue {
@@ -38,16 +37,18 @@ class Query {
 
 		struct Term {
 			Type type;
-			std::string term;
-			std::map<Modifier, std::map<Flag, AttributeValue>> mods;
+			UnicodeString term;
+			std::map<Modifier, AttributeValue> mods;
 			double idf;
 		};
 
 		struct Node {
 			bool root;
 			Operator op;
-			std::vector<Term> term;
+			std::vector<Term> terms;
 			std::string raw_query;
+			std::string lang;
+
 			double weight;
 
 			const bool serialize() {
@@ -57,7 +58,6 @@ class Query {
 			std::vector<Node> childNodes;
 		};
 
-	public:
 
 		/*
 Query(bool root, std::string raw_query)

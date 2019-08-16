@@ -61,7 +61,7 @@ class QueryParser {
 		~QueryParser();
 		void init();
 		void parse(std::string lang, std::string query_str);
-		static void execute(std::promise<std::string> *promiseObj);
+		static void execute(std::string lang, std::string query, std::promise<std::string> *promiseObj);
 };
 
 #endif

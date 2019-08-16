@@ -56,9 +56,10 @@ void Session::do_read_body() {
 			[this, self](std::error_code ec, std::size_t) {
 				if (!ec) {
 					std::cout << "body : " << req.body << std::endl;
+					std::string lang="en";
 					std::promise<std::string> promiseObj;
 					std::future<std::string> futureObj = promiseObj.get_future();
-					std::thread th(queryParser.execute, &promiseObj);
+					std::thread th(queryParser.execute, lang, std::string(req.body), &promiseObj);
 					th.join();
 					do_write(futureObj.get().c_str());
 				} else {

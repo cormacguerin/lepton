@@ -60,9 +60,23 @@ void QueryParser::init() {
 
 void QueryParser::parse(std::string lang, std::string query_str) {
 
+	// parentNode node, by default this is OR 
+	Query::Node parentNode = {};
+	parentNode.root = true;
+	parentNode.op = Query::Operator::OR;
+	parentNode.raw_query = query_str;
+	parentNode.lang = lang;
+
+	// main AND child with all the terms.
+	// this is similar to a google parentNode node.
+	Query::Node wordNode = {};
+	wordNode.root = false;
+	wordNode.op = Query::Operator::AND;
+	wordNode.raw_query = query_str;
+	wordNode.lang = lang;
+
 	// temp containsers we use for processing
 	std::map<std::vector<std::string>, int> gramCandidates;
-	std::vector<UnicodeString> grams;
 
 	// convert to lowercase
 	std::transform((query_str).begin(), (query_str).end(), (query_str).begin(), ::tolower);
@@ -84,6 +98,9 @@ void QueryParser::parse(std::string lang, std::string query_str) {
 	std::vector<bool> stopholder[N_GRAM_SIZE];
 
 	while (p != BreakIterator::DONE) {
+
+		Query::Term term;
+		term.type = Query::Type::ORIGINAL;
 		
 		bool isStopWord = false;
 		p = wordIterator->next();
@@ -107,7 +124,7 @@ void QueryParser::parse(std::string lang, std::string query_str) {
 		}
 		
 		UnicodeString uc = UnicodeString::fromUTF8(converted);
-		grams.push_back(uc);
+		term.term = uc;
 
 		if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted) != ja_stop_words.end() ) {
 			isStopWord = true;
@@ -115,6 +132,10 @@ void QueryParser::parse(std::string lang, std::string query_str) {
 		if ( std::find(en_stop_words.begin(), en_stop_words.end(), converted) != en_stop_words.end() ) {
 			isStopWord = true;
 		}
+		Query::AttributeValue v;
+		v.b=true;
+		term.mods.insert(std::pair<Query::Modifier,Query::AttributeValue>(Query::Modifier::STOPWORD, v));
+		wordNode.terms.push_back(term);
 
 		for (int j=0; j < N_GRAM_SIZE; j++) {
 			gramholder[j].push_back(converted);
@@ -129,11 +150,12 @@ void QueryParser::parse(std::string lang, std::string query_str) {
 		}
 	}
 	
+	parentNode.childNodes.push_back(wordNode);
 	delete wordIterator;
 }
 
-void QueryParser::execute(std::promise<std::string> *promiseObj) {
+void QueryParser::execute(std::string lang, std::string query, std::promise<std::string> *promiseObj) {
 	std::string s = "this is the response";
-	promiseObj->set_value(s);
+	promiseObj->set_value(query);
 }
 
