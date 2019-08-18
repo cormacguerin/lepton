@@ -2,12 +2,20 @@
 #ifndef _QUERY_H_
 #define _QUERY_H_
 
+//#include <unicode/ures.h>
+#include <unicode/unistr.h>
+//#include <unicode/resbund.h>
+//#include <unicode/ustdio.h>
+//#include <unicode/putil.h>
 #include <string>
 #include <set>
 #include <map>
 #include <vector>
 #include <memory>
 #include <iostream>
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
 
 // some notes
 // sorting is done by idf -ln(probability)
@@ -51,23 +59,11 @@ class Query {
 
 			double weight;
 
-			const bool serialize() {
-			}
-			const bool deserialize() {
-			}
+			void serialize();
+			void deserialize();
 			std::vector<Node> childNodes;
 		};
 
-
-		/*
-Query(bool root, std::string raw_query)
-{
-}
-
-Query()
-{
-}
-*/
 		Query(bool root, std::string raw_query);
 		~Query();
 

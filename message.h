@@ -26,7 +26,7 @@ struct Message;
 // class template request specialization:
 template<class T>
 struct Message<true, T> : BaseMessage {
-	const bool decode_header() {
+	const bool decode_message() {
 	       	strncpy(len, header+strlen("length:"), 13);
 		if (body_length > max_body_length) {
 			body_length = 0;
@@ -43,6 +43,19 @@ struct Message<true, T> : BaseMessage {
 // class template response specialization:
 template<class T>
 struct Message<false, T> : BaseMessage {
+	//char* msg;
+	const bool encode_message(char* msg) {
+		if (body_length > max_body_length) {
+			body_length = 0;
+			return false;
+		} else {
+			body_length = sizeof(msg);
+			body = (char*)malloc(sizeof(msg));
+			memcpy(body, msg, body_length);
+			strncat(body, " ", 1);
+			return true;
+		}
+	}
 	T body;
 };
 

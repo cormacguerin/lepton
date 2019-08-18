@@ -43,8 +43,8 @@ CFLAGS    = ${INCLUDES}
 COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES) 
 LINKER = $(COMPILER) $(LINKOPTS)
 
-all: query_parser.o server.o session.o quark.o proton.o neutron.o base64.o segmenter.o
-	${LINKER} -o atom query_parser.o server.o session.o quark.o proton.o neutron.o base64.o segmenter.o $(LD_FLAGS)
+all: query.o query_parser.o server.o session.o quark.o proton.o neutron.o base64.o segmenter.o
+	${LINKER} -o atom query.o query_parser.o server.o session.o quark.o proton.o neutron.o base64.o segmenter.o $(LD_FLAGS)
 
 proton.o : proton.cc proton.h
 	${COMPILE} proton.cc
@@ -52,7 +52,10 @@ proton.o : proton.cc proton.h
 quark.o : quark.cc quark.h
 	${COMPILE} quark.cc
 
-query.o : query_parser.cc query_parser.h
+query.o : query.cc query.h
+	${COMPILE} query.cc
+
+query_parser.o : query_parser.cc query_parser.h
 	${COMPILE} query_parser.cc
 
 session.o : session.cc session.h

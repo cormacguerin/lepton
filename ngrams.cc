@@ -20,6 +20,7 @@
 #include <map>
 #include <set>
 #include <chrono>
+#include "texttools.h"
 
 #define N_GRAM_SIZE 3
 #define IS_CJK false

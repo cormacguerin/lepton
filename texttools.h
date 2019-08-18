@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <string>
 
-extern std::string trim(const std::string& str, const std::string& whitespace = " \t") {
+static inline std::string trim(const std::string& str, const std::string& whitespace = " \t") {
 	const auto strBegin = str.find_first_not_of(whitespace);
 	if (strBegin == std::string::npos)
 		return ""; // no content
@@ -15,7 +15,7 @@ extern std::string trim(const std::string& str, const std::string& whitespace = 
 	return str.substr(strBegin, strRange);
 }
 
-extern std::string sanitizeText(std::string str) {
+static inline std::string sanitizeText(std::string str) {
 	auto isPunct = [](char c) { 
 		return std::ispunct(static_cast<unsigned char>(c));
 	};
@@ -31,7 +31,7 @@ extern std::string sanitizeText(std::string str) {
 }
 
 // convert to lowercase
-extern std::string toLowerCase(std::string str) {
+static inline std::string toLowerCase(std::string str) {
 	std::transform(str.begin(), str.end(), str.begin(), [](char c) {
 			return std::tolower(static_cast<unsigned char>(c));
 			});
@@ -41,7 +41,7 @@ extern std::string toLowerCase(std::string str) {
 /* 
  * If this has special characters it's probably not a good candidate so just remove.
  */
-bool isWord(std::string str) {
+static inline bool isWord(std::string str) {
 	for (int i=0; i < str.length(); i++) {
 		if (isdigit(str.at(i))) {
 			return false;

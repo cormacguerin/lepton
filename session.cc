@@ -37,7 +37,7 @@ void Session::do_read_header() {
 			[this, self](std::error_code ec, std::size_t) {
 				//if (!ec && req.decode_header()) {
 				if (!ec) {
-					req.decode_header();
+					req.decode_message();
 					std::cout << "body length : " << req.body_length << std::endl;
 					std::cout << "header : " << req.header << std::endl;
 					do_read_body();
@@ -70,18 +70,20 @@ void Session::do_read_body() {
 }
 
 void Session::do_write(const char* response) {
-	res.body = (char*)malloc(12+ sizeof(response));
-	strcpy(res.body, "response: ");
-	strcat(res.body, response);
-//	strncat(res.body, req.body, req.body_length);
-	strncat(res.body, " ", 1);
+	if (sizeof(response)==0 || response == NULL) {
+		return;
+	}
+	res.encode_message(const_cast<char*>(response));
+	std::cout << "size of response " << sizeof(res.body) << std::endl;
+	std::cout << "res.body_length " << res.body_length << std::endl;
 	auto self(shared_from_this());
 	asio::async_write(socket_,
 			asio::buffer(res.body,
-			12+req.body_length),
+			res.body_length-1),
 			[this, self](std::error_code ec, std::size_t /*length*/) {
 				if (!ec) {
-					std::cout << "body : " << req.body << std::endl;
+					std::cout << "body : " << res.body << std::endl;
 				}
 	});
 }
+
