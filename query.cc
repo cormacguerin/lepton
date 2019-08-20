@@ -34,19 +34,20 @@ rapidjson::Document Query::serializeTerm(Query::Term t) {
 	*/
 }
 
-void Query::Node::serialize() {
+std::string Query::Node::serialize() {
 	rapidjson::Document d;
 	this->serialize_(d);
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	d.Accept(writer);
 	std::cout << (std::string)buffer.GetString() << std::endl;
+	return (std::string)buffer.GetString();
 }
 
 void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 	//rapidjson::Document serialized_query;
-	serialized_query.Parse("{}");
 	rapidjson::Document::AllocatorType& allocator = serialized_query.GetAllocator();
+	serialized_query.Parse("{}");
 	if (this->root == false) {
 		serialized_query.AddMember("root", "false", allocator);
 	} else {
@@ -54,37 +55,37 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 	}
 	serialized_query.AddMember("operator", rapidjson::Value(const_cast<char*>((OperatorList[this->op]).c_str()), allocator).Move(), allocator);
 	serialized_query.AddMember("raw_query", rapidjson::Value(const_cast<char*>(this->raw_query.c_str()), allocator).Move(), allocator);
-	rapidjson::Value terms(rapidjson::kArrayType);
-	for (std::vector<Query::Term>::iterator it = this->terms.begin() ; it != this->terms.end(); ++it) {
-		Query::Term t = *it;
 
-		rapidjson::Value serialized_;
-		serialized_.SetObject();
+	Query::Term t = this->term;
 
-		std::ostringstream strs;
-		strs << t.idf;
+	rapidjson::Value serialized_;
+	serialized_.SetObject();
 
-		std::string converted;
-		t.term.toUTF8String(converted);
-		std::cout << "converted" << std::endl;
-		std::cout << converted << std::endl;
+	std::ostringstream strs;
+	strs << t.idf;
 
-	//	serialized_.Parse("{}");
-	//	rapidjson::Document::AllocatorType& allocator_ = serialized_.GetAllocator();
-		serialized_.AddMember("type", rapidjson::Value(const_cast<char*>((TypeList[t.type]).c_str()), allocator).Move(), allocator);
-		serialized_.AddMember("term", rapidjson::Value(const_cast<char*>(converted.c_str()), allocator).Move(), allocator);
-		serialized_.AddMember("idf", rapidjson::Value(const_cast<char*>(strs.str().c_str()), allocator).Move(), allocator);
-		terms.PushBack(serialized_, allocator);
-	}
-	serialized_query.AddMember("terms", terms, allocator);
+	std::string converted;
+	t.term.toUTF8String(converted);
+	std::cout << "converted " + converted<< std::endl;
 
-	rapidjson::Value nodes(rapidjson::kObjectType);
-	for (std::vector<Query::Node>::iterator it = this->childNodes.begin() ; it != this->childNodes.end(); ++it) {
-		rapidjson::Document d_;
-		d_.SetObject();
+	serialized_.AddMember("type", rapidjson::Value(const_cast<char*>((TypeList[t.type]).c_str()), allocator).Move(), allocator);
+	serialized_.AddMember("term", rapidjson::Value(const_cast<char*>(converted.c_str()), allocator).Move(), allocator);
+	serialized_.AddMember("idf", rapidjson::Value(const_cast<char*>(strs.str().c_str()), allocator).Move(), allocator);
+
+	serialized_query.AddMember("term", serialized_, allocator);
+
+	rapidjson::Document d_;
+	rapidjson::Value nodes(rapidjson::kArrayType);
+	for (std::vector<Query::Node>::iterator it = this->leafNodes.begin() ; it != this->leafNodes.end(); ++it) {
 		(*it).serialize_(d_);
-		serialized_query.AddMember("child", d_, allocator);
+		nodes.PushBack(d_, d_.GetAllocator());
+
+//rapidjson::StringBuffer buffer;
+//rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+//d_.Accept(writer);
+//std::cout << (std::string)buffer.GetString() << std::endl;
 	}
+	serialized_query.AddMember("nodes", rapidjson::Value(nodes, allocator).Move(), allocator);
 
 }
 

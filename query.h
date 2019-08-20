@@ -58,16 +58,17 @@ class Query {
 		struct Node {
 			bool root;
 			Operator op;
-			std::vector<Term> terms;
+			Term term;
 			std::string raw_query;
 			std::string lang;
 	//		rapidjson::Document serialized_query;
 
 			double weight;
-			void serialize();
+			std::string serialize();
+			// internal worker function of the above.
 			void serialize_(rapidjson::Document &d);
 			void deserialize();
-			std::vector<Node> childNodes;
+			std::vector<Node> leafNodes;
 		};
 
 		rapidjson::Document serializeTerm(Query::Term t);

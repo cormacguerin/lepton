@@ -73,13 +73,14 @@ void Session::do_write(const char* response) {
 	if (sizeof(response)==0 || response == NULL) {
 		return;
 	}
+	std::cout << "response "<< std::endl;
+	std::cout << response << std::endl;
 	res.encode_message(const_cast<char*>(response));
-	std::cout << "size of response " << sizeof(res.body) << std::endl;
 	std::cout << "res.body_length " << res.body_length << std::endl;
 	auto self(shared_from_this());
 	asio::async_write(socket_,
 			asio::buffer(res.body,
-			res.body_length-1),
+			res.body_length),
 			[this, self](std::error_code ec, std::size_t /*length*/) {
 				if (!ec) {
 					std::cout << "body : " << res.body << std::endl;
