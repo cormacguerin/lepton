@@ -128,13 +128,15 @@ void QueryParser::parse(std::string lang, std::string query_str) {
 
 		if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted) != ja_stop_words.end() ) {
 			isStopWord = true;
-		} 
+		}
 		if ( std::find(en_stop_words.begin(), en_stop_words.end(), converted) != en_stop_words.end() ) {
 			isStopWord = true;
 		}
-		Query::AttributeValue v;
-		v.b=true;
-		term.mods.insert(std::pair<Query::Modifier,Query::AttributeValue>(Query::Modifier::STOPWORD, v));
+		if (isStopWord == true) {
+			Query::AttributeValue v;
+			v.b=true;
+			term.mods.insert(std::pair<Query::Modifier,Query::AttributeValue>(Query::Modifier::STOPWORD, v));
+		}
 		wordNode.terms.push_back(term);
 
 		for (int j=0; j < N_GRAM_SIZE; j++) {
@@ -151,11 +153,15 @@ void QueryParser::parse(std::string lang, std::string query_str) {
 	}
 	
 	parentNode.childNodes.push_back(wordNode);
+
+	parentNode.serialize();
+
 	delete wordIterator;
 }
 
 void QueryParser::execute(std::string lang, std::string query, std::promise<std::string> *promiseObj) {
-	std::string s = "this is the response";
+	QueryParser qp;
+	qp.parse(lang, query);
 	promiseObj->set_value(query);
 }
 

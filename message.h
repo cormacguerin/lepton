@@ -49,8 +49,8 @@ struct Message<false, T> : BaseMessage {
 			body_length = 0;
 			return false;
 		} else {
-			body_length = sizeof(msg);
-			body = (char*)malloc(sizeof(msg));
+			body_length = strlen(msg);
+			body = (char*)malloc(strlen(msg));
 			memcpy(body, msg, body_length);
 			strncat(body, " ", 1);
 			return true;

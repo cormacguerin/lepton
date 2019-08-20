@@ -30,11 +30,16 @@
 
 class Query {
 	private:
+
 	public:
 
 		enum Operator { AND=0, OR=1, NOT=2, RESTRICT=3 };
 		enum Type { ORIGINAL=0, SYNONYM=1, CONCEPT=2 };
 		enum Modifier { LITERAL=0, CONFIDENCE=1, COLLECTION=2, SYNCONF=3, STOPWORD=4 };
+
+//		static const std::string OperatorList[4];
+//		static const std::string TypeList[3];
+//		static const std::string ModifierList[5];
 
 		//TODO:  move to std::variant 
 		struct AttributeValue {
@@ -56,13 +61,16 @@ class Query {
 			std::vector<Term> terms;
 			std::string raw_query;
 			std::string lang;
+	//		rapidjson::Document serialized_query;
 
 			double weight;
-
 			void serialize();
+			void serialize_(rapidjson::Document &d);
 			void deserialize();
 			std::vector<Node> childNodes;
 		};
+
+		rapidjson::Document serializeTerm(Query::Term t);
 
 		Query(bool root, std::string raw_query);
 		~Query();
