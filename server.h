@@ -2,6 +2,7 @@
 #define _SERVER_H_
 
 #include <asio.hpp>
+#include "index_server.h"
 
 class Server {
 	private:
@@ -9,6 +10,7 @@ class Server {
 		asio::io_context io_context;
 		asio::ip::tcp::acceptor acceptor_;
 		void do_accept();
+		std::unique_ptr<IndexServer> indexServer;
 
 	public:
 		Server(short port);

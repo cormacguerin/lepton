@@ -7,6 +7,7 @@
 Server::Server(short port) : acceptor_(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
 {
 	do_accept();
+	indexServer = std::make_unique<IndexServer>();
 }
 
 Server::~Server()
@@ -16,8 +17,8 @@ Server::~Server()
 void Server::do_accept() {
 	acceptor_.async_accept([this](std::error_code ec, asio::ip::tcp::socket socket) {
 		if (!ec) {
-		std::cout << "accept" << std::endl;
-			std::make_shared<Session>(std::move(socket))->start();
+			std::cout << "accept" << std::endl;
+			std::make_shared<Session>(std::move(socket), std::move(indexServer))->start();
 		}
 		do_accept();
 	});

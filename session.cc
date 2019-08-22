@@ -7,8 +7,9 @@
 #include <future>
 
 
-Session::Session(asio::ip::tcp::socket socket) : socket_(std::move(socket))
+Session::Session(asio::ip::tcp::socket socket, std::unique_ptr<IndexServer>) : socket_(std::move(socket)), is_(std::unique_ptr<IndexServer>())
 {
+	std::cout << "TEST" << std::endl;
 }
 
 Session::~Session() 
@@ -59,7 +60,8 @@ void Session::do_read_body() {
 					std::string lang="en";
 					std::promise<std::string> promiseObj;
 					std::future<std::string> futureObj = promiseObj.get_future();
-					std::thread th(queryParser.execute, lang, std::string(req.body), &promiseObj);
+					//std::thread th(queryBuilder.execute, lang, std::string(req.body), &promiseObj);
+					std::thread th(is_.get()->execute, lang, std::string(req.body), &promiseObj);
 					th.join();
 					do_write(futureObj.get().c_str());
 				} else {
