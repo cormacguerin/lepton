@@ -7,6 +7,7 @@
 #include "rapidjson/stringbuffer.h"
 #include <pqxx/pqxx>
 #include <future>
+#include "query_builder.h"
 
 class IndexServer {
 	private:
@@ -17,8 +18,7 @@ class IndexServer {
 		IndexServer();
 		~IndexServer();
 		void init();
-		void test();
-		static void execute(std::string lang, std::string query, std::promise<std::string> *promiseObj);
+		void execute(std::string lang, std::string query, std::promise<std::string> promiseObj);
 
 };
 

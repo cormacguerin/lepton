@@ -82,7 +82,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	std::vector<UnicodeString> grams;
 
 	// this is a redis connection (were replacing this with postgres for the index)
-	//	client.connect();
+	// client.connect();
 	// postgres connection
 	std::cout << "INFO : Start parsing for " << url << std::endl;
 

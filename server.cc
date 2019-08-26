@@ -1,5 +1,6 @@
 #include "server.h"
 #include "session.h"
+#include "message.h"
 #include <string>
 #include <iostream>
 #include <memory>
@@ -19,6 +20,9 @@ void Server::do_accept() {
 		if (!ec) {
 			std::cout << "accept" << std::endl;
 			std::make_shared<Session>(std::move(socket), std::move(indexServer))->start();
+		} else {
+			std::cout << "EC" << std::endl;
+			std::cout << ec << std::endl;
 		}
 		do_accept();
 	});

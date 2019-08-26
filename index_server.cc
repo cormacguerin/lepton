@@ -1,5 +1,4 @@
 #include "index_server.h"
-#include "query_builder.h"
 #include <iostream>
 #include <fstream>
 #include <unistd.h>
@@ -13,6 +12,17 @@ using namespace pqxx;
 
 IndexServer::IndexServer()
 {
+	try {
+		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		if (C->is_open()) {
+			cout << "Opened database successfully: " << C->dbname() << endl;
+		} else {
+			cout << "Can't open database" << endl;
+		}
+	} catch (const std::exception &e) {
+		cerr << e.what() << std::endl;
+	}
+	init();
 }
 
 IndexServer::~IndexServer()
@@ -20,11 +30,35 @@ IndexServer::~IndexServer()
 }
 
 void IndexServer::init() {
+	/*
+	std::cout << "drop this" << std::endl;
+	C->prepare("load_gramurls_batch", "SELECT gram_id, array_agg(url_id) FROM (SELECT gram_id, url_id, incidence FROM docngrams WHERE gram_id IN ($1,$2) ORDER BY incidence DESC) AS sub GROUP BY sub.gram_id");
+	pqxx::work txn(*C);
+	pqxx::result r = txn.prepared("load_gramurls_batch")("1")("20").exec();
+	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+		const pqxx::field urls = (row)[0];
+		const pqxx::field gram = (row)[1];
+		std::cout << " - - - - - " << std::endl;
+		std::cout << "url : " << gram.c_str() << std::endl;
+		std::cout << "url : " << urls.c_str() << std::endl;
+		if (gram.is_null()) {
+			std::cout << "skip : url is null" << std::endl;;
+			continue;
+		}
+		if (urls.is_null()) {
+			std::cout << "skip : feed is null" << std::endl;;
+			continue;
+		}
+	}
+	(/
+
+	// buildIndex();
 	// spp.init();
 
 	// this is a redis connection (were replacing this with postgres for the index)
 	//	client.connect();
 	// postgres connection
+	/*
 	try {
 		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
     	if (C->is_open()) {
@@ -35,117 +69,13 @@ void IndexServer::init() {
 	} catch (const std::exception &e) {
 		cerr << e.what() << std::endl;
 	}
-}
-
-void IndexServer::test() {
-
-	C->prepare("process", "SELECT * FROM docs ORDER BY index_date NULLS FIRST LIMIT $1");
-	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("process")("22018").exec();
-	txn.commit();
-
-	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-//		for (pqxx::row::const_iterator field = row->begin(); field != row->end(); ++field) {
-//			std::cout << field->c_str() << std::endl;
-//		}
-		const pqxx::field id = (row)[0];
-		const pqxx::field url = (row)[1];
-		const pqxx::field feed = (row)[2];
-		std::cout << " - - - - - " << std::endl;
-		std::cout << "url : " << url.c_str() << std::endl;
-		if (url.is_null()) {
-			std::cout << "skip : url is null" << std::endl;;
-			continue;
-		}
-		if (feed.is_null()) {
-			std::cout << "skip : feed is null" << std::endl;;
-			continue;
-		}
-	
-	}
-
-	// create main json doc and load rawdoc into it.
-	rapidjson::Document doc;
-	const char *cstr = "test";
-	try { 
-		doc.Parse(cstr);
-	} catch (const exception& e) {
-		cout << "Error : Aborting due to failed JSON parse attempt" << endl;
-		cout << "Error Message : " << e.what() << endl;
-		return;
-	}
-	// const char *ckey = (*it).c_str();
-	const string display_url = doc["display_url"].GetString();
-	string doc_body;
-	try {
-		doc_body = doc["body"].GetString();
-	} catch (const exception& e) {
-		cout << "Warning : unable to parse display_url " << e.what() << endl;
-	}
-	// base64 decode
-	string decoded_doc_body = base64_decode(doc_body);
-	// tokenize
-	vector<string> tokenized_doc_body;
-	// this is the sentencepiece tokenizer
-	// spp.tokenize(decoded_doc_body, &tokenized_doc_body);
-	// this is the cormac tokenizer
-
-	C->prepare("export_vocab", "select gram, incidence from ngrams WHERE gram NOT LIKE '% %' ORDER BY gram");
-//	pqxx::work txn(*C);
-//	pqxx::result r = txn.prepared("export_vocab").exec();
-//	txn.commit();
-
-	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-		const pqxx::field gram = (row)[0];
-		const pqxx::field incidence = (row)[1];
-		std::cout << gram.c_str() << " " << incidence.c_str() << std::endl;
-	}
-
-	/*
-
-	vector<string> vocabfeeds;
-
-	//client.smembers("vocabfeeds", [&vocabfeeds](cpp_redis::reply& reply) {
-	client.smembers("doc_id_" +lang, [&vocabfeeds](cpp_redis::reply& reply) {
-		for (auto k: reply.as_array()) {
-			vocabfeeds.push_back(k.as_string());
-		}
-	});
-
-	client.sync_commit();
-
-	ofstream crawled_contents ("crawled_contents_" +lang+ ".txt");
-	for(vector<string>::iterator it = vocabfeeds.begin(); it != vocabfeeds.end(); ++it) {
-		string bodytext;
-		client.hget("doc_feed_" +lang, *it, [it, &bodytext](cpp_redis::reply& reply) {
-			rapidjson::Document vocab;
-			const char *cstr = reply.as_string().c_str();
-			try {
-				vocab.Parse(cstr);
-			} catch (const exception& e) {
-				cout << "Error : Aborting due to failed JSON parse attempt" << endl;
-				cout << "Error Message : " << e.what() << endl;
-				return;
-			}
-			string vocab_body;
-			try {
-				vocab_body = vocab["body"].GetString();
-			} catch (const exception& e) {
-				cout << "Warning : unable to parse display_url " << e.what() << endl;
-			}
-			bodytext = base64_decode(vocab_body);
-		});
-		client.sync_commit();
-		crawled_contents << bodytext;
-	}
-	crawled_contents.close();
 	*/
 }
 
-void IndexServer::execute(std::string lang, std::string query, std::promise<std::string> *promiseObj) {
+void IndexServer::execute(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj) {
 	std::string result;
-	QueryBuilder qp;
-	qp.parse(lang, query, result);
-	promiseObj->set_value(result);
+	QueryBuilder queryBuilder;
+	queryBuilder.parse(lang, parsed_query, result);
+	promiseObj.set_value(result);
 }
 

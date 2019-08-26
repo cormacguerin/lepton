@@ -61,7 +61,6 @@ class QueryBuilder {
 		~QueryBuilder();
 		void init();
 		void parse(std::string lang, std::string query_str, std::string &result);
-		static void execute(std::string lang, std::string query, std::promise<std::string> *promiseObj);
 };
 
 #endif

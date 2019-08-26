@@ -20,8 +20,8 @@ class Session : public std::enable_shared_from_this<Session> {
 		void do_read_header();
 		void do_read_body();
 		void do_write(const char*);
-		request<char*> req;
-		response<char*> res;
+//		request<char*> req;
+//		response<char*> res;
 		QueryBuilder queryBuilder;
 		void run_query(std::promise<std::string> *promiseObj);
 

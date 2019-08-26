@@ -166,10 +166,3 @@ void QueryBuilder::parse(std::string lang, std::string query_str, std::string &r
 	delete wordIterator;
 }
 
-void QueryBuilder::execute(std::string lang, std::string query, std::promise<std::string> *promiseObj) {
-	std::string result;
-	QueryBuilder qp;
-	qp.parse(lang, query, result);
-	promiseObj->set_value(result);
-}
-
