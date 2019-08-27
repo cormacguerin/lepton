@@ -38,7 +38,8 @@ struct Message<true, T> : BaseMessage {
 			std::cout << "request message body_length " << body_length << std::endl;
 			body = (char*)malloc(body_length);
 			std::cout << "sizeof body " << sizeof body << std::endl;
-			memset(body, 0, sizeof body);
+			// memset(body, 0, sizeof body);
+			body[body_length] = '\0';
 			return true;
 		}
 	}
@@ -55,8 +56,9 @@ struct Message<false, T> : BaseMessage {
 		} else {
 			body_length = strlen(msg);
 			body = (char*)malloc(body_length);
-			memset(body, 0, sizeof body);
+			//memset(body, 0, sizeof body);
 			memcpy(body, msg, body_length);
+			//body[body_length] = '\0';
 			return true;
 		}
 	}

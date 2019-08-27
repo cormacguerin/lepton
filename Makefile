@@ -43,8 +43,8 @@ CFLAGS    = ${INCLUDES}
 COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES) 
 LINKER = $(COMPILER) $(LINKOPTS)
 
-all:  query.o query_builder.o index_server.o server.o session.o quark.o proton.o neutron.o base64.o segmenter.o
-	${LINKER} -o atom  query.o query_builder.o index_server.o server.o session.o quark.o proton.o neutron.o base64.o segmenter.o $(LD_FLAGS)
+all: query.o query_builder.o index_server.o server.o session.o quark.o proton.o neutron.o base64.o segmenter.o
+	${LINKER} -o atom query.o query_builder.o index_server.o server.o session.o quark.o proton.o neutron.o base64.o segmenter.o $(LD_FLAGS)
 
 proton.o : proton.cc proton.h
 	${COMPILE} proton.cc

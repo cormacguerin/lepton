@@ -16,8 +16,8 @@ Session::~Session()
 {
 }
 
-		request<char*> req;
-		response<char*> res;
+request<char*> req;
+response<char*> res;
 
 void Session::start() {
 	if (req.body == NULL) {
@@ -71,11 +71,11 @@ void Session::do_read_body() {
 					std::string lang="en";
 					std::promise<std::string> promiseObj;
 					std::future<std::string> futureObj = promiseObj.get_future();
-					//std::thread th(is_.get()->execute, lang, std::string(req.body), std::move(promiseObj));
-					//th.join();
+					std::thread th(is_.get()->execute, lang, std::string(req.body), std::move(promiseObj));
+					th.join();
 					std::cout << "CORMAC req.body " << req.body << std::endl;
-					is_.get()->execute(lang, std::string(req.body), std::move(promiseObj));
 					do_write(futureObj.get().c_str());
+					free(req.body);
 				} else {
 					std::cout << "error" << std::endl;
 					std::cout << ec << std::endl;

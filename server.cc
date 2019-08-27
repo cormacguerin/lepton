@@ -29,6 +29,7 @@ void Server::do_accept() {
 }
 
 void Server::run() {
+	std::cout << "io context RUN" << std::endl;
 	io_context.run();
 }
 

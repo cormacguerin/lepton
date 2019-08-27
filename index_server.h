@@ -18,7 +18,7 @@ class IndexServer {
 		IndexServer();
 		~IndexServer();
 		void init();
-		void execute(std::string lang, std::string query, std::promise<std::string> promiseObj);
+		static void execute(std::string lang, std::string query, std::promise<std::string> promiseObj);
 
 };
 
