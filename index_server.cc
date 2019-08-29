@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include "base64.h"
 #include <algorithm>
+#include "query.h"
 
 
 using namespace std;
@@ -36,14 +37,15 @@ void IndexServer::init() {
 	// returns string ngram by id and urls ids
 	C->prepare("load_gramurls_batch", "SELECT ngrams.gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, incidence FROM docngrams WHERE gram_id BETWEEN $1 AND $2 ORDER BY incidence DESC) AS _ng INNER JOIN ngrams ON (ngrams.id = _ng.gram_id) GROUP BY ngrams.gram");
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("load_gramurls_batch")("1")("999").exec();
+	pqxx::result r = txn.prepared("load_gramurls_batch")("1")("1000000").exec();
+	int t = 0;
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
 		const pqxx::field gram = (row)[0];
 		const pqxx::field urls = (row)[1];
-	//	const int urls[] = {_urls.as<int>()};
-		std::cout << " - - - - - " << std::endl;
-		std::cout << "gram : " << gram.c_str() << std::endl;
-		std::cout << "urls : " << urls.c_str() << std::endl;
+		// std::cout << " - - - - - " << std::endl;
+		std::cout << "gram : " << t << " " << gram.c_str() << std::endl;
+		t++;
+		// std::cout << "urls : " << urls.c_str() << std::endl;
 		const char* urls_c = urls.c_str();
 		if (gram.is_null()) {
 			std::cout << "skip : url is null" << std::endl;;
@@ -101,7 +103,9 @@ void IndexServer::init() {
 void IndexServer::execute(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj) {
 	std::string result;
 	QueryBuilder queryBuilder;
-	queryBuilder.parse(lang, parsed_query, result);
+	Query::Node query;
+	queryBuilder.build(lang, parsed_query, query);
+	result = query.serialize();
 	promiseObj.set_value(result);
 }
 

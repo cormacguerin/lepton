@@ -43,8 +43,13 @@ CFLAGS    = ${INCLUDES}
 COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES) 
 LINKER = $(COMPILER) $(LINKOPTS)
 
-all: query.o query_builder.o index_server.o server.o session.o quark.o proton.o neutron.o base64.o segmenter.o
-	${LINKER} -o atom query.o query_builder.o index_server.o server.o session.o quark.o proton.o neutron.o base64.o segmenter.o $(LD_FLAGS)
+all: serveroot indexroot
+
+serveroot: serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o
+	${LINKER} -o serveroot serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o $(LD_FLAGS)
+
+indexroot: indexroot.o query.o quark.o proton.o base64.o segmenter.o
+	${LINKER} -o indexroot indexroot.o query.o quark.o proton.o base64.o segmenter.o $(LD_FLAGS)
 
 proton.o : proton.cc proton.h
 	${COMPILE} proton.cc
@@ -67,8 +72,11 @@ session.o : session.cc session.h
 server.o : server.cc server.h
 	${COMPILE} server.cc
 
-neutron.o : neutron.cc
-	${COMPILE} neutron.cc
+indexroot.o : indexroot.cc
+	${COMPILE} indexroot.cc
+
+serveroot.o : serveroot.cc
+	${COMPILE} serveroot.cc
 
 segmenter.o : segmenter.cc segmenter.h
 	${COMPILE} segmenter.cc
@@ -83,4 +91,4 @@ base64.o : base64.cc
 .PHONY: clean
 
 clean:
-	rm *.o atom
+	rm *.o serveroot indexroot

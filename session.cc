@@ -73,7 +73,6 @@ void Session::do_read_body() {
 					std::future<std::string> futureObj = promiseObj.get_future();
 					std::thread th(is_.get()->execute, lang, std::string(req.body), std::move(promiseObj));
 					th.join();
-					std::cout << "CORMAC req.body " << req.body << std::endl;
 					do_write(futureObj.get().c_str());
 					free(req.body);
 				} else {

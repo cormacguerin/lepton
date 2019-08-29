@@ -1,5 +1,4 @@
 #include "query_builder.h"
-#include "query.h"
 
 QueryBuilder::QueryBuilder()
 {
@@ -58,7 +57,7 @@ void QueryBuilder::init() {
 }
 
 
-void QueryBuilder::parse(std::string lang, std::string query_str, std::string &result) {
+void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &result) {
 
 	// rootNode node, by default this is OR 
 	Query::Node rootNode = {};
@@ -160,8 +159,6 @@ void QueryBuilder::parse(std::string lang, std::string query_str, std::string &r
 	}
 
 	rootNode.leafNodes.push_back(termNode);
-
-	result = rootNode.serialize();
 
 	delete wordIterator;
 }

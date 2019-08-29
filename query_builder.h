@@ -23,6 +23,7 @@
 #include <map>
 #include <numeric>
 #include <future>
+#include "query.h"
 
 /*
  * a helper to parse a query similar to how we index in segmenter.h
@@ -60,7 +61,8 @@ class QueryBuilder {
 		QueryBuilder();
 		~QueryBuilder();
 		void init();
-		void parse(std::string lang, std::string query_str, std::string &result);
+		void build(std::string lang, std::string query_str, Query::Node &result);
 };
 
 #endif
+
