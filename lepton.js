@@ -35,7 +35,7 @@ pool.query('SELECT NOW()', (err, res) => {
 
 app.use(cookieParser());
 app.use(bodyParser.json({limit: '1mb'}));
-app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({limit: '1mb',extended: true })); // for parsing application/x-www-form-urlencoded
 app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '5mb'}));
 app.use(bodyParser.raw({type:'image/jpeg',limit: '5mb'}));
 
