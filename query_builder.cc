@@ -119,6 +119,7 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 		if (converted.empty()) {
 			continue;
 		}
+		std::cout << "query builder converted " << converted << std::endl;
 		
 		UnicodeString uc = UnicodeString::fromUTF8(converted);
 		term.term = uc;
@@ -159,6 +160,8 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 	}
 
 	rootNode.leafNodes.push_back(termNode);
+
+	result = rootNode;
 
 	delete wordIterator;
 }

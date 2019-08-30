@@ -1,13 +1,13 @@
 #include <iostream>
 #include "proton.h"
-#include "quark.h"
+//#include "quark.h"
 
 using namespace std;
 
 std::string port = "3333";
 
 Proton proton;
-Quark quark;
+//Quark quark;
 
 int main(int argc, char** argv)
 {
@@ -18,12 +18,12 @@ int main(int argc, char** argv)
 	std::string raw_query = "running up that hill";
 
 	proton.init();
-	quark.init();
+	// quark.init();
 
 	for (vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); ++lit) {
 		proton.processFeeds(*lit);
 	}
-	quark.buildIndex();
+	// quark.buildIndex();
 
 	proton.exportVocab("en");
 	return 0;

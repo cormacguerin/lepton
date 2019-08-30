@@ -5,6 +5,7 @@
 #include "base64.h"
 #include <algorithm>
 #include "query.h"
+#include "texttools.h"
 
 
 using namespace std;
@@ -13,6 +14,14 @@ using namespace pqxx;
 
 IndexServer::IndexServer()
 {
+	init();
+}
+
+IndexServer::~IndexServer()
+{
+}
+
+void IndexServer::init() {
 	try {
 		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
 		if (C->is_open()) {
@@ -23,37 +32,29 @@ IndexServer::IndexServer()
 	} catch (const std::exception &e) {
 		cerr << e.what() << std::endl;
 	}
-	init();
-}
-
-IndexServer::~IndexServer()
-{
-}
-
-void IndexServer::init() {
 	std::cout << "drop this" << std::endl;
 	// returns ngram id and urls ids
 	// C->prepare("load_gramurls_batch", "SELECT gram_id, array_agg(url_id) FROM (SELECT gram_id, url_id, incidence FROM docngrams WHERE gram_id IN ($1,$2) ORDER BY incidence DESC) AS sub GROUP BY sub.gram_id");
 	// returns string ngram by id and urls ids
 	C->prepare("load_gramurls_batch", "SELECT ngrams.gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, incidence FROM docngrams WHERE gram_id BETWEEN $1 AND $2 ORDER BY incidence DESC) AS _ng INNER JOIN ngrams ON (ngrams.id = _ng.gram_id) GROUP BY ngrams.gram");
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("load_gramurls_batch")("1")("1000000").exec();
-	int t = 0;
+	pqxx::result r = txn.prepared("load_gramurls_batch")("1")("1000").exec();
+	// int t = 0;
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
 		const pqxx::field gram = (row)[0];
 		const pqxx::field urls = (row)[1];
-		// std::cout << " - - - - - " << std::endl;
-		std::cout << "gram : " << t << " " << gram.c_str() << std::endl;
-		t++;
-		// std::cout << "urls : " << urls.c_str() << std::endl;
+		// std::cout << "gram : " << t << " " << gram.c_str() << std::endl;
+		// t++;
 		const char* urls_c = urls.c_str();
 		if (gram.is_null()) {
 			std::cout << "skip : url is null" << std::endl;;
 			continue;
 		} else {
+			std::vector<int> gramurls; // mximum no of grams per url
+			csvToIntVector(urls.as<std::string>(), gramurls);
+			/*
 			int k=0; // char array position tracker
 			char j[10]; // url
-			std::vector<int> gramurls; // mximum no of grams per url
 			for (int i=1; i<strlen(urls_c)-1; i++) {
 				if (i > 100000) {
 					break;
@@ -71,41 +72,63 @@ void IndexServer::init() {
 					k++;
 				}
 			}
-			ngramurls_map[gram.as<std::string>()]=gramurls;
+				*/
+			ngramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
 		}
 		if (urls.is_null()) {
 			std::cout << "skip : feed is null" << std::endl;;
 			continue;
 		}
 	}
-	/*
-	(/
-
-	// buildIndex();
-	// spp.init();
-
-	// this is a redis connection (were replacing this with postgres for the index)
-	//	client.connect();
-	// postgres connection
-	try {
-		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
-    	if (C->is_open()) {
-    	   cout << "Opened database successfully: " << C->dbname() << endl;
-    	} else {
-    	   cout << "Can't open database" << endl;
-    	}
-	} catch (const std::exception &e) {
-		cerr << e.what() << std::endl;
+	for (std::unordered_map<std::string, std::vector<int>>::iterator it = ngramurls_map.begin() ; it != ngramurls_map.end(); ++it) {
+		std::cout << ":"  << it->first << ":" << std::endl;
 	}
-	*/
 }
 
 void IndexServer::execute(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj) {
-	std::string result;
+	
+	std::cout << "LOOP MAP" << std::endl;
+	std::cout << ngramurls_map.size() << std::endl;
+	for (std::unordered_map<std::string, std::vector<int>>::iterator it = ngramurls_map.begin() ; it != ngramurls_map.end(); ++it) {
+		std::cout << ":"  << it->first << ":" << std::endl;
+	}
+	
+	std::thread th(search, lang, parsed_query, std::move(promiseObj), this);
+	th.join();
+}
+
+void IndexServer::search(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer) {
 	QueryBuilder queryBuilder;
 	Query::Node query;
 	queryBuilder.build(lang, parsed_query, query);
-	result = query.serialize();
+	indexServer->addQueryCandidates(query, indexServer);
+	std::string result = query.serialize();
 	promiseObj.set_value(result);
+}
+
+/*
+ * Function to populate the query with the best candidate urls.
+ * TODO: this just returns urls in order of the incidence of the term.
+ * We need a better way to return the 'best' doc matches, to do that we should..
+ * - sort by idf rather than incidence
+ * - post filter based on pagerank maybe..
+ */
+void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer) {
+	std::cout << "add query canditates" << std::endl;
+	if (!query.term.term.isEmpty()) {
+		std::string converted;
+		query.term.term.toUTF8String(converted);
+		std::cout << "- looking for " << converted << std::endl;
+		std::unordered_map<std::string,std::vector<int>>::const_iterator urls = indexServer->ngramurls_map.find(converted);
+		if (urls != indexServer->ngramurls_map.end()) {
+			std::cout << "Found " << converted << std::endl;
+			query.candidates=urls->second;
+		}
+	} else {
+		std::cout << "empty term" << std::endl;
+	}
+	for (std::vector<Query::Node>::iterator it = query.leafNodes.begin() ; it != query.leafNodes.end(); ++it) {
+		addQueryCandidates(*it, indexServer);
+	}
 }
 

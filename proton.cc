@@ -19,7 +19,7 @@ Proton::~Proton()
 }
 
 void Proton::init() {
-	SPS = "\xe2\x96\x81";
+	strcpy(SPS, "\xe2\x96\x81");
 	SPC = "~`!@#$%^&*()_-+=|\\}]{[\"':;?/>.<, ";
 	//char SPC = {'~', '`', '!', '@', '#' , '$', '%', '^', '&', '*', '(', ')', '_', '+', '|', '\\', '{', '}', ':', '"', '|', '<', '>', '?', '/', '.', ',', '\'', ';', ']', '[', '-', '='};
 	// spp.init();
@@ -37,15 +37,18 @@ void Proton::init() {
     	}
 	} catch (const std::exception &e) {
 		cerr << e.what() << std::endl;
+		exit;
 	}
 }
 
 void Proton::processFeeds(std::string lang) {
 	cout << "process feeds for " << lang << endl;
 
-	C->prepare("process", "SELECT * FROM docs ORDER BY index_date NULLS FIRST LIMIT $1");
+	//C->prepare("process", "SELECT * FROM docs ORDER BY index_date NULLS FIRST LIMIT $1");
+	C->prepare("process", "SELECT * FROM docs WHERE index_date is NULL");
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("process")("22018").exec();
+	//pqxx::result r = txn.prepared("process")("22018").exec();
+	pqxx::result r = txn.prepared("process").exec();
 	txn.commit();
 
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {

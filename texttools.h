@@ -69,8 +69,17 @@ static inline void rtrim(std::string &s) {
 
 // trim from both ends (in place)
 static inline void trimInPlace(std::string &s) {
-		ltrim(s);
-		rtrim(s);
+	ltrim(s);
+	rtrim(s);
 }
+
+static inline void csvToIntVector(std::string in, std::vector<int> &out)
+{
+	std::stringstream csvstream(in);
+	std::string v;
+	while(std::getline(csvstream, v, ',')) {
+		out.push_back(atoi(v.c_str()));
+	}
+};
 
 #endif

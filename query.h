@@ -61,14 +61,15 @@ class Query {
 			Term term;
 			std::string raw_query;
 			std::string lang;
-	//		rapidjson::Document serialized_query;
 
 			double weight;
 			std::string serialize();
 			// internal worker function of the above.
-			void serialize_(rapidjson::Document &d);
+			void serialize_(rapidjson::Document &serialized_query);
 			void deserialize();
+			void updateQuery();
 			std::vector<Node> leafNodes;
+			std::vector<int> candidates;
 		};
 
 		rapidjson::Document serializeTerm(Query::Term t);

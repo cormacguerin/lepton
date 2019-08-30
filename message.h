@@ -28,7 +28,8 @@ struct Message;
 template<class T>
 struct Message<true, T> : BaseMessage {
 	const bool decode_message() {
-	       	strncpy(len, header+strlen("length:"), 13);
+		std::cout << "header "<< header << std::endl;
+		strncpy(len, header+strlen("length:"), 13);
 		std::cout << "message len " << len << std::endl;
 		if (body_length > max_body_length) {
 			body_length = 0;

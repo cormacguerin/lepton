@@ -1,13 +1,14 @@
 #include "session.h"
-#include <memory>
 #include <set>
 #include <utility>
 #include <iostream>
 #include <thread>
 #include <future>
+#include <memory>
 
 
-Session::Session(asio::ip::tcp::socket socket, std::unique_ptr<IndexServer>) : socket_(std::move(socket)), is_(std::unique_ptr<IndexServer>())
+//Session::Session(asio::ip::tcp::socket socket, std::shared_ptr<IndexServer> indexServer) : socket_(std::move(socket)), is_(std::move(indexServer))
+Session::Session(asio::ip::tcp::socket socket) : socket_(std::move(socket))
 {
 	std::cout << "TEST" << std::endl;
 }
@@ -19,21 +20,26 @@ Session::~Session()
 request<char*> req;
 response<char*> res;
 
-void Session::start() {
+//void Session::start(IndexServer *indexServer) {
+void Session::start(const std::shared_ptr<IndexServer> &indexServer) {
+	/*
+	std::cout << "  - - - - - - -  - - - - - - -  - - - - - - -  - - - - - - -  - - - - - - -  - - - - - - -  - - - - - - - " << std::endl;
+					std::string lang="en";
+					std::promise<std::string> promiseObj;
+					std::future<std::string> futureObj = promiseObj.get_future();
+					auto keepAlive = indexServer;
+					(*indexServer).execute(lang, std::string("req.body"), std::move(promiseObj));
+	*/
+	is_ = indexServer;
 	if (req.body == NULL) {
 		std::cout << "req is null " << std::endl;
 	} else {
 		std::cout << "req is not null " << strlen(req.body) << std::endl;
 	}
+	free(req.body);
+	free(res.body);
 	do_read_header();
 }
-
-
-/*
-void deliver(const message& msg) {
-	// do something here
-}
-*/
 
 void Session::do_read_header() {
 	std::cout << "req.header_length " << req.header_length << std::endl;
@@ -42,7 +48,6 @@ void Session::do_read_header() {
 	asio::async_read(socket_,
 			asio::buffer(req.header, (std::size_t)req.header_length),
 			[this, self](std::error_code ec, std::size_t) {
-				//if (!ec && req.decode_header()) {
 				if (!ec) {
 					std::cout << "body length A : " << req.body_length << std::endl;
 					std::cout << "header A : " << req.header << std::endl;
@@ -59,6 +64,7 @@ void Session::do_read_header() {
 }
 
 void Session::do_read_body() {
+
 	std::cout << "req.body_length A " << req.body_length << std::endl;
 	std::cout << "body A : " << req.body << std::endl;
 	auto self(shared_from_this());
@@ -71,10 +77,8 @@ void Session::do_read_body() {
 					std::string lang="en";
 					std::promise<std::string> promiseObj;
 					std::future<std::string> futureObj = promiseObj.get_future();
-					std::thread th(is_.get()->execute, lang, std::string(req.body), std::move(promiseObj));
-					th.join();
+					is_.get()->execute(lang, std::string(req.body), std::move(promiseObj));
 					do_write(futureObj.get().c_str());
-					free(req.body);
 				} else {
 					std::cout << "error" << std::endl;
 					std::cout << ec << std::endl;

@@ -8,14 +8,14 @@ class Session : public std::enable_shared_from_this<Session> {
 
 	public:
 
-		Session(asio::ip::tcp::socket socket, std::unique_ptr<IndexServer> indexServer);
+		Session(asio::ip::tcp::socket socket);
 		~Session();
-
-		void start();
+		void start(const std::shared_ptr<IndexServer> &indexServer);
 
 	private:
 
-		std::unique_ptr<IndexServer> is_;
+		//IndexServer* is_;
+		std::shared_ptr<IndexServer> is_;
 		asio::ip::tcp::socket socket_;
 		void do_read_header();
 		void do_read_body();

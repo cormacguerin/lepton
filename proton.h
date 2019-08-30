@@ -14,7 +14,7 @@ class Proton {
 		// SentencePieceProcessor spp;
 		Segmenter seg;
 		pqxx::connection* C;
-		char *SPS;
+		char SPS[4];
 		std::string SPC;
 
 	public:
