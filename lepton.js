@@ -51,27 +51,33 @@ app.post('/addDocument', function(req, res, next) {
 			//multi = client.multi();
 			for (var i in docs) {
 				if (docs.hasOwnProperty(i)) {
-                    var doc_feed_lang = "unknown";
-                    var doc_id_lang = "unknown";
-					switch (docs[i].crawl_language) {
-						case "en":
-							doc_feed_lang = "en";
-							doc_id_lang = "en";
-						case "ja":
-							doc_feed_lang = "ja";
-							doc_id_lang = "ja";
+                    var doc_feed_lang;
+                    var doc_id_lang;
+					if (docs[i].crawl_language == "en") {
+						doc_feed_lang = "en";
+						doc_id_lang = "en";
+					} else if (docs[i].crawl_language == "ja") {
+						doc_feed_lang = "ja";
+						doc_id_lang = "ja";
+					} else if (docs[i].crawl_language == "zh") {
+						doc_feed_lang = "zh";
+						doc_id_lang = "zh";
+					} else {
+						break;
 					}
+					var docs_table = "docs_" + doc_feed_lang;
+					var docs_table_constraint = "docs_" + doc_feed_lang + "_url_key";
 					(async () => {
 						const client = await pool.connect()
 						try {
-							var insert_doc = "INSERT INTO docs(url, feed, lang, crawl_date)"
+							var insert_doc = "INSERT INTO " + docs_table + "(url, feed, lang, crawl_date)"
 								+ " VALUES("
 								+ "\'" + i + "\',"
 								+ "\'" + JSON.stringify(docs[i]) + "\',"
 								+ "\'" + docs[i].crawl_language + "\',"
-								+ "NOW()) ON CONFLICT ON CONSTRAINT docs_url_key DO UPDATE SET feed = "
+								+ "NOW()) ON CONFLICT ON CONSTRAINT " + docs_table_constraint + " DO UPDATE SET feed = "
 								+ "\'" + JSON.stringify(docs[i]) + "\', lang = "
-								+ "\'" + docs[i].crawl_language + "\', crawl_date = NOW() WHERE docs.url = "
+								+ "\'" + docs[i].crawl_language + "\', crawl_date = NOW() WHERE " + docs_table + ".url = "
 								+ "\'" + i + "\';";
 							// console.log(insert_doc);
 							const reply = await client.query(insert_doc);
@@ -152,43 +158,6 @@ app.get('/search', function(req, res, next) {
 		console.log(e);
 	}
 });
-
-/*
- * A function to add a document(s) to our corpus.
- */
-/*
-app.post('/addVocabulary', function(req, res, next) {
-	var queryData = url.parse(req.url, true).query;
-	if (queryData.type == "content") {
-		if (req.body){
-			var docs = req.body;
-			//multi = client.multi();
-			for (var i in docs) {
-				if (docs.hasOwnProperty(i)) {
-	  				//multi.hset("vocab_feed", i, JSON.stringify(docs[i]));
-					//multi.sadd("vocabfeeds", i);
-				}
-			}
-			//multi.exec(function(err, replies) {
-				if(err){
-					res.status(503);
-					console.log(err);
-					res.json({
-						"status":"failed",
-						"error":err
-					});
-				} else {
-					res.status(200);
-					res.json({
-						"status":"successful",
-						"response":replies
-					});
-				}
-			});
-		}
-	}
-});
-*/
 
 // web root
 app.use('/', express.static(__dirname + '/websrc/build/default/'));

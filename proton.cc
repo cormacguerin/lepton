@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include "base64.h"
 #include <algorithm>
+#include <math.h>
+#include <pqxx/strconv.hxx>
 
 
 using namespace std;
@@ -43,18 +45,16 @@ void Proton::init() {
 
 void Proton::processFeeds(std::string lang) {
 	cout << "process feeds for " << lang << endl;
-
-	//C->prepare("process", "SELECT * FROM docs ORDER BY index_date NULLS FIRST LIMIT $1");
-	C->prepare("process", "SELECT * FROM docs WHERE index_date is NULL");
+	std::string statement = "SELECT * FROM docs_";
+	statement.append(lang);
+	statement.append(" WHERE index_date is NULL");
 	pqxx::work txn(*C);
-	//pqxx::result r = txn.prepared("process")("22018").exec();
+	C->prepare("process", statement);
 	pqxx::result r = txn.prepared("process").exec();
+	//pqxx::result r = txn.prepared("process")("22018").exec();
 	txn.commit();
 
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-//		for (pqxx::row::const_iterator field = row->begin(); field != row->end(); ++field) {
-//			std::cout << field->c_str() << std::endl;
-//		}
 		const pqxx::field id = (row)[0];
 		const pqxx::field url = (row)[1];
 		const pqxx::field feed = (row)[2];
@@ -181,4 +181,127 @@ void Proton::exportVocab(std::string lang) {
 	*/
 }
 
+void Proton::getNumDocs(int &count) {
+	prepare_doc_count(*C);
+	pqxx::work txn(*C);
+	pqxx::result r = txn.prepared("doc_count").exec();
+	txn.commit();
+	const pqxx::field c = r.back()[0];
+	count = atoi(c.c_str());
+}
+
+void Proton::getNumNgrams(int &count) {
+	prepare_ngram_count(*C);
+	pqxx::work txn(*C);
+	pqxx::result r = txn.prepared("ngram_count").exec();
+	txn.commit();
+	const pqxx::field c = r.back()[0];
+	count = atoi(c.c_str());
+}
+
+void Proton::getMaxNgramId(int &num) {
+	prepare_max_ngram_id(*C);
+	pqxx::work txn(*C);
+	pqxx::result r = txn.prepared("max_ngram_id").exec();
+	txn.commit();
+	const pqxx::field c = r.back()[0];
+	num = atoi(c.c_str());
+}
+
+void Proton::updateNgramIdf(std::map<int, double> idfbatch) {
+		prepare_update_idf(*C);
+		pqxx::work txn(*C);
+		pqxx::result r;
+		for (std::map<int, double>::iterator it = idfbatch.begin(); it != idfbatch.end(); it++) {
+			r = txn.prepared("update_idf")(it->second)(it->first).exec();
+		}
+		txn.commit();
+}
+
+void Proton::updateNgramIdfBatch(std::string in) {
+	prepare_batch_idf_update(*C);
+	pqxx::work txn(*C);
+	pqxx::result r = txn.prepared("batch_idf_update")(in).exec();
+	txn.commit();
+	const pqxx::field c = r.back()[0];
+	std::cout << c.c_str() << std::endl;
+}
+
+/*
+ * Run over all documents and populare the IDF(inverse document frequency) 
+ * idf=log()
+ */
+void Proton::updateIdf(std::string lang) {
+	int batch_position = 0;
+	int num_docs;
+	int num_ngrams;
+	int max_ngram_id;
+	getNumDocs(num_docs);
+	getNumNgrams(num_ngrams);
+	getMaxNgramId(max_ngram_id);
+	if (num_ngrams == 0 || num_ngrams > max_ngram_id) {
+		std::cout << "Aborting update idf, not enough ngrams." << std::endl;
+		return;
+	}
+	int batch_size = (max_ngram_id/num_ngrams)*1000000;
+	std::cout << "num docs " << num_docs << std::endl;
+	std::cout << "num ngrams " << num_ngrams << std::endl;
+	std::cout << "batch_size " << batch_size << std::endl;
+
+	for (int i = 0; i < max_ngram_id; ) {
+		batch_position += batch_size;
+		prepare_ngram_document_frequency(*C);
+		pqxx::work txn(*C);
+		std::cout << "BETWEEN " << i << " AND " << batch_position << std::endl;
+		pqxx::result r = txn.prepared("ngram_document_frequency")(i)(batch_position).exec();
+
+		pqxx::result::const_iterator last_iter = r.end();
+		last_iter--;
+		std::string insert_value;
+		std::map<int,double> idfbatch;
+		for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+			const pqxx::field gram_id = (row)[0];
+			const pqxx::field count = (row)[1];
+			double idf = log((double)num_docs/count.as<double>());
+			idfbatch.insert(std::pair<int,double>(gram_id.as<int>(),idf));
+			std::string this_value = "{" + gram_id.as<std::string>() + "," + to_string(idf) + "}";
+			insert_value += this_value;
+			if (row != last_iter) {
+				insert_value += ',';
+			}
+		}
+		txn.commit();
+		i = batch_position;
+		updateNgramIdf(idfbatch);
+		//updateNgramIdfBatch(insert_value);
+		std::cout << "Doc idf update " << ((double)batch_position/(double)max_ngram_id)*100 << " %complete" << std::endl;
+	}
+}
+
+void Proton::prepare_max_ngram_id(pqxx::connection_base &c) {
+	c.prepare("max_ngram_id", "SELECT MAX(id) FROM ngrams");
+}
+
+void Proton::prepare_ngram_document_frequency(pqxx::connection_base &c) {
+	c.prepare("ngram_document_frequency",
+			"SELECT DISTINCT gram_id, count(gram_id) FROM docngrams WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
+}
+
+void Proton::prepare_update_idf(pqxx::connection_base &c) {
+	c.prepare("update_idf",
+			"UPDATE ngrams SET idf = $1 WHERE id = $2");
+}
+
+void Proton::prepare_batch_idf_update(pqxx::connection_base &c) {
+	c.prepare("batch_idf_update",
+			"UPDATE ngrams AS ng SET idf = c.idf FROM (VALUES stored_proc($1::text[])) AS c(gram_id, idf) WHERE c.gram_id = ng.id");
+}
+
+void Proton::prepare_doc_count(pqxx::connection_base &c) {
+	c.prepare("doc_count", "SELECT COUNT(*) FROM docs");
+}
+
+void Proton::prepare_ngram_count(pqxx::connection_base &c) {
+	c.prepare("ngram_count", "SELECT COUNT(*) FROM ngrams");
+}
 

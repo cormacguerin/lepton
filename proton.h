@@ -23,6 +23,18 @@ class Proton {
 		void quit( int code );
 		void init();
 		void prepare_export_vocab(pqxx::connection_base &c);
+		void prepare_doc_count(pqxx::connection_base &c);
+		void prepare_ngram_count(pqxx::connection_base &c);
+		void prepare_update_idf(pqxx::connection_base &c);
+		void prepare_batch_idf_update(pqxx::connection_base &c);
+		void prepare_ngram_document_frequency(pqxx::connection_base &c);
+		void prepare_max_ngram_id(pqxx::connection_base &c);
+		void getNumDocs(int &count);
+		void getNumNgrams(int &count);
+		void getMaxNgramId(int &num);
+		void updateNgramIdf(std::map<int, double> idfbatch);
+		void updateNgramIdfBatch(std::string in);
+		void updateIdf(std::string lang);
 		void processFeeds(std::string lang);
 		void exportVocab(std::string lang);
 		bool isSPS(char firstchar);

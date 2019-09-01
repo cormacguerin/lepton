@@ -38,7 +38,7 @@ void IndexServer::init() {
 	// returns string ngram by id and urls ids
 	C->prepare("load_gramurls_batch", "SELECT ngrams.gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, incidence FROM docngrams WHERE gram_id BETWEEN $1 AND $2 ORDER BY incidence DESC) AS _ng INNER JOIN ngrams ON (ngrams.id = _ng.gram_id) GROUP BY ngrams.gram");
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("load_gramurls_batch")("1")("1000").exec();
+	pqxx::result r = txn.prepared("load_gramurls_batch")("1")("5961415").exec();
 	// int t = 0;
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
 		const pqxx::field gram = (row)[0];
@@ -80,19 +80,15 @@ void IndexServer::init() {
 			continue;
 		}
 	}
+	std::cout << "Index Loaded." << std::endl;;
+	/*
 	for (std::unordered_map<std::string, std::vector<int>>::iterator it = ngramurls_map.begin() ; it != ngramurls_map.end(); ++it) {
 		std::cout << ":"  << it->first << ":" << std::endl;
 	}
+	*/
 }
 
 void IndexServer::execute(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj) {
-	
-	std::cout << "LOOP MAP" << std::endl;
-	std::cout << ngramurls_map.size() << std::endl;
-	for (std::unordered_map<std::string, std::vector<int>>::iterator it = ngramurls_map.begin() ; it != ngramurls_map.end(); ++it) {
-		std::cout << ":"  << it->first << ":" << std::endl;
-	}
-	
 	std::thread th(search, lang, parsed_query, std::move(promiseObj), this);
 	th.join();
 }
