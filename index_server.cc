@@ -5,6 +5,7 @@
 #include "base64.h"
 #include <algorithm>
 #include "query.h"
+#include <ctime>
 #include "texttools.h"
 
 
@@ -32,13 +33,19 @@ void IndexServer::init() {
 	} catch (const std::exception &e) {
 		cerr << e.what() << std::endl;
 	}
-	std::cout << "drop this" << std::endl;
+	time_t beforeload = time(0);
+	std::cout << "loading index... (this might take a while)." << std::endl;
 	// returns ngram id and urls ids
-	// C->prepare("load_gramurls_batch", "SELECT gram_id, array_agg(url_id) FROM (SELECT gram_id, url_id, incidence FROM docngrams WHERE gram_id IN ($1,$2) ORDER BY incidence DESC) AS sub GROUP BY sub.gram_id");
-	// returns string ngram by id and urls ids
-	C->prepare("load_gramurls_batch", "SELECT ngrams.gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, incidence FROM docngrams WHERE gram_id BETWEEN $1 AND $2 ORDER BY incidence DESC) AS _ng INNER JOIN ngrams ON (ngrams.id = _ng.gram_id) GROUP BY ngrams.gram");
+	// C->prepare("load_gramurls_batch", "SELECT unigrams_en.gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, incidence FROM docunigrams_en WHERE gram_id BETWEEN $1 AND $2 ORDER BY incidence DESC) AS _ng INNER JOIN unigrams_en ON (unigrams_en.id = _ng.gram_id) GROUP BY unigrams_en.gram");
+	C->prepare("load_gramurls_batch", "SELECT unigrams_en.gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, incidence FROM docunigrams_en ORDER BY incidence DESC) AS _ng INNER JOIN unigrams_en ON (unigrams_en.id = _ng.gram_id) GROUP BY unigrams_en.gram");
+
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("load_gramurls_batch")("1")("5961415").exec();
+	//pqxx::result r = txn.prepared("load_gramurls_batch")("1")("5961415").exec();
+	pqxx::result r = txn.prepared("load_gramurls_batch").exec();
+
+	time_t afterload = time(0);
+	double seconds = difftime(beforeload,afterload);
+	std::cout << "finished loading index in " << seconds << " seconds." << std::endl;
 	// int t = 0;
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
 		const pqxx::field gram = (row)[0];
@@ -72,8 +79,8 @@ void IndexServer::init() {
 					k++;
 				}
 			}
-				*/
-			ngramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
+			*/
+			unigramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
 		}
 		if (urls.is_null()) {
 			std::cout << "skip : feed is null" << std::endl;;
@@ -115,8 +122,8 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		std::string converted;
 		query.term.term.toUTF8String(converted);
 		std::cout << "- looking for " << converted << std::endl;
-		std::unordered_map<std::string,std::vector<int>>::const_iterator urls = indexServer->ngramurls_map.find(converted);
-		if (urls != indexServer->ngramurls_map.end()) {
+		std::unordered_map<std::string,std::vector<int>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
+		if (urls != indexServer->unigramurls_map.end()) {
 			std::cout << "Found " << converted << std::endl;
 			query.candidates=urls->second;
 		}

@@ -10,7 +10,6 @@
 #include <future>
 #include "query_builder.h"
 
-//class IndexServer : public std::enable_shared_from_this<IndexServer> {
 class IndexServer {
 
 	public:
@@ -24,7 +23,9 @@ class IndexServer {
 	private:
 		pqxx::connection* C;
 		pqxx::work* txn;
-		std::unordered_map<std::string, std::vector<int>> ngramurls_map;
+		std::unordered_map<std::string, std::vector<int>> unigramurls_map;
+		std::unordered_map<std::string, std::vector<int>> bigramurls_map;
+		std::unordered_map<std::string, std::vector<int>> trigramurls_map;
 
 };
 

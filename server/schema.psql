@@ -35,6 +35,7 @@ CREATE TABLE docunigrams_en (
 	url_id INT4 NOT NULL REFERENCES docs_en (id),
 	gram_id INT4 NOT NULL REFERENCES unigrams_en (id),
 	incidence INTEGER NOT NULL,
+	idf real,
 	primary key (url_id, gram_id)
 );
 
@@ -42,6 +43,7 @@ CREATE TABLE docbigrams_en (
 	url_id INT4 NOT NULL REFERENCES docs_en (id),
 	gram_id INT4 NOT NULL REFERENCES bigrams_en (id),
 	incidence INTEGER NOT NULL,
+	idf real,
 	primary key (url_id, gram_id)
 );
 
@@ -49,6 +51,7 @@ CREATE TABLE doctrigrams_en (
 	url_id INT4 NOT NULL REFERENCES docs_en (id),
 	gram_id INT4 NOT NULL REFERENCES trigrams_en (id),
 	incidence INTEGER NOT NULL,
+	idf real,
 	primary key (url_id, gram_id)
 );
 
@@ -96,6 +99,7 @@ CREATE TABLE docunigrams_ja (
 	url_id INT4 NOT NULL REFERENCES docs_ja (id),
 	gram_id INT4 NOT NULL REFERENCES unigrams_ja (id),
 	incidence INTEGER NOT NULL,
+	idf real,
 	primary key (url_id, gram_id)
 );
 
@@ -103,6 +107,7 @@ CREATE TABLE docbigrams_ja (
 	url_id INT4 NOT NULL REFERENCES docs_ja (id),
 	gram_id INT4 NOT NULL REFERENCES bigrams_ja (id),
 	incidence INTEGER NOT NULL,
+	idf real,
 	primary key (url_id, gram_id)
 );
 
@@ -110,6 +115,7 @@ CREATE TABLE doctrigrams_ja (
 	url_id INT4 NOT NULL REFERENCES docs_ja (id),
 	gram_id INT4 NOT NULL REFERENCES unigrams_ja (id),
 	incidence INTEGER NOT NULL,
+	idf real,
 	primary key (url_id, gram_id)
 );
 
@@ -158,6 +164,7 @@ CREATE TABLE docunigrams_zh (
 	url_id INT4 NOT NULL REFERENCES docs_zh (id),
 	gram_id INT4 NOT NULL REFERENCES unigrams_zh (id),
 	incidence INTEGER NOT NULL,
+	idf real,
 	primary key (url_id, gram_id)
 );
 
@@ -165,6 +172,7 @@ CREATE TABLE docbigrams_zh (
 	url_id INT4 NOT NULL REFERENCES docs_zh (id),
 	gram_id INT4 NOT NULL REFERENCES bigrams_zh (id),
 	incidence INTEGER NOT NULL,
+	idf real,
 	primary key (url_id, gram_id)
 );
 
@@ -172,6 +180,7 @@ CREATE TABLE doctrigrams_zh (
 	url_id INT4 NOT NULL REFERENCES docs_zh (id),
 	gram_id INT4 NOT NULL REFERENCES trigrams_zh (id),
 	incidence INTEGER NOT NULL,
+	idf real,
 	primary key (url_id, gram_id)
 );
 

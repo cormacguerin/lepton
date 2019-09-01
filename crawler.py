@@ -89,7 +89,7 @@ def runCrawl(url):
                 r = requests.post("http://127.0.0.1:3000/addDocument?type=content", data=data, headers=headers)
                 print(r);
             except Exception:
-                print('error unable to post to redis')
+                print('error unable to post to server.. server down?')
                 return
             print("url " + r.url + " : " + r.text)
 

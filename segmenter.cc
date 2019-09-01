@@ -3,6 +3,7 @@
 #include <chrono>
 #include "texttools.h"
 #include <future>
+#include <math.h>
 
 Segmenter::Segmenter()
 {
@@ -267,18 +268,19 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 				// I notices a lot of bad trigrams. 
 				// - For bigrams there need to be two or more occurrences.
 				if (trim(gram).size() < 128) {
+					double idf = log((double)gramCandidates.size()/(double)git->second);
 					bool isAdd = false;
 					if ((git->first).size() == 1 && git->second > 0) {
-						pqxx::result r = txn.prepared("insert_unigrams")(trim(gram).c_str())(id)(std::to_string(git->second)).exec();
+						pqxx::result r = txn.prepared("insert_unigrams")(trim(gram).c_str())(id)(std::to_string(git->second))(idf).exec();
 						isAdd = true;
 					}
-					if ((git->first).size() == 2 && git->second > 1) {
-						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(std::to_string(git->second)).exec();
+					if ((git->first).size() == 2 && git->second > 2) {
+						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(std::to_string(git->second))(idf).exec();
 						isAdd = true;
 					}
 					// - For trigrams(ngrams) there need to be three or more occurrences.
 					if ((git->first).size() > 2 && git->second > 2) {
-						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(std::to_string(git->second)).exec();
+						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(std::to_string(git->second))(idf).exec();
 						isAdd = true;
 					}
 					if (isAdd == false) {
@@ -365,6 +367,8 @@ std::string Segmenter::update_docngrams_table(std::string url, std::string gram,
  * The prepare gives about 30% overall performance.
  * CTE gives slight performance gain.
  * So basically this improved speed from about 3 docs per second to 6.5 docs per second.
+ * Note incidence in *gramtable is a count of the number of docs with the term.
+ * While incidence in the docs*gramtable is a count of the number of occurences in a particular document.
  */
 void Segmenter::prepare_insert_unigram(pqxx::connection_base &c, std::string lang) {
 	std::string unigramtable = "unigrams_" + lang;
@@ -374,9 +378,9 @@ void Segmenter::prepare_insert_unigram(pqxx::connection_base &c, std::string lan
 	c.prepare("insert_unigrams",
 		"WITH t as (INSERT INTO " + unigramtable + " (gram, incidence) VALUES ($1, 1) "
 		"ON CONFLICT ON CONSTRAINT " + unigramtable_constraint + " DO UPDATE SET incidence = " + unigramtable + ".incidence + 1 RETURNING " + unigramtable + ".id) "
-		"INSERT INTO " + docunigramtable + " (url_id, gram_id, incidence) "
-		"VALUES ($2, (SELECT id FROM t), $3) "
-		"ON CONFLICT ON CONSTRAINT " + docunigramtable_constraint + " DO UPDATE SET incidence = $3 "
+		"INSERT INTO " + docunigramtable + " (url_id, gram_id, incidence, idf) "
+		"VALUES ($2, (SELECT id FROM t), $3, $4) "
+		"ON CONFLICT ON CONSTRAINT " + docunigramtable_constraint + " DO UPDATE SET incidence = $3, idf = $4 "
 		"WHERE " + docunigramtable + ".url_id = $2 "
 		"AND " + docunigramtable + ".gram_id = (SELECT id FROM t)"
 		);
@@ -390,9 +394,9 @@ void Segmenter::prepare_insert_bigram(pqxx::connection_base &c, std::string lang
 	c.prepare("insert_bigrams", 
 		"WITH t as (INSERT INTO " + bigramtable + " (gram, incidence) VALUES ($1, 1) "
 		"ON CONFLICT ON CONSTRAINT " + bigramtable_constraint + " DO UPDATE SET incidence = " + bigramtable + ".incidence + 1 RETURNING " + bigramtable + ".id) "
-		"INSERT INTO " + docbigramtable + " (url_id, gram_id, incidence) "
-		"VALUES ($2, (SELECT id FROM t), $3) "
-		"ON CONFLICT ON CONSTRAINT " + docbigramtable_constraint + " DO UPDATE SET incidence = $3 "
+		"INSERT INTO " + docbigramtable + " (url_id, gram_id, incidence, idf) "
+		"VALUES ($2, (SELECT id FROM t), $3, $4) "
+		"ON CONFLICT ON CONSTRAINT " + docbigramtable_constraint + " DO UPDATE SET incidence = $3, idf = $4 "
 		"WHERE " + docbigramtable + ".url_id = $2 "
 		"AND " + docbigramtable + ".gram_id = (SELECT id FROM t)"
 		);
@@ -406,9 +410,9 @@ void Segmenter::prepare_insert_trigram(pqxx::connection_base &c, std::string lan
 	c.prepare("insert_trigrams", 
 		"WITH t as (INSERT INTO " + trigramtable + " (gram, incidence) VALUES ($1, 1) "
 		"ON CONFLICT ON CONSTRAINT " + trigramtable_constraint + " DO UPDATE SET incidence = " + trigramtable + ".incidence + 1 RETURNING " + trigramtable + ".id) "
-		"INSERT INTO " + doctrigramtable + " (url_id, gram_id, incidence) "
-		"VALUES ($2, (SELECT id FROM t), $3) "
-		"ON CONFLICT ON CONSTRAINT " + doctrigramtable_constraint + " DO UPDATE SET incidence = $3 "
+		"INSERT INTO " + doctrigramtable + " (url_id, gram_id, incidence, idf) "
+		"VALUES ($2, (SELECT id FROM t), $3, $4) "
+		"ON CONFLICT ON CONSTRAINT " + doctrigramtable_constraint + " DO UPDATE SET incidence = $3, idf = $4 "
 		"WHERE " + doctrigramtable + ".url_id = $2 "
 		"AND " + doctrigramtable + ".gram_id = (SELECT id FROM t)"
 		);

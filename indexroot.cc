@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 
 	for (vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); ++lit) {
 		proton.processFeeds(*lit);
-//		proton.updateIdf(*lit);
+	//	proton.updateIdf(*lit);
 	}
 
 //	proton.exportVocab("en");

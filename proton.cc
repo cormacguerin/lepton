@@ -181,8 +181,12 @@ void Proton::exportVocab(std::string lang) {
 	*/
 }
 
-void Proton::getNumDocs(int &count) {
-	prepare_doc_count(*C);
+/*
+ * This is all very messy but it works.
+ */
+
+void Proton::getNumDocs(int &count, std::string lang) {
+	prepare_doc_count(*C, lang);
 	pqxx::work txn(*C);
 	pqxx::result r = txn.prepared("doc_count").exec();
 	txn.commit();
@@ -190,118 +194,170 @@ void Proton::getNumDocs(int &count) {
 	count = atoi(c.c_str());
 }
 
-void Proton::getNumNgrams(int &count) {
-	prepare_ngram_count(*C);
+void Proton::getNumNgrams(int &count, std::string gram, std::string lang) {
+	if (gram=="uni") {
+		prepare_unigram_count(*C, lang);
+	} else if (gram=="bi") {
+		prepare_bigram_count(*C, lang);
+	} else if (gram=="tri") {
+		prepare_trigram_count(*C, lang);
+	} else {
+		return;
+	}
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("ngram_count").exec();
+	pqxx::result r = txn.prepared(gram+"gram_count").exec();
 	txn.commit();
 	const pqxx::field c = r.back()[0];
 	count = atoi(c.c_str());
 }
 
-void Proton::getMaxNgramId(int &num) {
-	prepare_max_ngram_id(*C);
+void Proton::getMaxNgramId(int &num, std::string gram, std::string lang) {
+	if (gram=="uni") {
+		prepare_max_unigram_id(*C, lang);
+	} else if (gram=="bi") {
+		prepare_max_bigram_id(*C, lang);
+	} else if (gram=="tri") {
+		prepare_max_trigram_id(*C, lang);
+	} else {
+		return;
+	}
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("max_ngram_id").exec();
+	pqxx::result r = txn.prepared("max_"+gram+"gram_id").exec();
 	txn.commit();
 	const pqxx::field c = r.back()[0];
 	num = atoi(c.c_str());
 }
 
-void Proton::updateNgramIdf(std::map<int, double> idfbatch) {
-		prepare_update_idf(*C);
-		pqxx::work txn(*C);
-		pqxx::result r;
-		for (std::map<int, double>::iterator it = idfbatch.begin(); it != idfbatch.end(); it++) {
-			r = txn.prepared("update_idf")(it->second)(it->first).exec();
-		}
-		txn.commit();
-}
-
-void Proton::updateNgramIdfBatch(std::string in) {
-	prepare_batch_idf_update(*C);
+void Proton::updateNgramIdf(std::map<int, double> idfbatch, std::string gram, std::string lang) {
+	if (gram=="uni") {
+		prepare_update_unigram_idf(*C, lang);
+	} else if (gram=="bi") {
+		prepare_update_bigram_idf(*C, lang);
+	} else if (gram=="tri") {
+		prepare_update_trigram_idf(*C, lang);
+	} else {
+		return;
+	}
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("batch_idf_update")(in).exec();
+	pqxx::result r;
+	for (std::map<int, double>::iterator it = idfbatch.begin(); it != idfbatch.end(); it++) {
+		r = txn.prepared("update_"+gram+"gram_idf")(it->second)(it->first).exec();
+	}
 	txn.commit();
-	const pqxx::field c = r.back()[0];
-	std::cout << c.c_str() << std::endl;
 }
 
 /*
- * Run over all documents and populare the IDF(inverse document frequency) 
+ * Run over all terms and populare the IDF(inverse document frequency) 
  * idf=log()
  */
 void Proton::updateIdf(std::string lang) {
+	std::string ngrams[] = {"uni","bi","tri"};
 	int batch_position = 0;
 	int num_docs;
 	int num_ngrams;
 	int max_ngram_id;
-	getNumDocs(num_docs);
-	getNumNgrams(num_ngrams);
-	getMaxNgramId(max_ngram_id);
-	if (num_ngrams == 0 || num_ngrams > max_ngram_id) {
-		std::cout << "Aborting update idf, not enough ngrams." << std::endl;
-		return;
-	}
-	int batch_size = (max_ngram_id/num_ngrams)*1000000;
-	std::cout << "num docs " << num_docs << std::endl;
-	std::cout << "num ngrams " << num_ngrams << std::endl;
-	std::cout << "batch_size " << batch_size << std::endl;
-
-	for (int i = 0; i < max_ngram_id; ) {
-		batch_position += batch_size;
-		prepare_ngram_document_frequency(*C);
-		pqxx::work txn(*C);
-		std::cout << "BETWEEN " << i << " AND " << batch_position << std::endl;
-		pqxx::result r = txn.prepared("ngram_document_frequency")(i)(batch_position).exec();
-
-		pqxx::result::const_iterator last_iter = r.end();
-		last_iter--;
-		std::string insert_value;
-		std::map<int,double> idfbatch;
-		for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-			const pqxx::field gram_id = (row)[0];
-			const pqxx::field count = (row)[1];
-			double idf = log((double)num_docs/count.as<double>());
-			idfbatch.insert(std::pair<int,double>(gram_id.as<int>(),idf));
-			std::string this_value = "{" + gram_id.as<std::string>() + "," + to_string(idf) + "}";
-			insert_value += this_value;
-			if (row != last_iter) {
-				insert_value += ',';
-			}
+	for (const string &ng : ngrams) {
+		std::cout << "proton.cc updateIdf processing for " << ng << "grams" << endl;;
+		getNumDocs(num_docs, lang);
+		getNumNgrams(num_ngrams, ng, lang);
+		getMaxNgramId(max_ngram_id, ng, lang);
+		std::cout << "num docs " << num_docs << std::endl;
+		std::cout << "num " << ng<< "grams " << num_ngrams << " with hights postgres id of " << max_ngram_id << std::endl;
+		if (num_ngrams == 0 || num_ngrams > max_ngram_id) {
+			std::cout << "Aborting update idf, not enough " << ng << "grams." << std::endl;
+			continue;
 		}
-		txn.commit();
-		i = batch_position;
-		updateNgramIdf(idfbatch);
-		//updateNgramIdfBatch(insert_value);
-		std::cout << "Doc idf update " << ((double)batch_position/(double)max_ngram_id)*100 << " %complete" << std::endl;
+		int batch_size = (max_ngram_id/num_ngrams)*1000000;
+		std::cout << "batch_size " << batch_size << std::endl;
+
+		for (int i = 0; i < max_ngram_id; ) {
+			batch_position += batch_size;
+			pqxx::work txn(*C);
+			if (ng=="uni") {
+				prepare_unigram_document_frequency(*C, lang);
+			} else if (ng=="bi") {
+				prepare_bigram_document_frequency(*C, lang);
+			} else if (ng=="tri") {
+				prepare_trigram_document_frequency(*C, lang);
+			}
+			std::cout << "BETWEEN " << i << " AND " << batch_position << std::endl;
+			pqxx::result r = txn.prepared(ng+"gram_document_frequency")(i)(batch_position).exec();
+			pqxx::result::const_iterator last_iter = r.end();
+			last_iter--;
+			std::string insert_value;
+			std::map<int,double> idfbatch;
+			for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+				const pqxx::field gram_id = (row)[0];
+				const pqxx::field count = (row)[1];
+				double idf = log((double)num_docs/count.as<double>());
+				idfbatch.insert(std::pair<int,double>(gram_id.as<int>(),idf));
+				std::string this_value = "{" + gram_id.as<std::string>() + "," + to_string(idf) + "}";
+				insert_value += this_value;
+				if (row != last_iter) {
+					insert_value += ',';
+				}
+			}
+			txn.commit();
+			i = batch_position;
+			//pqxx::result r_ = txn.prepared(ng+"gram_document_frequency")(i)(batch_position).exec();
+			updateNgramIdf(idfbatch, ng, lang);
+			std::cout << "Doc " << ng << "gram idf update " << ((double)batch_position/(double)max_ngram_id)*100 << " %complete" << std::endl;
+		}
 	}
 }
 
-void Proton::prepare_max_ngram_id(pqxx::connection_base &c) {
-	c.prepare("max_ngram_id", "SELECT MAX(id) FROM ngrams");
+void Proton::prepare_max_unigram_id(pqxx::connection_base &c, std::string lang) {
+	c.prepare("max_unigram_id", "SELECT MAX(id) FROM unigrams_" + lang);
 }
 
-void Proton::prepare_ngram_document_frequency(pqxx::connection_base &c) {
-	c.prepare("ngram_document_frequency",
-			"SELECT DISTINCT gram_id, count(gram_id) FROM docngrams WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
+void Proton::prepare_max_bigram_id(pqxx::connection_base &c, std::string lang) {
+	c.prepare("max_bigram_id", "SELECT MAX(id) FROM bigrams_" + lang);
 }
 
-void Proton::prepare_update_idf(pqxx::connection_base &c) {
-	c.prepare("update_idf",
-			"UPDATE ngrams SET idf = $1 WHERE id = $2");
+void Proton::prepare_max_trigram_id(pqxx::connection_base &c, std::string lang) {
+	c.prepare("max_trigram_id", "SELECT MAX(id) FROM trigrams_" + lang);
 }
 
-void Proton::prepare_batch_idf_update(pqxx::connection_base &c) {
-	c.prepare("batch_idf_update",
-			"UPDATE ngrams AS ng SET idf = c.idf FROM (VALUES stored_proc($1::text[])) AS c(gram_id, idf) WHERE c.gram_id = ng.id");
+void Proton::prepare_unigram_document_frequency(pqxx::connection_base &c, std::string lang) {
+	c.prepare("unigram_document_frequency",
+			"SELECT DISTINCT gram_id, count(gram_id) FROM docunigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
 }
 
-void Proton::prepare_doc_count(pqxx::connection_base &c) {
-	c.prepare("doc_count", "SELECT COUNT(*) FROM docs");
+void Proton::prepare_bigram_document_frequency(pqxx::connection_base &c, std::string lang) {
+	c.prepare("bigram_document_frequency",
+			"SELECT DISTINCT gram_id, count(gram_id) FROM docbigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
 }
 
-void Proton::prepare_ngram_count(pqxx::connection_base &c) {
-	c.prepare("ngram_count", "SELECT COUNT(*) FROM ngrams");
+void Proton::prepare_trigram_document_frequency(pqxx::connection_base &c, std::string lang) {
+	c.prepare("trigram_document_frequency",
+			"SELECT DISTINCT gram_id, count(gram_id) FROM doctrigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
+}
+
+void Proton::prepare_update_unigram_idf(pqxx::connection_base &c, std::string lang) {
+	c.prepare("update_unigram_idf", "UPDATE unigrams_" + lang + " SET idf = $1 WHERE id = $2");
+}
+
+void Proton::prepare_update_bigram_idf(pqxx::connection_base &c, std::string lang) {
+	c.prepare("update_bigram_idf", "UPDATE bigrams_" + lang + " SET idf = $1 WHERE id = $2");
+}
+
+void Proton::prepare_update_trigram_idf(pqxx::connection_base &c, std::string lang) {
+	c.prepare("update_trigram_idf", "UPDATE trigrams_" + lang + " SET idf = $1 WHERE id = $2");
+}
+
+void Proton::prepare_doc_count(pqxx::connection_base &c, std::string lang) {
+	c.prepare("doc_count", "SELECT COUNT(*) FROM docs_" + lang);
+}
+
+void Proton::prepare_unigram_count(pqxx::connection_base &c, std::string lang) {
+	c.prepare("unigram_count", "SELECT COUNT(*) FROM unigrams_" + lang);
+}
+
+void Proton::prepare_bigram_count(pqxx::connection_base &c, std::string lang) {
+	c.prepare("bigram_count", "SELECT COUNT(*) FROM bigrams_" + lang);
+}
+
+void Proton::prepare_trigram_count(pqxx::connection_base &c, std::string lang) {
+	c.prepare("trigram_count", "SELECT COUNT(*) FROM trigrams_" + lang);
 }
 
