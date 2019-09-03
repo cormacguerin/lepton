@@ -26,6 +26,7 @@ class IndexServer {
 		std::unordered_map<std::string, std::vector<int>> unigramurls_map;
 		std::unordered_map<std::string, std::vector<int>> bigramurls_map;
 		std::unordered_map<std::string, std::vector<int>> trigramurls_map;
+		void loadIndex(std::string gram, std::string lang);
 
 };
 

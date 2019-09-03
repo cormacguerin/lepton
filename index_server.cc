@@ -33,28 +33,33 @@ void IndexServer::init() {
 	} catch (const std::exception &e) {
 		cerr << e.what() << std::endl;
 	}
+	std::string ngrams[] = {"uni","bi","tri"};
+	std::string langs[] = {"en","ja","zh"};
+	for (const string &ng : ngrams) {
+		for (const string &l : langs) {
+			loadIndex(ng, l);
+		}
+	}
+}
+
+void IndexServer::loadIndex(std::string ng, std::string lang) {
+
 	time_t beforeload = time(0);
 	std::cout << "loading index... (this might take a while)." << std::endl;
-	// returns ngram id and urls ids
-	// C->prepare("load_gramurls_batch", "SELECT unigrams_en.gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, incidence FROM docunigrams_en WHERE gram_id BETWEEN $1 AND $2 ORDER BY incidence DESC) AS _ng INNER JOIN unigrams_en ON (unigrams_en.id = _ng.gram_id) GROUP BY unigrams_en.gram");
-	C->prepare("load_gramurls_batch", "SELECT unigrams_en.gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, incidence FROM docunigrams_en ORDER BY incidence DESC) AS _ng INNER JOIN unigrams_en ON (unigrams_en.id = _ng.gram_id) GROUP BY unigrams_en.gram");
 
 	pqxx::work txn(*C);
-	//pqxx::result r = txn.prepared("load_gramurls_batch")("1")("5961415").exec();
-	pqxx::result r = txn.prepared("load_gramurls_batch").exec();
+	C->prepare("load_"+ng+"gram_"+lang+"_urls_batch", "SELECT "+ng+"grams_"+lang+".gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, incidence, idf FROM docunigrams_en ORDER BY idf) AS dng INNER JOIN "+ng+"grams_"+lang+" ON ("+ng+"grams_"+lang+".id = dng.gram_id) GROUP BY "+ng+"grams_"+lang+".gram");
 
-	time_t afterload = time(0);
-	double seconds = difftime(beforeload,afterload);
-	std::cout << "finished loading index in " << seconds << " seconds." << std::endl;
+	pqxx::result r = txn.prepared("load_"+ng+"gram_"+lang+"_urls_batch").exec();
+	std::cout << "index_server.cc " << ng << "gram database query complete processing.." << std::endl;
+
 	// int t = 0;
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
 		const pqxx::field gram = (row)[0];
 		const pqxx::field urls = (row)[1];
-		// std::cout << "gram : " << t << " " << gram.c_str() << std::endl;
-		// t++;
 		const char* urls_c = urls.c_str();
 		if (gram.is_null()) {
-			std::cout << "skip : url is null" << std::endl;;
+			std::cout << "index_server.cc skip : url is null" << std::endl;;
 			continue;
 		} else {
 			std::vector<int> gramurls; // mximum no of grams per url
@@ -66,7 +71,6 @@ void IndexServer::init() {
 				if (i > 100000) {
 					break;
 				}
-				// std::cout << "i " << (urls_c)[i] << std::endl;
 				if ((urls_c)[i]==',') {
 					char u[k];
 					strncpy(u, j, k);
@@ -80,17 +84,28 @@ void IndexServer::init() {
 				}
 			}
 			*/
-			unigramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
+			if (ng == "uni") {
+				unigramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
+			} else if (ng == "bi") {
+				bigramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
+			} else if (ng == "tri") {
+				trigramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
+			} else {
+				continue;
+			}
 		}
 		if (urls.is_null()) {
-			std::cout << "skip : feed is null" << std::endl;;
+			std::cout << "index_server.cc skip : feed is null" << std::endl;;
 			continue;
 		}
 	}
-	std::cout << "Index Loaded." << std::endl;;
+	txn.commit();
+	time_t afterload = time(0);
+	double seconds = difftime(afterload, beforeload);
+	std::cout << "index_server.cc finished loading " << ng << "gram " << lang << " index in " << seconds << " seconds." << std::endl;
 	/*
 	for (std::unordered_map<std::string, std::vector<int>>::iterator it = ngramurls_map.begin() ; it != ngramurls_map.end(); ++it) {
-		std::cout << ":"  << it->first << ":" << std::endl;
+		std::cout << "index_server.cc :"  << it->first << ":" << std::endl;
 	}
 	*/
 }
@@ -117,18 +132,18 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
  * - post filter based on pagerank maybe..
  */
 void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer) {
-	std::cout << "add query canditates" << std::endl;
+	std::cout << "index_server.cc add query canditates" << std::endl;
 	if (!query.term.term.isEmpty()) {
 		std::string converted;
 		query.term.term.toUTF8String(converted);
-		std::cout << "- looking for " << converted << std::endl;
+		std::cout << "index_server.cc - looking for " << converted << std::endl;
 		std::unordered_map<std::string,std::vector<int>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
 		if (urls != indexServer->unigramurls_map.end()) {
-			std::cout << "Found " << converted << std::endl;
+			std::cout << "index_server.cc Found " << converted << std::endl;
 			query.candidates=urls->second;
 		}
 	} else {
-		std::cout << "empty term" << std::endl;
+		std::cout << "index_server.cc empty query node term seen." << std::endl;
 	}
 	for (std::vector<Query::Node>::iterator it = query.leafNodes.begin() ; it != query.leafNodes.end(); ++it) {
 		addQueryCandidates(*it, indexServer);

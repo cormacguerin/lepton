@@ -271,16 +271,16 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 					double idf = log((double)gramCandidates.size()/(double)git->second);
 					bool isAdd = false;
 					if ((git->first).size() == 1 && git->second > 0) {
-						pqxx::result r = txn.prepared("insert_unigrams")(trim(gram).c_str())(id)(std::to_string(git->second))(idf).exec();
+						pqxx::result r = txn.prepared("insert_unigrams")(trim(gram).c_str())(id)(idf).exec();
 						isAdd = true;
 					}
 					if ((git->first).size() == 2 && git->second > 2) {
-						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(std::to_string(git->second))(idf).exec();
+						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(idf).exec();
 						isAdd = true;
 					}
 					// - For trigrams(ngrams) there need to be three or more occurrences.
 					if ((git->first).size() > 2 && git->second > 2) {
-						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(std::to_string(git->second))(idf).exec();
+						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(idf).exec();
 						isAdd = true;
 					}
 					if (isAdd == false) {
@@ -372,83 +372,30 @@ std::string Segmenter::update_docngrams_table(std::string url, std::string gram,
  */
 void Segmenter::prepare_insert_unigram(pqxx::connection_base &c, std::string lang) {
 	std::string unigramtable = "unigrams_" + lang;
-	std::string docunigramtable = "docunigrams_" + lang;
-	std::string unigramtable_constraint = "unigrams_" + lang + "_gram_key";
-	std::string docunigramtable_constraint = "docunigrams_" + lang + "_pkey";
+	std::string unigramtable_constraint = "unigrams_en_gram_key";
 	c.prepare("insert_unigrams",
-		"WITH t as (INSERT INTO " + unigramtable + " (gram, incidence) VALUES ($1, 1) "
-		"ON CONFLICT ON CONSTRAINT " + unigramtable_constraint + " DO UPDATE SET incidence = " + unigramtable + ".incidence + 1 RETURNING " + unigramtable + ".id) "
-		"INSERT INTO " + docunigramtable + " (url_id, gram_id, incidence, idf) "
-		"VALUES ($2, (SELECT id FROM t), $3, $4) "
-		"ON CONFLICT ON CONSTRAINT " + docunigramtable_constraint + " DO UPDATE SET incidence = $3, idf = $4 "
-		"WHERE " + docunigramtable + ".url_id = $2 "
-		"AND " + docunigramtable + ".gram_id = (SELECT id FROM t)"
-		);
+		"INSERT INTO " + unigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $3::double precision))) "
+		"ON CONFLICT ON CONSTRAINT " + unigramtable_constraint + " DO UPDATE SET "
+		"urls = jsonb_set("+unigramtable+".urls, '{$2::int}', jsonb_build_object('tf', $3::double precision),true) where "+unigramtable+".gram=$1");
 }
 
 void Segmenter::prepare_insert_bigram(pqxx::connection_base &c, std::string lang) {
 	std::string bigramtable = "bigrams_" + lang;
-	std::string docbigramtable = "docbigrams_" + lang;
-	std::string bigramtable_constraint = "bigrams_" + lang + "_gram_key";
-	std::string docbigramtable_constraint = "docbigrams_" + lang + "_pkey";
-	c.prepare("insert_bigrams", 
-		"WITH t as (INSERT INTO " + bigramtable + " (gram, incidence) VALUES ($1, 1) "
-		"ON CONFLICT ON CONSTRAINT " + bigramtable_constraint + " DO UPDATE SET incidence = " + bigramtable + ".incidence + 1 RETURNING " + bigramtable + ".id) "
-		"INSERT INTO " + docbigramtable + " (url_id, gram_id, incidence, idf) "
-		"VALUES ($2, (SELECT id FROM t), $3, $4) "
-		"ON CONFLICT ON CONSTRAINT " + docbigramtable_constraint + " DO UPDATE SET incidence = $3, idf = $4 "
-		"WHERE " + docbigramtable + ".url_id = $2 "
-		"AND " + docbigramtable + ".gram_id = (SELECT id FROM t)"
-		);
+	std::string bigramtable_constraint = "bigrams_en_gram_key";
+	c.prepare("insert_bigrams",
+		"INSERT INTO " + bigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $3::double precision))) "
+		"ON CONFLICT ON CONSTRAINT " + bigramtable_constraint + " DO UPDATE SET "
+		"urls = jsonb_set("+bigramtable+".urls, '{$2::int}', jsonb_build_object('tf', $3::double precision),true) where "+bigramtable+".gram=$1");
 }
 
 void Segmenter::prepare_insert_trigram(pqxx::connection_base &c, std::string lang) {
 	std::string trigramtable = "trigrams_" + lang;
-	std::string doctrigramtable = "doctrigrams_" + lang;
-	std::string trigramtable_constraint = "trigrams_" + lang + "_gram_key";
-	std::string doctrigramtable_constraint = "doctrigrams_" + lang + "_pkey";
-	c.prepare("insert_trigrams", 
-		"WITH t as (INSERT INTO " + trigramtable + " (gram, incidence) VALUES ($1, 1) "
-		"ON CONFLICT ON CONSTRAINT " + trigramtable_constraint + " DO UPDATE SET incidence = " + trigramtable + ".incidence + 1 RETURNING " + trigramtable + ".id) "
-		"INSERT INTO " + doctrigramtable + " (url_id, gram_id, incidence, idf) "
-		"VALUES ($2, (SELECT id FROM t), $3, $4) "
-		"ON CONFLICT ON CONSTRAINT " + doctrigramtable_constraint + " DO UPDATE SET incidence = $3, idf = $4 "
-		"WHERE " + doctrigramtable + ".url_id = $2 "
-		"AND " + doctrigramtable + ".gram_id = (SELECT id FROM t)"
-		);
+	std::string trigramtable_constraint = "trigrams_en_gram_key";
+	c.prepare("insert_trigrams",
+		"INSERT INTO " + trigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $3::double precision))) "
+		"ON CONFLICT ON CONSTRAINT " + trigramtable_constraint + " DO UPDATE SET "
+		"urls = jsonb_set("+trigramtable+".urls, '{$2::int}', jsonb_build_object('tf', $3::double precision),true) where "+trigramtable+".gram=$1");
 }
-
-/*
- * This does the same as above but with a known gramid.
- */
-/*
-void Segmenter::prepare_known_insert(pqxx::connection_base &c, lang) {
-	std::string doctrigramtable = "doctrigrams_" + lang;
-	std::string trigramtable = "trigrams_" + lang;
-	c.prepare("insert_known_grams", 
-		"INSERT INTO docngrams (url_id, gram_id, incidence) "
-		"VALUES ($2, $1, $3) "
-		"ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = $3 "
-		"WHERE docngrams.url_id = $2 "
-		"AND docngrams.gram_id = $1"
-		);
-}
-*/
-
-/*
-std::string Segmenter::update_all_tables(std::string id, std::string url, std::string gram, std::string c) {
-
-	std::string update_grams = "WITH t as (INSERT INTO ngrams (gram, incidence) VALUES (" 
-		+ gram + ", 0) ON CONFLICT (gram) DO UPDATE SET gram = " + gram + " RETURNING id) "
-		"INSERT INTO docngrams (url_id, gram_id, incidence) VALUES (" + id + ","
-		+ " (SELECT id FROM t)," + c + ")"
-		+ " ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = " + c
-		+ " WHERE docngrams.url_id = " + id 
-		+ " AND docngrams.gram_id = (SELECT id FROM t) "
-		+ " ;";
-	return update_grams;
-}
-*/
 
 void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {
 }

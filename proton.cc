@@ -47,7 +47,7 @@ void Proton::processFeeds(std::string lang) {
 	cout << "process feeds for " << lang << endl;
 	std::string statement = "SELECT * FROM docs_";
 	statement.append(lang);
-	statement.append(" WHERE index_date is NULL");
+	//statement.append(" WHERE index_date is NULL");
 	pqxx::work txn(*C);
 	C->prepare("process", statement);
 	pqxx::result r = txn.prepared("process").exec();

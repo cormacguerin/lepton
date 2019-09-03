@@ -13,54 +13,27 @@ CREATE TABLE docs_en (
 CREATE TABLE unigrams_en (
 	id SERIAL PRIMARY KEY,
 	gram VARCHAR(1024) NOT NULL UNIQUE,
-	incidence INTEGER NOT NULL,
+	urls jsonb,
 	idf real
 );
 
 CREATE TABLE bigrams_en (
 	id SERIAL PRIMARY KEY,
 	gram VARCHAR(1024) NOT NULL UNIQUE,
-	incidence INTEGER NOT NULL,
+	urls jsonb,
 	idf real
 );
 
 CREATE TABLE trigrams_en (
 	id SERIAL PRIMARY KEY,
 	gram VARCHAR(1024) NOT NULL UNIQUE,
-	incidence INTEGER NOT NULL,
+	urls jsonb,
 	idf real
-);
-
-CREATE TABLE docunigrams_en (
-	url_id INT4 NOT NULL REFERENCES docs_en (id),
-	gram_id INT4 NOT NULL REFERENCES unigrams_en (id),
-	incidence INTEGER NOT NULL,
-	idf real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE docbigrams_en (
-	url_id INT4 NOT NULL REFERENCES docs_en (id),
-	gram_id INT4 NOT NULL REFERENCES bigrams_en (id),
-	incidence INTEGER NOT NULL,
-	idf real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE doctrigrams_en (
-	url_id INT4 NOT NULL REFERENCES docs_en (id),
-	gram_id INT4 NOT NULL REFERENCES trigrams_en (id),
-	incidence INTEGER NOT NULL,
-	idf real,
-	primary key (url_id, gram_id)
 );
 
 CREATE INDEX unigrams_id_idx_en ON unigrams_en(id);
 CREATE INDEX bigrams_id_idx_en ON bigrams_en(id);
 CREATE INDEX trigrams_id_idx_en ON trigrams_en(id);
-CREATE INDEX docunigram_incidence_idx_en ON docunigrams_en(gram_id, incidence ASC);
-CREATE INDEX docbigram_incidence_idx_en ON docbigrams_en(gram_id, incidence ASC);
-CREATE INDEX doctrigram_incidence_idx_en ON doctrigrams_en(gram_id, incidence ASC);
 
 CREATE TABLE docs_ja (
 	id SERIAL PRIMARY KEY,
@@ -77,54 +50,27 @@ CREATE TABLE docs_ja (
 CREATE TABLE unigrams_ja (
 	id SERIAL PRIMARY KEY,
 	gram VARCHAR(1024) NOT NULL UNIQUE,
-	incidence INTEGER NOT NULL,
+	urls jsonb,
 	idf real
 );
 
 CREATE TABLE bigrams_ja (
 	id SERIAL PRIMARY KEY,
 	gram VARCHAR(1024) NOT NULL UNIQUE,
-	incidence INTEGER NOT NULL,
+	urls jsonb,
 	idf real
 );
 
 CREATE TABLE trigrams_ja (
 	id SERIAL PRIMARY KEY,
 	gram VARCHAR(1024) NOT NULL UNIQUE,
-	incidence INTEGER NOT NULL,
+	urls jsonb,
 	idf real
-);
-
-CREATE TABLE docunigrams_ja (
-	url_id INT4 NOT NULL REFERENCES docs_ja (id),
-	gram_id INT4 NOT NULL REFERENCES unigrams_ja (id),
-	incidence INTEGER NOT NULL,
-	idf real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE docbigrams_ja (
-	url_id INT4 NOT NULL REFERENCES docs_ja (id),
-	gram_id INT4 NOT NULL REFERENCES bigrams_ja (id),
-	incidence INTEGER NOT NULL,
-	idf real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE doctrigrams_ja (
-	url_id INT4 NOT NULL REFERENCES docs_ja (id),
-	gram_id INT4 NOT NULL REFERENCES unigrams_ja (id),
-	incidence INTEGER NOT NULL,
-	idf real,
-	primary key (url_id, gram_id)
 );
 
 CREATE INDEX unigrams_id_idx_ja ON unigrams_ja(id);
 CREATE INDEX bigrams_id_idx_ja ON bigrams_ja(id);
 CREATE INDEX trigrams_id_idx_ja ON trigrams_ja(id);
-CREATE INDEX docunigram_incidence_idx_ja ON docunigrams_ja(gram_id, incidence ASC);
-CREATE INDEX docbigram_incidence_idx_ja ON docbigrams_ja(gram_id, incidence ASC);
-CREATE INDEX doctrigram_incidence_idx_ja ON doctrigrams_ja(gram_id, incidence ASC);
 
 CREATE TABLE docs_zh (
 	id SERIAL PRIMARY KEY,
@@ -141,14 +87,14 @@ CREATE TABLE docs_zh (
 CREATE TABLE unigrams_zh (
 	id SERIAL PRIMARY KEY,
 	gram VARCHAR(1024) NOT NULL UNIQUE,
-	incidence INTEGER NOT NULL,
+	urls jsonb,
 	idf real
 );
 
 CREATE TABLE bigrams_zh (
 	id SERIAL PRIMARY KEY,
 	gram VARCHAR(1024) NOT NULL UNIQUE,
-	incidence INTEGER NOT NULL,
+	urls jsonb,
 	idf real
 );
 
@@ -156,44 +102,11 @@ CREATE TABLE bigrams_zh (
 CREATE TABLE trigrams_zh (
 	id SERIAL PRIMARY KEY,
 	gram VARCHAR(1024) NOT NULL UNIQUE,
-	incidence INTEGER NOT NULL,
+	urls jsonb,
 	idf real
-);
-
-CREATE TABLE docunigrams_zh (
-	url_id INT4 NOT NULL REFERENCES docs_zh (id),
-	gram_id INT4 NOT NULL REFERENCES unigrams_zh (id),
-	incidence INTEGER NOT NULL,
-	idf real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE docbigrams_zh (
-	url_id INT4 NOT NULL REFERENCES docs_zh (id),
-	gram_id INT4 NOT NULL REFERENCES bigrams_zh (id),
-	incidence INTEGER NOT NULL,
-	idf real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE doctrigrams_zh (
-	url_id INT4 NOT NULL REFERENCES docs_zh (id),
-	gram_id INT4 NOT NULL REFERENCES trigrams_zh (id),
-	incidence INTEGER NOT NULL,
-	idf real,
-	primary key (url_id, gram_id)
 );
 
 CREATE INDEX unigrams_id_idx_zh ON unigrams_zh(id);
 CREATE INDEX bigrams_id_idx_zh ON bigrams_zh(id);
 CREATE INDEX trigrams_id_idx_zh ON trigrams_zh(id);
-CREATE INDEX docunigram_incidence_idx_zh ON docunigrams_zh(gram_id, incidence ASC);
-CREATE INDEX docbigram_incidence_idx_zh ON docbigrams_zh(gram_id, incidence ASC);
-CREATE INDEX doctrigram_incidence_idx_zh ON doctrigrams_zh(gram_id, incidence ASC);
 
-/*
- * Notes.
- * Use unique id serial as primary key, this has performance gains.
- * deduplication by reference as below. Should help performance and row size when we hit billions/trillions.
- * https://stackoverflow.com/questions/14753155/how-well-is-postgres-handling-duplicates
- */
