@@ -376,7 +376,7 @@ void Segmenter::prepare_insert_unigram(pqxx::connection_base &c, std::string lan
 	c.prepare("insert_unigrams",
 		"INSERT INTO " + unigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $3::double precision))) "
 		"ON CONFLICT ON CONSTRAINT " + unigramtable_constraint + " DO UPDATE SET "
-		"urls = jsonb_set("+unigramtable+".urls, '{$2::int}', jsonb_build_object('tf', $3::double precision),true) where "+unigramtable+".gram=$1");
+		"urls = jsonb_set("+unigramtable+".urls, '{'||$2||'}', jsonb_build_object('tf', $3::double precision),true) where "+unigramtable+".gram=$1");
 }
 
 void Segmenter::prepare_insert_bigram(pqxx::connection_base &c, std::string lang) {
@@ -385,7 +385,7 @@ void Segmenter::prepare_insert_bigram(pqxx::connection_base &c, std::string lang
 	c.prepare("insert_bigrams",
 		"INSERT INTO " + bigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $3::double precision))) "
 		"ON CONFLICT ON CONSTRAINT " + bigramtable_constraint + " DO UPDATE SET "
-		"urls = jsonb_set("+bigramtable+".urls, '{$2::int}', jsonb_build_object('tf', $3::double precision),true) where "+bigramtable+".gram=$1");
+		"urls = jsonb_set("+bigramtable+".urls, '{'||$2||'}', jsonb_build_object('tf', $3::double precision),true) where "+bigramtable+".gram=$1");
 }
 
 void Segmenter::prepare_insert_trigram(pqxx::connection_base &c, std::string lang) {
@@ -394,7 +394,7 @@ void Segmenter::prepare_insert_trigram(pqxx::connection_base &c, std::string lan
 	c.prepare("insert_trigrams",
 		"INSERT INTO " + trigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $3::double precision))) "
 		"ON CONFLICT ON CONSTRAINT " + trigramtable_constraint + " DO UPDATE SET "
-		"urls = jsonb_set("+trigramtable+".urls, '{$2::int}', jsonb_build_object('tf', $3::double precision),true) where "+trigramtable+".gram=$1");
+		"urls = jsonb_set("+trigramtable+".urls, '{'||$2||'}', jsonb_build_object('tf', $3::double precision),true) where "+trigramtable+".gram=$1");
 }
 
 void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {
