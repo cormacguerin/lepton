@@ -274,21 +274,21 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 					// I couldn't find any way to parse the id as a json path is postgres so supplying it directly here instead.
 					bool isAdd = false;
 					if ((git->first).size() == 1 && git->second > 0) {
-						double tf = (double)git->second/gramcount;
+						double tf = (double)git->second/sqrt(gramcount);
 						pqxx::result r = txn.prepared("insert_unigrams")(trim(gram).c_str())(id)(tf).exec();
 						isAdd = true;
 					}
 					if ((git->first).size() == 2 && git->second > 2) {
 						// unsure about this, should we compensate for fequency with ngrams..
 						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
-						double tf = (double)git->second/(gramcount/2);
+						double tf = (double)git->second/sqrt((gramcount/2));
 						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(tf).exec();
 						isAdd = true;
 					}
 					// - For trigrams(ngrams) there need to be three or more occurrences.
 					if ((git->first).size() > 2 && git->second > 2) {
 						// same as above.
-						double tf = (double)git->second/(gramcount/3);
+						double tf = (double)git->second/sqrt((gramcount/3));
 						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(tf).exec();
 						isAdd = true;
 					}
