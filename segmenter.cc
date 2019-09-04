@@ -106,7 +106,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	wordIterator->setText(uni_str);
 	int32_t p = wordIterator->first();
 	int32_t l = p;
-	int i = 0;
 
 	int ja_stop_words_count = 0;
 	int en_stop_words_count = 0;
@@ -114,8 +113,12 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	std::vector<std::string> gramholder[N_GRAM_SIZE];
 	std::vector<bool> stopholder[N_GRAM_SIZE];
 
+	// for simplicity were going to just count every term (for caculating term frequency)
+	int gramcount=0;
+
 	while (p != BreakIterator::DONE) {
-		
+
+		gramcount++;
 		bool isStopWord = false;
 		p = wordIterator->next();
 		std::string converted;
@@ -146,6 +149,8 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 		if ( std::find(en_stop_words.begin(), en_stop_words.end(), converted) != en_stop_words.end() ) {
 			isStopWord = true;
 		}
+		// prints the stream of tile strings.
+		// std::cout << converted << std::endl;
 
 		for (int j=0; j < N_GRAM_SIZE; j++) {
 			gramholder[j].push_back(converted);
@@ -213,8 +218,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	}
 	*/
 	
-	std::cout << "INFO : no. ngrams found " << gramCandidates.size() << std::endl;
-
 	// At this point we have a map of nGram candidates and a map of words/terms/unigrams
 	// We perform some reduction on the gramCandidates (we only want the largest unique
 	// matches)
@@ -242,7 +245,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	prepare_insert_bigram(*C, lang);
 	prepare_insert_trigram(*C, lang);
 	// prepare_known_insert(*C);
-
+	
 	for (std::map<std::vector<std::string>, int>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
 		// only include grams where there is at least one occurrence.
 		// If you include all you get a balooned index.
@@ -268,19 +271,26 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 				// I notices a lot of bad trigrams. 
 				// - For bigrams there need to be two or more occurrences.
 				if (trim(gram).size() < 128) {
-					double idf = log((double)gramCandidates.size()/(double)git->second);
+					// I couldn't find any way to parse the id as a json path is postgres so supplying it directly here instead.
+					std::string json_id_path = "{" + id + "}";
 					bool isAdd = false;
 					if ((git->first).size() == 1 && git->second > 0) {
-						pqxx::result r = txn.prepared("insert_unigrams")(trim(gram).c_str())(id)(idf).exec();
+						double tf = (double)git->second/gramcount;
+						pqxx::result r = txn.prepared("insert_unigrams")(trim(gram).c_str())(id)(json_id_path)(tf).exec();
 						isAdd = true;
 					}
 					if ((git->first).size() == 2 && git->second > 2) {
-						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(idf).exec();
+						// unsure about this, should we compensate for fequency with ngrams..
+						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
+						double tf = (double)git->second/(gramcount/2);
+						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(json_id_path)(tf).exec();
 						isAdd = true;
 					}
 					// - For trigrams(ngrams) there need to be three or more occurrences.
 					if ((git->first).size() > 2 && git->second > 2) {
-						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(idf).exec();
+						// same as above.
+						double tf = (double)git->second/(gramcount/3);
+						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(json_id_path)(tf).exec();
 						isAdd = true;
 					}
 					if (isAdd == false) {
@@ -374,27 +384,27 @@ void Segmenter::prepare_insert_unigram(pqxx::connection_base &c, std::string lan
 	std::string unigramtable = "unigrams_" + lang;
 	std::string unigramtable_constraint = "unigrams_en_gram_key";
 	c.prepare("insert_unigrams",
-		"INSERT INTO " + unigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $3::double precision))) "
+		"INSERT INTO " + unigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $4::double precision))) "
 		"ON CONFLICT ON CONSTRAINT " + unigramtable_constraint + " DO UPDATE SET "
-		"urls = jsonb_set("+unigramtable+".urls, '{'||$2||'}', jsonb_build_object('tf', $3::double precision),true) where "+unigramtable+".gram=$1");
+		"urls = jsonb_set("+unigramtable+".urls, $3, jsonb_build_object('tf', $4::double precision),true) where "+unigramtable+".gram=$1");
 }
 
 void Segmenter::prepare_insert_bigram(pqxx::connection_base &c, std::string lang) {
 	std::string bigramtable = "bigrams_" + lang;
 	std::string bigramtable_constraint = "bigrams_en_gram_key";
 	c.prepare("insert_bigrams",
-		"INSERT INTO " + bigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $3::double precision))) "
+		"INSERT INTO " + bigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $4::double precision))) "
 		"ON CONFLICT ON CONSTRAINT " + bigramtable_constraint + " DO UPDATE SET "
-		"urls = jsonb_set("+bigramtable+".urls, '{'||$2||'}', jsonb_build_object('tf', $3::double precision),true) where "+bigramtable+".gram=$1");
+		"urls = jsonb_set("+bigramtable+".urls, $3, jsonb_build_object('tf', $4::double precision),true) where "+bigramtable+".gram=$1");
 }
 
 void Segmenter::prepare_insert_trigram(pqxx::connection_base &c, std::string lang) {
 	std::string trigramtable = "trigrams_" + lang;
 	std::string trigramtable_constraint = "trigrams_en_gram_key";
 	c.prepare("insert_trigrams",
-		"INSERT INTO " + trigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $3::double precision))) "
+		"INSERT INTO " + trigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $4::double precision))) "
 		"ON CONFLICT ON CONSTRAINT " + trigramtable_constraint + " DO UPDATE SET "
-		"urls = jsonb_set("+trigramtable+".urls, '{'||$2||'}', jsonb_build_object('tf', $3::double precision),true) where "+trigramtable+".gram=$1");
+		"urls = jsonb_set("+trigramtable+".urls, $3, jsonb_build_object('tf', $4::double precision),true) where "+trigramtable+".gram=$1");
 }
 
 void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {

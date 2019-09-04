@@ -45,8 +45,9 @@ void Proton::init() {
 
 void Proton::processFeeds(std::string lang) {
 	cout << "process feeds for " << lang << endl;
-	std::string statement = "SELECT * FROM docs_";
+	std::string statement = "SELECT id,url,feed FROM docs_";
 	statement.append(lang);
+	statement.append(" LIMIT 100000");
 	//statement.append(" WHERE index_date is NULL");
 	pqxx::work txn(*C);
 	C->prepare("process", statement);
@@ -257,7 +258,16 @@ void Proton::updateIdf(std::string lang) {
 	int num_ngrams;
 	int max_ngram_id;
 	for (const string &ng : ngrams) {
+
+		if (ng=="uni") {
+			prepare_unigram_document_frequency(*C, lang);
+		} else if (ng=="bi") {
+			prepare_bigram_document_frequency(*C, lang);
+		} else if (ng=="tri") {
+			prepare_trigram_document_frequency(*C, lang);
+		}
 		std::cout << "proton.cc updateIdf processing for " << ng << "grams" << endl;;
+
 		getNumDocs(num_docs, lang);
 		getNumNgrams(num_ngrams, ng, lang);
 		getMaxNgramId(max_ngram_id, ng, lang);
@@ -273,13 +283,6 @@ void Proton::updateIdf(std::string lang) {
 		for (int i = 0; i < max_ngram_id; ) {
 			batch_position += batch_size;
 			pqxx::work txn(*C);
-			if (ng=="uni") {
-				prepare_unigram_document_frequency(*C, lang);
-			} else if (ng=="bi") {
-				prepare_bigram_document_frequency(*C, lang);
-			} else if (ng=="tri") {
-				prepare_trigram_document_frequency(*C, lang);
-			}
 			std::cout << "BETWEEN " << i << " AND " << batch_position << std::endl;
 			pqxx::result r = txn.prepared(ng+"gram_document_frequency")(i)(batch_position).exec();
 			pqxx::result::const_iterator last_iter = r.end();
