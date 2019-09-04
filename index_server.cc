@@ -48,7 +48,7 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	std::cout << "loading index... (this might take a while)." << std::endl;
 
 	pqxx::work txn(*C);
-	C->prepare("load_"+ng+"gram_"+lang+"_urls_batch", "SELECT "+ng+"grams_"+lang+".gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, incidence, idf FROM docunigrams_en ORDER BY idf) AS dng INNER JOIN "+ng+"grams_"+lang+" ON ("+ng+"grams_"+lang+".id = dng.gram_id) GROUP BY "+ng+"grams_"+lang+".gram");
+	C->prepare("load_"+ng+"gram_"+lang+"_urls_batch", "SELECT "+ng+"grams_"+lang+".gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, score, FROM docunigrams_en ORDER BY score) AS dng INNER JOIN "+ng+"grams_"+lang+" ON ("+ng+"grams_"+lang+".id = dng.gram_id) GROUP BY "+ng+"grams_"+lang+".gram");
 
 	pqxx::result r = txn.prepared("load_"+ng+"gram_"+lang+"_urls_batch").exec();
 	std::cout << "index_server.cc " << ng << "gram database query complete processing.." << std::endl;

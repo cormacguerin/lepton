@@ -272,25 +272,24 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 				// - For bigrams there need to be two or more occurrences.
 				if (trim(gram).size() < 128) {
 					// I couldn't find any way to parse the id as a json path is postgres so supplying it directly here instead.
-					std::string json_id_path = "{" + id + "}";
 					bool isAdd = false;
 					if ((git->first).size() == 1 && git->second > 0) {
 						double tf = (double)git->second/gramcount;
-						pqxx::result r = txn.prepared("insert_unigrams")(trim(gram).c_str())(id)(json_id_path)(tf).exec();
+						pqxx::result r = txn.prepared("insert_unigrams")(trim(gram).c_str())(id)(tf).exec();
 						isAdd = true;
 					}
 					if ((git->first).size() == 2 && git->second > 2) {
 						// unsure about this, should we compensate for fequency with ngrams..
 						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
 						double tf = (double)git->second/(gramcount/2);
-						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(json_id_path)(tf).exec();
+						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(tf).exec();
 						isAdd = true;
 					}
 					// - For trigrams(ngrams) there need to be three or more occurrences.
 					if ((git->first).size() > 2 && git->second > 2) {
 						// same as above.
 						double tf = (double)git->second/(gramcount/3);
-						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(json_id_path)(tf).exec();
+						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(tf).exec();
 						isAdd = true;
 					}
 					if (isAdd == false) {
@@ -348,28 +347,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 
 
 
-/*
-std::string Segmenter::update_ngrams_table(std::string gram) {
-
-	std::string update_grams = "INSERT INTO ngrams (gram, incidence) VALUES (" + gram + ", 0) ON CONFLICT DO NOTHING;";
-	return update_grams;
-}
-*/
-
-/*
-std::string Segmenter::update_docngrams_table(std::string url, std::string gram, std::string c) {
-
-	std::string update_grams = "INSERT INTO docngrams (url_id, gram_id, incidence) VALUES (" 
-		" (SELECT id FROM docs WHERE url = " + url + "),"
-		+ " (SELECT id FROM ngrams WHERE gram = " + gram + ")," + c + ")"
-		+ " ON CONFLICT ON CONSTRAINT docngrams_pkey DO UPDATE SET incidence = " + c
-		+ " WHERE docngrams.url_id = (SELECT id FROM docs WHERE url = " + url + ") "
-		+ " AND docngrams.gram_id = (SELECT id FROM ngrams WHERE gram = " + gram + ") "
-		+ " ;";
-	return update_grams;
-}
-*/
-
 /* 
  * prepared CTE function to insert the gram into ngrams table
  * returning the gram id value for updating the docngrams tables 
@@ -377,34 +354,44 @@ std::string Segmenter::update_docngrams_table(std::string url, std::string gram,
  * The prepare gives about 30% overall performance.
  * CTE gives slight performance gain.
  * So basically this improved speed from about 3 docs per second to 6.5 docs per second.
- * Note incidence in *gramtable is a count of the number of docs with the term.
- * While incidence in the docs*gramtable is a count of the number of occurences in a particular document.
  */
 void Segmenter::prepare_insert_unigram(pqxx::connection_base &c, std::string lang) {
 	std::string unigramtable = "unigrams_" + lang;
-	std::string unigramtable_constraint = "unigrams_en_gram_key";
+	std::string unigramtable_constraint = "unigrams_" + lang + "_gram_key";
+	std::string docunigramtable = "docunigrams_" + lang;
+	std::string docunigramtable_constraint = "docunigrams_" + lang + "_pkey";
 	c.prepare("insert_unigrams",
-		"INSERT INTO " + unigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $4::double precision))) "
-		"ON CONFLICT ON CONSTRAINT " + unigramtable_constraint + " DO UPDATE SET "
-		"urls = jsonb_set("+unigramtable+".urls, $3, jsonb_build_object('tf', $4::double precision),true) where "+unigramtable+".gram=$1");
+		"WITH t as (INSERT INTO " + unigramtable + " (gram) VALUES ($1) "
+		"ON CONFLICT ON CONSTRAINT " + unigramtable_constraint + " DO UPDATE SET gram = $1 RETURNING " + unigramtable + ".id) "
+		"INSERT INTO " + docunigramtable + " (url_id, gram_id, tf) VALUES ($2, (SELECT id FROM t), $3) "
+		"ON CONFLICT ON CONSTRAINT " + docunigramtable_constraint + " DO UPDATE SET tf = $3 "
+		"WHERE " + docunigramtable + ".url_id = $2 AND " + docunigramtable + ".gram_id = (SELECT id FROM t)");
 }
 
 void Segmenter::prepare_insert_bigram(pqxx::connection_base &c, std::string lang) {
 	std::string bigramtable = "bigrams_" + lang;
-	std::string bigramtable_constraint = "bigrams_en_gram_key";
+	std::string bigramtable_constraint = "bigrams_" + lang + "_gram_key";
+	std::string docbigramtable = "docbigrams_" + lang;
+	std::string docbigramtable_constraint = "docbigrams_" + lang + "_pkey";
 	c.prepare("insert_bigrams",
-		"INSERT INTO " + bigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $4::double precision))) "
-		"ON CONFLICT ON CONSTRAINT " + bigramtable_constraint + " DO UPDATE SET "
-		"urls = jsonb_set("+bigramtable+".urls, $3, jsonb_build_object('tf', $4::double precision),true) where "+bigramtable+".gram=$1");
+		"WITH t as (INSERT INTO " + bigramtable + " (gram) VALUES ($1) "
+		"ON CONFLICT ON CONSTRAINT " + bigramtable_constraint + " DO UPDATE SET gram = $1 RETURNING " + bigramtable + ".id) "
+		"INSERT INTO " + docbigramtable + " (url_id, gram_id, tf) VALUES ($2, (SELECT id FROM t), $3) "
+		"ON CONFLICT ON CONSTRAINT " + docbigramtable_constraint + " DO UPDATE SET tf = $3 "
+		"WHERE " + docbigramtable + ".url_id = $2 AND " + docbigramtable + ".gram_id = (SELECT id FROM t)");
 }
 
 void Segmenter::prepare_insert_trigram(pqxx::connection_base &c, std::string lang) {
 	std::string trigramtable = "trigrams_" + lang;
-	std::string trigramtable_constraint = "trigrams_en_gram_key";
+	std::string trigramtable_constraint = "trigrams_" + lang + "_gram_key";
+	std::string doctrigramtable = "doctrigrams_" + lang;
+	std::string doctrigramtable_constraint = "doctrigrams_" + lang + "_pkey";
 	c.prepare("insert_trigrams",
-		"INSERT INTO " + trigramtable + " (gram, urls) VALUES ($1, jsonb_build_object($2::int, jsonb_build_object('tf', $4::double precision))) "
-		"ON CONFLICT ON CONSTRAINT " + trigramtable_constraint + " DO UPDATE SET "
-		"urls = jsonb_set("+trigramtable+".urls, $3, jsonb_build_object('tf', $4::double precision),true) where "+trigramtable+".gram=$1");
+		"WITH t as (INSERT INTO " + trigramtable + " (gram) VALUES ($1) "
+		"ON CONFLICT ON CONSTRAINT " + trigramtable_constraint + " DO UPDATE SET gram = $1 RETURNING " + trigramtable + ".id) "
+		"INSERT INTO " + doctrigramtable + " (url_id, gram_id, tf) VALUES ($2, (SELECT id FROM t), $3) "
+		"ON CONFLICT ON CONSTRAINT " + doctrigramtable_constraint + " DO UPDATE SET tf = $3 "
+		"WHERE " + doctrigramtable + ".url_id = $2 AND " + doctrigramtable + ".gram_id = (SELECT id FROM t)");
 }
 
 void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {

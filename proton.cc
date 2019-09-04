@@ -272,7 +272,7 @@ void Proton::updateIdf(std::string lang) {
 		getNumNgrams(num_ngrams, ng, lang);
 		getMaxNgramId(max_ngram_id, ng, lang);
 		std::cout << "num docs " << num_docs << std::endl;
-		std::cout << "num " << ng<< "grams " << num_ngrams << " with hights postgres id of " << max_ngram_id << std::endl;
+		std::cout << "num " << ng<< "grams " << num_ngrams << " with  " << max_ngram_id << std::endl;
 		if (num_ngrams == 0 || num_ngrams > max_ngram_id) {
 			std::cout << "Aborting update idf, not enough " << ng << "grams." << std::endl;
 			continue;
@@ -291,8 +291,8 @@ void Proton::updateIdf(std::string lang) {
 			std::map<int,double> idfbatch;
 			for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
 				const pqxx::field gram_id = (row)[0];
-				const pqxx::field count = (row)[1];
-				double idf = log((double)num_docs/count.as<double>());
+				const pqxx::field incidence = (row)[1];
+				double idf = log((double)num_docs/incidence.as<double>());
 				idfbatch.insert(std::pair<int,double>(gram_id.as<int>(),idf));
 				std::string this_value = "{" + gram_id.as<std::string>() + "," + to_string(idf) + "}";
 				insert_value += this_value;
@@ -302,7 +302,7 @@ void Proton::updateIdf(std::string lang) {
 			}
 			txn.commit();
 			i = batch_position;
-			//pqxx::result r_ = txn.prepared(ng+"gram_document_frequency")(i)(batch_position).exec();
+			// pqxx::result r_ = txn.prepared(ng+"gram_document_frequency")(i)(batch_position).exec();
 			updateNgramIdf(idfbatch, ng, lang);
 			std::cout << "Doc " << ng << "gram idf update " << ((double)batch_position/(double)max_ngram_id)*100 << " %complete" << std::endl;
 		}
@@ -323,29 +323,35 @@ void Proton::prepare_max_trigram_id(pqxx::connection_base &c, std::string lang) 
 
 void Proton::prepare_unigram_document_frequency(pqxx::connection_base &c, std::string lang) {
 	c.prepare("unigram_document_frequency",
-			"SELECT DISTINCT gram_id, count(gram_id) FROM docunigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
+			"SELECT gram_id,count(url_id) FROM doctrigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
 }
 
 void Proton::prepare_bigram_document_frequency(pqxx::connection_base &c, std::string lang) {
 	c.prepare("bigram_document_frequency",
-			"SELECT DISTINCT gram_id, count(gram_id) FROM docbigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
+			"SELECT gram_id,count(url_id) FROM doctrigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
 }
 
 void Proton::prepare_trigram_document_frequency(pqxx::connection_base &c, std::string lang) {
 	c.prepare("trigram_document_frequency",
-			"SELECT DISTINCT gram_id, count(gram_id) FROM doctrigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
+			"SELECT gram_id,count(url_id) FROM doctrigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
 }
 
 void Proton::prepare_update_unigram_idf(pqxx::connection_base &c, std::string lang) {
-	c.prepare("update_unigram_idf", "UPDATE unigrams_" + lang + " SET idf = $1 WHERE id = $2");
+	c.prepare("update_unigram_idf",
+		"WITH t as (UPDATE docunigrams_" + lang + " SET score = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
+		"UPDATE unigrams_" + lang + " SET idf = $1 WHERE id = $2");
 }
 
 void Proton::prepare_update_bigram_idf(pqxx::connection_base &c, std::string lang) {
-	c.prepare("update_bigram_idf", "UPDATE bigrams_" + lang + " SET idf = $1 WHERE id = $2");
+	c.prepare("update_bigram_idf",
+		"WITH t as (UPDATE docbigrams_" + lang + " SET score = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
+		"UPDATE bigrams_" + lang + " SET idf = $1 WHERE id = $2");
 }
 
 void Proton::prepare_update_trigram_idf(pqxx::connection_base &c, std::string lang) {
-	c.prepare("update_trigram_idf", "UPDATE trigrams_" + lang + " SET idf = $1 WHERE id = $2");
+	c.prepare("update_trigram_idf",
+		"WITH t as (UPDATE doctrigrams_" + lang + " SET score = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
+		"UPDATE trigrams_" + lang + " SET idf = $1 WHERE id = $2");
 }
 
 void Proton::prepare_doc_count(pqxx::connection_base &c, std::string lang) {
