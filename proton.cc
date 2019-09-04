@@ -338,19 +338,19 @@ void Proton::prepare_trigram_document_frequency(pqxx::connection_base &c, std::s
 
 void Proton::prepare_update_unigram_idf(pqxx::connection_base &c, std::string lang) {
 	c.prepare("update_unigram_idf",
-		"WITH t as (UPDATE docunigrams_" + lang + " SET score = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
+		"WITH t as (UPDATE docunigrams_" + lang + " SET weight = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
 		"UPDATE unigrams_" + lang + " SET idf = $1 WHERE id = $2");
 }
 
 void Proton::prepare_update_bigram_idf(pqxx::connection_base &c, std::string lang) {
 	c.prepare("update_bigram_idf",
-		"WITH t as (UPDATE docbigrams_" + lang + " SET score = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
+		"WITH t as (UPDATE docbigrams_" + lang + " SET weight = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
 		"UPDATE bigrams_" + lang + " SET idf = $1 WHERE id = $2");
 }
 
 void Proton::prepare_update_trigram_idf(pqxx::connection_base &c, std::string lang) {
 	c.prepare("update_trigram_idf",
-		"WITH t as (UPDATE doctrigrams_" + lang + " SET score = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
+		"WITH t as (UPDATE doctrigrams_" + lang + " SET weight = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
 		"UPDATE trigrams_" + lang + " SET idf = $1 WHERE id = $2");
 }
 

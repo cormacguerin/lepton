@@ -2,7 +2,7 @@ CREATE TABLE docs_en (
 	id SERIAL PRIMARY KEY,
 	url VARCHAR(2048) NOT NULL UNIQUE,
 	feed jsonb,
-	docscore real,
+	docrank real,
 	lang VARCHAR(2),
 	crawl_date TIMESTAMP,
 	index_date TIMESTAMP,
@@ -33,7 +33,7 @@ CREATE TABLE docunigrams_en (
 	url_id INT4,
 	gram_id INT4,
 	tf real,
-	score real,
+	weight real,
 	primary key (url_id, gram_id)
 );
 
@@ -41,7 +41,7 @@ CREATE TABLE docbigrams_en (
 	url_id INT4,
 	gram_id INT4,
 	tf real,
-	score real,
+	weight real,
 	primary key (url_id, gram_id)
 );
 
@@ -49,7 +49,7 @@ CREATE TABLE doctrigrams_en (
 	url_id INT4,
 	gram_id INT4,
 	tf real,
-	score real,
+	weight real,
 	primary key (url_id, gram_id)
 );
 
@@ -65,7 +65,7 @@ CREATE TABLE docs_ja (
 	id SERIAL PRIMARY KEY,
 	url VARCHAR(2048) NOT NULL UNIQUE,
 	feed jsonb,
-	docscore real,
+	docrank real,
 	lang VARCHAR(2),
 	crawl_date TIMESTAMP,
 	index_date TIMESTAMP,
@@ -95,7 +95,7 @@ CREATE TABLE docunigrams_ja (
 	url_id INT4,
 	gram_id INT4,
 	tf real,
-	score real,
+	weight real,
 	primary key (url_id, gram_id)
 );
 
@@ -103,7 +103,7 @@ CREATE TABLE docbigrams_ja (
 	url_id INT4,
 	gram_id INT4,
 	tf real,
-	score real,
+	weight real,
 	primary key (url_id, gram_id)
 );
 
@@ -111,7 +111,7 @@ CREATE TABLE doctrigrams_ja (
 	url_id INT4,
 	gram_id INT4,
 	tf real,
-	score real,
+	weight real,
 	primary key (url_id, gram_id)
 }
 
@@ -126,7 +126,7 @@ CREATE TABLE docs_zh (
 	id SERIAL PRIMARY KEY,
 	url VARCHAR(2048) NOT NULL UNIQUE,
 	feed jsonb,
-	docscore real,
+	docrank real,
 	lang VARCHAR(2),
 	crawl_date TIMESTAMP,
 	index_date TIMESTAMP,
@@ -157,7 +157,7 @@ CREATE TABLE docunigrams_zh (
 	url_id INT4,
 	gram_id INT4,
 	tf real,
-	score real,
+	weight real,
 	primary key (url_id, gram_id)
 );
 
@@ -165,7 +165,7 @@ CREATE TABLE docbigrams_zh (
 	url_id INT4,
 	gram_id INT4,
 	tf real,
-	score real,
+	weight real,
 	primary key (url_id, gram_id)
 );
 
@@ -173,7 +173,7 @@ CREATE TABLE doctrigrams_zh (
 	url_id INT4,
 	gram_id INT4,
 	tf real,
-	score real,
+	weight real,
 	primary key (url_id, gram_id)
 }
 
