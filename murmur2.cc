@@ -48,6 +48,9 @@ uint32_t MurmurHash2 ( const void * key, int len, uint32_t seed ) {
 
   switch(len)
   {
+      case 6: h ^= data[5] << 128;
+      case 5: h ^= data[4] << 64;
+      case 4: h ^= data[3] << 32;
       case 3: h ^= data[2] << 16;
       case 2: h ^= data[1] << 8;
       case 1: h ^= data[0];
@@ -69,8 +72,8 @@ int main(int argc, char *argv[]) {
         unsigned char *s;
         s = (unsigned char*)argv[1];
         int slen = strlen((char*)s);
-        //int r = MurmurHash2(s, slen, 0xbc9f1d34);
         int r = MurmurHash2(s, slen, 31);
+        //int r = MurmurHash2(s, slen, 31);
         char str[1];
         std::cout << r << " " << s << std::endl;
     }

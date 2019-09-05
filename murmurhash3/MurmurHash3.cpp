@@ -258,6 +258,7 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
   const uint8_t * data = (const uint8_t*)key;
   const int nblocks = len / 16;
 
+
   uint64_t h1 = seed;
   uint64_t h2 = seed;
 
@@ -332,4 +333,18 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
 }
 
 //-----------------------------------------------------------------------------
+//
+
+int main(int argc, char *argv[]) {
+    if (argc > 1) {
+		uint64_t _hash[2];
+		const unsigned char *key = (unsigned char*)argv[1];
+        int len = strlen((char*)key);
+		uint64_t seed = 123;
+        std::cout << " key " << key<< std::endl;
+        std::cout << " len " << len<< std::endl;
+		MurmurHash3_x64_128 (key, sizeof(char)*len, seed, &_hash);
+        std::cout << " _hash " << _hash[1] << std::endl;
+    }
+}
 

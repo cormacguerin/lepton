@@ -240,9 +240,8 @@ void Proton::updateNgramIdf(std::map<int, double> idfbatch, std::string gram, st
 		return;
 	}
 	pqxx::work txn(*C);
-	pqxx::result r;
 	for (std::map<int, double>::iterator it = idfbatch.begin(); it != idfbatch.end(); it++) {
-		r = txn.prepared("update_"+gram+"gram_idf")(it->second)(it->first).exec();
+		pqxx::result r = txn.prepared("update_"+gram+"gram_idf")(it->second)(it->first).exec();
 	}
 	txn.commit();
 }
@@ -253,7 +252,7 @@ void Proton::updateNgramIdf(std::map<int, double> idfbatch, std::string gram, st
  */
 void Proton::updateIdf(std::string lang) {
 	//std::string ngrams[] = {"uni","bi","tri"};
-	std::string ngrams[] = {"tri"};
+	std::string ngrams[] = {"uni","bi","tri"};
 	int num_docs;
 	int num_ngrams;
 	int max_ngram_id;
@@ -278,14 +277,14 @@ void Proton::updateIdf(std::string lang) {
 			std::cout << "Aborting update idf, not enough " << ng << "grams." << std::endl;
 			continue;
 		}
-		int batch_size = (max_ngram_id/num_ngrams)*1000000;
-		std::cout << "batch_size " << batch_size << std::endl;
+		int batch_size = (max_ngram_id/num_ngrams)*1000;
 
 		for (int i = 0; i < max_ngram_id; ) {
 			batch_position += batch_size;
 			pqxx::work txn(*C);
-			std::cout << "BETWEEN " << i << " AND " << batch_position << std::endl;
+			std::cout << "db batch request started for between " << i << " and " << batch_position << std::endl;
 			pqxx::result r = txn.prepared(ng+"gram_document_frequency")(i)(batch_position).exec();
+			std::cout << "db batch request complete processing..";
 			pqxx::result::const_iterator last_iter = r.end();
 			last_iter--;
 			std::string insert_value;
