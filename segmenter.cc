@@ -281,14 +281,14 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 					if ((git->first).size() == 2 && git->second > 2) {
 						// unsure about this, should we compensate for fequency with ngrams..
 						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
-						double tf = (double)git->second/sqrt((gramcount/2));
+						double tf = (double)git->second/sqrt((gramcount));
 						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(tf).exec();
 						isAdd = true;
 					}
 					// - For trigrams(ngrams) there need to be three or more occurrences.
 					if ((git->first).size() > 2 && git->second > 2) {
 						// same as above.
-						double tf = (double)git->second/sqrt((gramcount/3));
+						double tf = (double)git->second/sqrt((gramcount));
 						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(tf).exec();
 						isAdd = true;
 					}

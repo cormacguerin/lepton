@@ -252,12 +252,13 @@ void Proton::updateNgramIdf(std::map<int, double> idfbatch, std::string gram, st
  * idf=log()
  */
 void Proton::updateIdf(std::string lang) {
-	std::string ngrams[] = {"uni","bi","tri"};
-	int batch_position = 0;
+	//std::string ngrams[] = {"uni","bi","tri"};
+	std::string ngrams[] = {"tri"};
 	int num_docs;
 	int num_ngrams;
 	int max_ngram_id;
 	for (const string &ng : ngrams) {
+		int batch_position = 0;
 
 		if (ng=="uni") {
 			prepare_unigram_document_frequency(*C, lang);
@@ -272,7 +273,7 @@ void Proton::updateIdf(std::string lang) {
 		getNumNgrams(num_ngrams, ng, lang);
 		getMaxNgramId(max_ngram_id, ng, lang);
 		std::cout << "num docs " << num_docs << std::endl;
-		std::cout << "num " << ng<< "grams " << num_ngrams << " with  " << max_ngram_id << std::endl;
+		std::cout << num_ngrams << " " << ng << "grams " << " with max id of " << max_ngram_id << std::endl;
 		if (num_ngrams == 0 || num_ngrams > max_ngram_id) {
 			std::cout << "Aborting update idf, not enough " << ng << "grams." << std::endl;
 			continue;
@@ -304,7 +305,10 @@ void Proton::updateIdf(std::string lang) {
 			i = batch_position;
 			// pqxx::result r_ = txn.prepared(ng+"gram_document_frequency")(i)(batch_position).exec();
 			updateNgramIdf(idfbatch, ng, lang);
-			std::cout << "Doc " << ng << "gram idf update " << ((double)batch_position/(double)max_ngram_id)*100 << " %complete" << std::endl;
+			int complete = (int)((double)batch_position/(double)max_ngram_id);
+			if (complete > 1)
+				complete = 1;
+			std::cout << "Doc " << ng << "gram idf update " << complete*100 << "% complete" << std::endl;
 		}
 	}
 }
@@ -323,12 +327,12 @@ void Proton::prepare_max_trigram_id(pqxx::connection_base &c, std::string lang) 
 
 void Proton::prepare_unigram_document_frequency(pqxx::connection_base &c, std::string lang) {
 	c.prepare("unigram_document_frequency",
-			"SELECT gram_id,count(url_id) FROM doctrigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
+			"SELECT gram_id,count(url_id) FROM docunigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
 }
 
 void Proton::prepare_bigram_document_frequency(pqxx::connection_base &c, std::string lang) {
 	c.prepare("bigram_document_frequency",
-			"SELECT gram_id,count(url_id) FROM doctrigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
+			"SELECT gram_id,count(url_id) FROM docbigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
 }
 
 void Proton::prepare_trigram_document_frequency(pqxx::connection_base &c, std::string lang) {
