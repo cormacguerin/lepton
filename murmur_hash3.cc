@@ -7,7 +7,7 @@
 // compile and run any of them on any platform, but your performance with the
 // non-native version will be less than optimal.
 
-#include "MurmurHash3.h"
+#include "murmur_hash3.h"
 
 //-----------------------------------------------------------------------------
 // Platform-specific functions and macros
@@ -335,16 +335,16 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
 //-----------------------------------------------------------------------------
 //
 
+/*
 int main(int argc, char *argv[]) {
     if (argc > 1) {
 		uint64_t _hash[2];
 		const unsigned char *key = (unsigned char*)argv[1];
         int len = strlen((char*)key);
 		uint64_t seed = 123;
-        std::cout << " key " << key<< std::endl;
-        std::cout << " len " << len<< std::endl;
 		MurmurHash3_x64_128 (key, sizeof(char)*len, seed, &_hash);
-        std::cout << " _hash " << _hash[1] << std::endl;
+        std::cout << key << " " << len << " " << _hash[1] << std::endl;
     }
 }
+*/
 

@@ -73,7 +73,10 @@ void Segmenter::init() {
 }
 
 
-void Segmenter::parse(std::string id, std::string url, std::string lang, std::string str_in) {
+void Segmenter::parse(std::string id, std::string url, std::string lang, std::string str_in,
+				   std::map<std::string, Shard::Term> &doc_unigram_map,
+				   std::map<std::string, Shard::Term> &doc_bigram_map,
+				   std::map<std::string, Shard::Term> &doc_trigram_map) {
 	// postgres worker
 	pqxx::work txn(*C);
 
@@ -241,9 +244,11 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	docngrams.Parse("{}");
 	rapidjson::Document::AllocatorType& allocator = docngrams.GetAllocator();
 
+	/*
 	prepare_insert_unigram(*C, lang);
 	prepare_insert_bigram(*C, lang);
 	prepare_insert_trigram(*C, lang);
+	*/
 	// prepare_known_insert(*C);
 	
 	for (std::map<std::vector<std::string>, int>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
@@ -273,23 +278,31 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 				if (trim(gram).size() < 128) {
 					// I couldn't find any way to parse the id as a json path is postgres so supplying it directly here instead.
 					bool isAdd = false;
+
+					Shard::Term shard_term;
 					if ((git->first).size() == 1 && git->second > 0) {
 						double tf = (double)git->second/sqrt(gramcount);
-						pqxx::result r = txn.prepared("insert_unigrams")(trim(gram).c_str())(id)(tf).exec();
+						shard_term.url_id = atoi(id.c_str());
+						shard_term.tf = tf;
+						doc_unigram_map.insert(std::pair<std::string, Shard::Term>(trim(gram).c_str(),shard_term));
 						isAdd = true;
 					}
 					if ((git->first).size() == 2 && git->second > 2) {
 						// unsure about this, should we compensate for fequency with ngrams..
 						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
 						double tf = (double)git->second/sqrt((gramcount));
-						pqxx::result r = txn.prepared("insert_bigrams")(trim(gram).c_str())(id)(tf).exec();
+						shard_term.url_id = atoi(id.c_str());
+						shard_term.tf = tf;
+						doc_bigram_map.insert(std::pair<std::string, Shard::Term>(trim(gram).c_str(),shard_term));
 						isAdd = true;
 					}
 					// - For trigrams(ngrams) there need to be three or more occurrences.
 					if ((git->first).size() > 2 && git->second > 2) {
 						// same as above.
 						double tf = (double)git->second/sqrt((gramcount));
-						pqxx::result r = txn.prepared("insert_trigrams")(trim(gram).c_str())(id)(tf).exec();
+						shard_term.url_id = atoi(id.c_str());
+						shard_term.tf = tf;
+						doc_trigram_map.insert(std::pair<std::string, Shard::Term>(trim(gram).c_str(),shard_term));
 						isAdd = true;
 					}
 					if (isAdd == false) {
@@ -355,6 +368,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
  * CTE gives slight performance gain.
  * So basically this improved speed from about 3 docs per second to 6.5 docs per second.
  */
+/*
 void Segmenter::prepare_insert_unigram(pqxx::connection_base &c, std::string lang) {
 	std::string unigramtable = "unigrams_" + lang;
 	std::string unigramtable_constraint = "unigrams_" + lang + "_gram_key";
@@ -393,7 +407,7 @@ void Segmenter::prepare_insert_trigram(pqxx::connection_base &c, std::string lan
 		"ON CONFLICT ON CONSTRAINT " + doctrigramtable_constraint + " DO UPDATE SET tf = $3 "
 		"WHERE " + doctrigramtable + ".url_id = $2 AND " + doctrigramtable + ".gram_id = (SELECT id FROM t)");
 }
-
+*/
 void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {
 }
 

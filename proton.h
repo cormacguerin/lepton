@@ -8,11 +8,13 @@
 #include "rapidjson/stringbuffer.h"
 #include <pqxx/pqxx>
 #include "segmenter.h"
+#include "shard_manager.h"
 
 class Proton {
 	private:
 		// SentencePieceProcessor spp;
 		Segmenter seg;
+		ShardManager shardManager;
 		pqxx::connection* C;
 		char SPS[4];
 		std::string SPC;

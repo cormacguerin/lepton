@@ -45,11 +45,11 @@ LINKER = $(COMPILER) $(LINKOPTS)
 
 all: serveroot indexroot
 
-serveroot: serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o
-	${LINKER} -o serveroot serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o $(LD_FLAGS)
+serveroot: serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o shard_manager.o shard.o
+	${LINKER} -o serveroot serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o shard_manager.o shard.o $(LD_FLAGS)
 
-indexroot: indexroot.o proton.o base64.o segmenter.o
-	${LINKER} -o indexroot indexroot.o proton.o base64.o segmenter.o $(LD_FLAGS)
+indexroot: indexroot.o proton.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o
+	${LINKER} -o indexroot indexroot.o proton.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o $(LD_FLAGS)
 
 proton.o : proton.cc proton.h
 	${COMPILE} proton.cc
@@ -68,6 +68,15 @@ session.o : session.cc session.h
 
 server.o : server.cc server.h
 	${COMPILE} server.cc
+
+murmur_hash3.o : murmur_hash3.cc murmur_hash3.h
+	${COMPILE} murmur_hash3.cc
+
+shard.o : shard.cc shard.h
+	${COMPILE} shard.cc
+
+shard_manager.o : shard_manager.cc shard_manager.h
+	${COMPILE} shard_manager.cc
 
 indexroot.o : indexroot.cc
 	${COMPILE} indexroot.cc

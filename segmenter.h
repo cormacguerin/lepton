@@ -24,6 +24,7 @@
 #include <numeric>
 #include <pqxx/pqxx>
 #include <postgresql/libpq-fe.h>
+#include "shard.h"
 
 class Segmenter {
 	private:
@@ -39,13 +40,13 @@ class Segmenter {
 		Segmenter();
 		~Segmenter();
 		void init();
-		void parse(std::string id, std::string url, std::string lang, std::string str_in);
+		void parse(std::string id, std::string url, std::string lang, std::string str_in,
+				   std::map<std::string, Shard::Term> &doc_unigram_map,
+				   std::map<std::string, Shard::Term> &doc_bigram_map,
+				   std::map<std::string, Shard::Term> &doc_trigram_map);
 		//std::string update_docngrams_table(std::string url, std::string gram, std::string c);
 		//std::string update_ngrams_table(std::string gram);
 		//std::string update_all_tables(std::string id, std::string url, std::string gram, std::string c);
-		void prepare_insert_unigram(pqxx::connection_base &c, std::string lang);
-		void prepare_insert_bigram(pqxx::connection_base &c, std::string lang);
-		void prepare_insert_trigram(pqxx::connection_base &c, std::string lang);
 	//	void prepare_known_insert(pqxx::connection_base &c);
 		void tokenize(std::string text, std::vector<std::string> *pieces);
 		void detokenize(std::vector<std::string> pieces, std::string text);

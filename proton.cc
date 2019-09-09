@@ -114,7 +114,14 @@ void Proton::indexDocument(string id, string dockey, string rawdoc, string lang)
 	// this is the sentencepiece tokenizer
 	// spp.tokenize(decoded_doc_body, &tokenized_doc_body);
 	// this is the cormac tokenizer
-	seg.parse(id, dockey, lang, decoded_doc_body);
+	
+	// container for our url term / frequency
+	std::map<std::string, Shard::Term> doc_unigram_map;
+	std::map<std::string, Shard::Term> doc_bigram_map;
+	std::map<std::string, Shard::Term> doc_trigram_map;
+	seg.parse(id, dockey, lang, decoded_doc_body, 
+		doc_unigram_map, doc_bigram_map, doc_trigram_map);
+	shardManager.addTerms(doc_unigram_map, doc_bigram_map, doc_trigram_map);
 }
 
 bool Proton::isSPS(char firstchar) {
