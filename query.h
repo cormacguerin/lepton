@@ -50,7 +50,7 @@ class Query {
 
 		struct Term {
 			Type type;
-			UnicodeString term;
+			icu::UnicodeString term;
 			std::map<Modifier, AttributeValue> mods;
 			double idf;
 		};

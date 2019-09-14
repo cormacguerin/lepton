@@ -17,6 +17,7 @@ struct BaseMessage {
 	enum {max_body_length = 1048576};
 	char header[header_length];
 	const bool deserialize() {
+		return false;
 	}
 };
 

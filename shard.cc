@@ -14,6 +14,7 @@ Shard::~Shard()
 }
 
 rapidjson::Document Shard::serializeTerm(Shard::Term t) {
+	rapidjson::Document serialized_;
 	//std::map<Modifier, AttributeValue> mods;
 	/*
 	std::ostringstream strs;
@@ -22,14 +23,13 @@ rapidjson::Document Shard::serializeTerm(Shard::Term t) {
 	std::string converted;
 	t.term.toUTF8String(converted);
 
-	rapidjson::Document serialized_;
 	serialized_.Parse("{}");
 	rapidjson::Document::AllocatorType& allocator_ = serialized_.GetAllocator();
 	serialized_.AddMember("type", rapidjson::Value(const_cast<char*>((TypeList[t.type]).c_str()), allocator_).Move(), allocator_);
 	serialized_.AddMember("term", rapidjson::Value(const_cast<char*>(converted.c_str()), allocator_).Move(), allocator_);
 	serialized_.AddMember("idf", rapidjson::Value(const_cast<char*>(strs.str().c_str()), allocator_).Move(), allocator_);
-	return serialized_;
 	*/
+	return serialized_;
 }
 
 void Shard::serialize() {

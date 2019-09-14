@@ -84,7 +84,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	std::map<std::string,std::vector<int>> gramPositions;
 	std::map<std::vector<std::string>, int> gramCandidates;
 	std::vector<std::string> gramWindow;
-	std::vector<UnicodeString> grams;
+	std::vector<icu::UnicodeString> grams;
 
 	// this is a redis connection (were replacing this with postgres for the index)
 	// client.connect();
@@ -101,11 +101,11 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	// convert to lowercase
 	std::transform((str_in).begin(), (str_in).end(), (str_in).begin(), ::tolower);
 
-	UnicodeString uni_str = str_in.c_str();
+	icu::UnicodeString uni_str = str_in.c_str();
 
 	UErrorCode status = U_ZERO_ERROR;
 	// BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("ja","JAPAN"), status);
-	BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("en","US"), status);
+	icu::BreakIterator *wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("en","US"), status);
 	wordIterator->setText(uni_str);
 	int32_t p = wordIterator->first();
 	int32_t l = p;
@@ -119,13 +119,13 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	// for simplicity were going to just count every term (for caculating term frequency)
 	int gramcount=0;
 
-	while (p != BreakIterator::DONE) {
+	while (p != icu::BreakIterator::DONE) {
 
 		gramcount++;
 		bool isStopWord = false;
 		p = wordIterator->next();
 		std::string converted;
-		UnicodeString tmp = uni_str.tempSubString(l,p-l);
+		icu::UnicodeString tmp = uni_str.tempSubString(l,p-l);
 		tmp.toUTF8String(converted);
 		l=p;
 		
@@ -168,6 +168,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 		}
 	}
 	
+	delete wordIterator;
 
 	//std::cout << "INFO : no. grams found " << gramPositions.size() << std::endl;
 	// I thought it would be better to do a double pass like this but it's about twice as slow unfortunately.
@@ -355,7 +356,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	//std::cout << r.size() << std::endl;
 	std::cout << "INFO : indexed " << std::endl;
 
-	delete wordIterator;
 }
 
 

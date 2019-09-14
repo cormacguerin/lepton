@@ -8,20 +8,19 @@ LOCALINC = /usr/local/include/
 PQXXINC = /usr/include/pqxx/
 ASIOINC = /usr/include/asio/
 PQXXINCLOCAL = /usr/local/include/pqxx/
-RAPIDJSONINC = /usr/include/rapidjson/
-INCLUDES = -I$(INC) -I$(LOCALINC) -I$(REDISINC) -I$(PQXXINC) -I$(PQXXINCLOCAL) -I$(ASIOINC) -I$(RAPIDJSONINC)
-ICUOPTS = `/usr/bin/icu-config --ldflags --cppflags`
+INCLUDES = -I$(INC) -I$(LOCALINC) -I$(REDISINC) -I$(PQXXINC) -I$(PQXXINCLOCAL) -I$(ASIOINC)
+#ICUOPTS = `/usr/bin/icu-config --ldflags --cppflags`
 
 #
 # Compiler and Linker Options.
 #
-COMPOPTS = -O0 -c -g -std=c++11 -std=c++1y -lpthread -lpqxx -lpq
-LINKOPTS = -O0 -g -lstdc++ -lm -std=c++11 -std=c++1y -lpthread -lpqxx -lpq $(ICUOPTS)
-
+COMPOPTS = -O0 -c -g -std=c++17 -lpthread -lpqxx -lpq -lstdc++fs
+#LINKOPTS = -O0 -g -lstdc++ -lm -std=c++17 -lpthread -lpqxx -lpq $(ICUOPTS) -lstdc++fs
+LINKOPTS = -O0 -g -lm -std=c++17 -lpthread -lpqxx -lpq $(ICUOPTS)
+STATIC_LINKER = -lstdc++fs
 #
 # Library Files
 #
-#REDIS_CLIENT_LIB = /usr/local/lib/libtacopie.a /usr/local/lib/libtacopie.a
 SENTENCE_PIECE_LIB = /usr/local/lib/libsentencepiece.a  /usr/local/lib/libsentencepiece_train.a
 PROTOBUFFER_LIB = /usr/lib64/libprotobuf.so
 
@@ -35,6 +34,7 @@ COMPILER = g++
 #
 # LD_FLAGS  = $(REDIS_CLIENT_LIB) $(SENTENCE_PIECE_LIB) $(PROTOBUFFER_LIB)
 #LD_FLAGS  = $(REDIS_CLIENT_LIB)
+LD_FLAGS  = $(shell pkg-config --libs icu-i18n RapidJSON) $(STATIC_LINKER)
 CFLAGS    = ${INCLUDES} 
 
 #
@@ -49,7 +49,7 @@ serveroot: serveroot.o query.o query_builder.o index_server.o server.o session.o
 	${LINKER} -o serveroot serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o shard_manager.o shard.o $(LD_FLAGS)
 
 indexroot: indexroot.o proton.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o
-	${LINKER} -o indexroot indexroot.o proton.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o $(LD_FLAGS)
+	${LINKER} -o indexroot indexroot.o proton.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o $(LD_FLAGS) 
 
 proton.o : proton.cc proton.h
 	${COMPILE} proton.cc

@@ -18,6 +18,7 @@ Query::~Query()
 }
 
 rapidjson::Document Query::serializeTerm(Query::Term t) {
+	rapidjson::Document serialized_;
 	//std::map<Modifier, AttributeValue> mods;
 	/*
 	std::ostringstream strs;
@@ -26,14 +27,13 @@ rapidjson::Document Query::serializeTerm(Query::Term t) {
 	std::string converted;
 	t.term.toUTF8String(converted);
 
-	rapidjson::Document serialized_;
 	serialized_.Parse("{}");
 	rapidjson::Document::AllocatorType& allocator_ = serialized_.GetAllocator();
 	serialized_.AddMember("type", rapidjson::Value(const_cast<char*>((TypeList[t.type]).c_str()), allocator_).Move(), allocator_);
 	serialized_.AddMember("term", rapidjson::Value(const_cast<char*>(converted.c_str()), allocator_).Move(), allocator_);
 	serialized_.AddMember("idf", rapidjson::Value(const_cast<char*>(strs.str().c_str()), allocator_).Move(), allocator_);
-	return serialized_;
 	*/
+	return serialized_;
 }
 
 std::string Query::Node::serialize() {
@@ -78,13 +78,13 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 	t.term.toUTF8String(converted);
 	std::cout << "converted " + converted<< std::endl;
 
-	if ((TypeList[t.type])!=NULL) {
+	if (!TypeList[t.type].empty()) {
 		serialized_.AddMember("type", rapidjson::Value(const_cast<char*>((TypeList[t.type]).c_str()), allocator).Move(), allocator);
 	}
-	if (converted!=NULL) {
+	if (!converted.empty()) {
 		serialized_.AddMember("term", rapidjson::Value(const_cast<char*>(converted.c_str()), allocator).Move(), allocator);
 	}
-	if (strs.str()!=NULL) {
+	if (!strs.str().empty()) {
 		serialized_.AddMember("idf", rapidjson::Value(const_cast<char*>(strs.str().c_str()), allocator).Move(), allocator);
 	}
 	if (serialized_!=NULL) {

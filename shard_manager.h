@@ -10,6 +10,7 @@
 #include <string>
 #include <set>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <memory>
 #include <iostream>
@@ -18,28 +19,32 @@
 #include <rapidjson/stringbuffer.h>
 #include "shard.h"
 
-// some notes
-// sorting is done by idf -ln(probability)
-// google has a noperm concept, where incorrect order of matched words should be demoted.
-// it seems to me that in this implementation we can ignore that as we will naturally promote phrases instead.
-// we need to add confidence scores at some point, for both synonyms and concepts
-
-// In this implimentation there is no explicit PHRASE Term or WORD Operator
-// Instead everything can be a phrase, which are generically captured as a Term.
-// A term could be a word or a phrase, words or phrases would also be considered concepts equally.
-
 
 class ShardManager {
 	private:
+		// vector of shards containing the set of mapped hash terms
+		//std::vector<std::set<int>> unigram_shard_term_index;
+		//std::vector<std::set<int>> bigram_shard_term_index;
+		//std::vector<std::set<int>> trigram_shard_term_index;
+		std::unordered_map<std::string, int> unigram_shard_term_index;
+		std::unordered_map<std::string, int> bigram_shard_term_index;
+		std::unordered_map<std::string, int> trigram_shard_term_index;
+		// hash map of map of shard url ids to terms
+		std::unordered_map<std::string, std::map<int, Shard::Term>> unigram_term_index;
+		std::unordered_map<std::string, std::map<int, Shard::Term>> bigram_term_index;
+		std::unordered_map<std::string, std::map<int, Shard::Term>> trigram_term_index;
+		int SHARD_SIZE=10000;
+		void loadLatestShard();
 
 	public:
 
 		ShardManager();
 		~ShardManager();
 
-		void addTerms(std::map<std::string, Shard::Term> doc_unigram_map,
-						 std::map<std::string, Shard::Term> doc_bigram_map, 
-						 std::map<std::string, Shard::Term> doc_trigram_map);
+		void addTerms(std::map<std::string, Shard::Term> doc_unigrams,
+			std::map<std::string, Shard::Term> doc_bigrams, 
+			std::map<std::string, Shard::Term> doc_trigrams);
+		void syncShards();
 
 };
 

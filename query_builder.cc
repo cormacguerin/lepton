@@ -78,11 +78,11 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 	// convert to lowercase
 	std::transform((query_str).begin(), (query_str).end(), (query_str).begin(), ::tolower);
 
-	UnicodeString uni_str = query_str.c_str();
+	icu::UnicodeString uni_str = query_str.c_str();
 
 	UErrorCode status = U_ZERO_ERROR;
-	// BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("ja","JAPAN"), status);
-	BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("en","US"), status);
+	// BreakIterator *wordIterator = BreakIterator::createWordInstance(icu::Locale("ja","JAPAN"), status);
+	icu::BreakIterator *wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("en","US"), status);
 	wordIterator->setText(uni_str);
 	int32_t p = wordIterator->first();
 	int32_t l = p;
@@ -94,7 +94,7 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 	std::vector<std::string> gramholder[N_GRAM_SIZE];
 	std::vector<bool> stopholder[N_GRAM_SIZE];
 
-	while (p != BreakIterator::DONE) {
+	while (p != icu::BreakIterator::DONE) {
 
 		Query::Term term;
 		term.type = Query::Type::ORIGINAL;
@@ -102,7 +102,7 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 		bool isStopWord = false;
 		p = wordIterator->next();
 		std::string converted;
-		UnicodeString tmp = uni_str.tempSubString(l,p-l);
+		icu::UnicodeString tmp = uni_str.tempSubString(l,p-l);
 		tmp.toUTF8String(converted);
 		l=p;
 		
@@ -121,7 +121,7 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 		}
 		std::cout << "query builder converted " << converted << std::endl;
 		
-		UnicodeString uc = UnicodeString::fromUTF8(converted);
+		icu::UnicodeString uc = icu::UnicodeString::fromUTF8(converted);
 		term.term = uc;
 		term.idf = 0.0;
 
