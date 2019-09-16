@@ -1,49 +1,46 @@
-
 #ifndef _SHARD_H_
 #define _SHARD_H_
 
-//#include <unicode/ures.h>
 #include <unicode/unistr.h>
-//#include <unicode/resbund.h>
-//#include <unicode/ustdio.h>
-//#include <unicode/putil.h>
 #include <string>
 #include <set>
 #include <map>
 #include <vector>
 #include <memory>
 #include <iostream>
-#include <unordered_map>
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 
 // some notes
 
-
 class Shard {
 	private:
 
 	public:
+		enum Type { UNIGRAM=0, BIGRAM=1, TRIGRAM=2 };
+		Type prefix_type;
+
+		Shard(Type type, int shard_id);
+		~Shard();
+
+
+		int id;
 
 		struct Term {
 			int url_id;
 			double tf;
 			double weight;
 		};
-		std::unordered_map<std::string, std::map<int, Shard::Term>> unigramurls_map;
-
-		int id;
+		std::map<std::string, std::map<int, Shard::Term>> shard_map;
 
 		void serialize_(rapidjson::Document &serialized_shard);
-		void serialize();
+		void write();
 		void updateShard();
+		size_t size();
+		void insert(std::string s, std::map<int,Shard::Term> m);
 
 		rapidjson::Document serializeTerm(Term t);
-
-
-		Shard();
-		~Shard();
 
 };
 

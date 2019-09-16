@@ -17,8 +17,8 @@ void ShardManager::addTerms(std::map<std::string, Shard::Term> doc_unigrams,
 
 	// add unigrams
 	for (std::map<std::string, Shard::Term>::const_iterator it = doc_unigrams.begin(); it != doc_unigrams.end(); ++it) {
-		std::unordered_map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_term_index.find(it->first);
-		if (tit != unigram_term_index.end()) {
+		std::unordered_map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(it->first);
+		if (tit != unigram_terms.end()) {
 			std::map<int, Shard::Term>::iterator iit = (tit->second).find((it->second).url_id);
 			if (iit != (tit->second).end()) {
 				(tit->second).at((it->second).url_id) = it->second;
@@ -28,46 +28,64 @@ void ShardManager::addTerms(std::map<std::string, Shard::Term> doc_unigrams,
 		} else {
 			std::map<int,Shard::Term> termap;
 			termap.insert(std::pair<int,Shard::Term>((it->second).url_id,it->second));
-			unigram_term_index.insert(std::pair<std::string,std::map<int,Shard::Term>>(it->first,termap));
+			unigram_terms.insert(std::pair<std::string,std::map<int,Shard::Term>>(it->first,termap));
 		}
-	}
-	std::cout << "unigram_term_index.size(): " << unigram_term_index.size() << std::endl;
-	if (unigram_term_index.size()+1%10000==0) {
-		syncShards();
+		std::cout << "unigram_terms.size(): " << unigram_terms.size() << std::endl;
+		if ((unigram_terms.size()+1)%30==0) {
+			syncShards();
+		}
 	}
 }
 
 // function to sync all index loaded terms to shards.
+// function can definitely be more efficient.
+// probably should do all existing shards first and
+// then batch copy the rest into new shard(s)
 void ShardManager::syncShards() {
 	std::cout << "sync shards " << std::endl;
-	while (unigram_term_index.size()>0) {
-		// serach each shard and find which contains the first term.
-		std::unordered_map<std::string,int>::iterator it = unigram_shard_term_index.find(unigram_term_index.begin()->first);
+	// load last shard (for new insertions)
+	loadLastShard();
+	while (unigram_terms.size()>0) {
+		// find shard by first term.
+		std::unordered_map<std::string,int>::iterator it = unigram_shard_term_index.find(unigram_terms.begin()->first);
 		if (it != unigram_shard_term_index.end()) {
+			std::cout << "EXISTING TERM FOUND " << std::endl;
 			// load shard and find
 			// find and move / merge all terms into the shard.
 			// save the shard
 			// break (out of for loop and back into while loop)
 		} else {
 			// this is a new term. find the next available shard.
-			if (unigram_shard_term_index.size() < SHARD_SIZE) {
-				// load shard
-				for (int j=SHARD_SIZE-unigram_shard_term_index.size(); j--;) {
-					// push new terms into shard, while removing from unigram_term_index
-					// and updating unigram_shard_term_index
-					// save shard
-				}
+			if (last_shard.get()->size() < SHARD_SIZE) {
+				// insert the term and data into the last shard.
+				last_shard.get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
+				std::cout << last_shard.get()->size() << std::endl;
+				// insert the shard number for the term to the index.
+				unigram_shard_term_index.insert(std::pair<std::string,int>(unigram_terms.begin()->first, last_shard.get()->id));
+				// remove the term from the current map
+				unigram_terms.erase(unigram_terms.begin());
+				std::cout << "us " << unigram_terms.size() << std::endl;
 			} else {
-				// if it doesnt exist spawn a new shard and update unigram_shard_term_index
-				Shard shard;
-				loadLatestShard();
+				last_shard.get()->write();
+				int last_shard_id = last_shard.get()->id;
+				std::cout << "lsi " << last_shard_id <<std::endl;
+				last_shard = std::make_shared<Shard>(Shard::Type::UNIGRAM, last_shard_id+1);
+				std::cout << "CREATED NEW SHARD " << last_shard_id << std::endl;
 			}
 		}
 	}
 }
 
-void ShardManager::loadLatestShard() {
+void ShardManager::loadLastShard() {
+	std::vector<std::string> index_files;
 	std::string path = "index/";
-	    for (const auto & entry : std::filesystem::directory_iterator(path))
-			    std::cout << entry.path() << std::endl;
+	for (const auto & entry : std::filesystem::directory_iterator(path)) {
+		std::cout << entry.path() << std::endl;
+		index_files.push_back(path);
+	}
+	if (index_files.empty()) {
+		std::cout << "no index files create new shard" << std::endl;
+		last_shard = std::make_shared<Shard>(Shard::Type::UNIGRAM,0);
+	}
 }
+

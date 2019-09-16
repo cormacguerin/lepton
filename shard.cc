@@ -1,12 +1,15 @@
-
 #include <sstream>
+#include <fstream>
+#include <iomanip>
 #include "shard.h"
 #include "texttools.h"
 
 rapidjson::Document serialized_shard;
 
-Shard::Shard()
+Shard::Shard(Shard::Type type, int shard_id) : prefix_type(), id()
 {
+	prefix_type=type;
+	id=shard_id;
 }
 
 Shard::~Shard()
@@ -32,19 +35,53 @@ rapidjson::Document Shard::serializeTerm(Shard::Term t) {
 	return serialized_;
 }
 
-void Shard::serialize() {
+void Shard::write() {
+	std::string filename;
+	if (prefix_type==Shard::Type::UNIGRAM){
+		filename = "index/unigram_shard.";
+	} else if (prefix_type==Shard::Type::UNIGRAM){
+		filename = "index/bigram_shard.";
+	} else if (prefix_type==Shard::Type::UNIGRAM){
+		filename = "index/trigram_shard.";
+	} else {
+		return;
+	}
+	std::stringstream postfix;
+	postfix << std::setw(5) << std::setfill('0') << id;
+	filename.append(postfix.str());
+
 	rapidjson::Document d;
-	this->serialize_(d);
+	serialize_(d);
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	d.Accept(writer);
+	std::ofstream f{filename};
 	std::cout << (std::string)buffer.GetString() << std::endl;
-	//return (std::string)buffer.GetString();
+	f << (std::string)buffer.GetString();
 }
 
 void Shard::serialize_(rapidjson::Document &serialized_shard) {
 	rapidjson::Document::AllocatorType& allocator = serialized_shard.GetAllocator();
 	serialized_shard.Parse("{}");
+
+	std::ostringstream strs;
+
+	std::map<std::string, std::map<int, Shard::Term>>::iterator it;
+	for (it = shard_map.begin(); it != shard_map.end(); it++) {
+		rapidjson::Value shardTerm_;
+		shardTerm_.SetObject();
+		std::map<int, Shard::Term>::iterator tit;
+		for (tit = it->second.begin(); tit != it->second.end(); tit++) {
+			rapidjson::Value term_;
+			term_.SetObject();
+			term_.AddMember("url_id", rapidjson::Value().SetInt((tit->second).url_id), allocator);
+			term_.AddMember("tf", rapidjson::Value().SetDouble((tit->second).tf), allocator);
+			term_.AddMember("weight", rapidjson::Value().SetDouble((tit->second).weight), allocator);
+			shardTerm_.AddMember(rapidjson::Value(const_cast<char*>(std::to_string(tit->first).c_str()), allocator).Move(), term_, allocator);
+		}
+		serialized_shard.AddMember(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), shardTerm_, allocator);
+	}
+
 	/*
 	if (this->root == false) {
 		serialized_shard.AddMember("root", "false", allocator);
@@ -57,7 +94,6 @@ void Shard::serialize_(rapidjson::Document &serialized_shard) {
 	if ((this->raw_shard).c_str()) {
 		serialized_shard.AddMember("raw_shard", rapidjson::Value(const_cast<char*>(this->raw_shard.c_str()), allocator).Move(), allocator);
 	}
-	
 
 	Shard::Term t = this->term;
 
@@ -87,7 +123,7 @@ void Shard::serialize_(rapidjson::Document &serialized_shard) {
 	if (this->candidates.size() > 0) {
 		rapidjson::Value candidates(rapidjson::kArrayType);
 		for (std::vector<int>::iterator it = this->candidates.begin() ; it != this->candidates.end(); ++it) {
-			//	std::cout << *it << std::endl;
+			// std::cout << *it << std::endl;
 			candidates.PushBack(rapidjson::Value().SetInt(*it), allocator);
 		}
 		serialized_shard.AddMember("candidates", candidates, allocator);
@@ -118,5 +154,13 @@ void Shard::updateShard() {
 		(*it).updateShard();
 	}
 	*/
+}
+
+size_t Shard::size() {
+	return shard_map.size();
+}
+
+void Shard::insert(std::string s, std::map<int,Shard::Term> m) {
+	shard_map.insert(std::pair<std::string,std::map<int,Shard::Term>>(s,m));
 }
 
