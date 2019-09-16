@@ -11,6 +11,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
+#include <rapidjson/istreamwrapper.h>
 
 // some notes
 
@@ -33,14 +34,15 @@ class Shard {
 			double weight;
 		};
 		std::map<std::string, std::map<int, Shard::Term>> shard_map;
+		std::vector<std::string> getTermKeys();
 
 		void serialize_(rapidjson::Document &serialized_shard);
 		void write();
-		void updateShard();
 		size_t size();
 		void insert(std::string s, std::map<int,Shard::Term> m);
-
-		rapidjson::Document serializeTerm(Term t);
+		void update(std::string s, std::map<int,Shard::Term> m);
+		void load(int shard_id);
+		std::string readFile(std::string filename);
 
 };
 
