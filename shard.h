@@ -25,7 +25,6 @@ class Shard {
 		Shard(Type type, int shard_id);
 		~Shard();
 
-
 		int id;
 
 		struct Term {

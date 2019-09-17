@@ -3,6 +3,7 @@
 #include <iostream>
 #include <filesystem>
 #include <algorithm>
+#include <ctime>
 
 ShardManager::ShardManager()
 {
@@ -31,8 +32,8 @@ void ShardManager::addTerms(std::map<std::string, Shard::Term> doc_unigrams,
 			termap.insert(std::pair<int,Shard::Term>((it->second).url_id,it->second));
 			unigram_terms.insert(std::pair<std::string,std::map<int,Shard::Term>>(it->first,termap));
 		}
-		std::cout << "unigram_terms.size(): " << unigram_terms.size() << std::endl;
-		if ((unigram_terms.size()+1)%30==0) {
+		//std::cout << "unigram_terms.size(): " << unigram_terms.size() << std::endl;
+		if ((unigram_terms.size()+1)%BATCH_SIZE==0) {
 			syncShards();
 		}
 	}
@@ -43,7 +44,9 @@ void ShardManager::addTerms(std::map<std::string, Shard::Term> doc_unigrams,
 // probably should do all existing shards first and
 // then batch copy the rest into new shard(s)
 void ShardManager::syncShards() {
-	std::cout << "sync shards " << std::endl;
+	int syncsize = unigram_terms.size();
+	time_t beforetime = time(0);
+	std::cout << "shard_manager.cc : begin syncShards " << beforetime << std::endl;
 	// load last shard (for new insertions)
 	loadLastShard();
 	while (unigram_terms.size()>0) {
@@ -55,25 +58,29 @@ void ShardManager::syncShards() {
 			Shard shard(Shard::Type::UNIGRAM, it->second);
 			// find and move / merge all terms into the shard.
 			std::vector<std::string> shard_keys = shard.getTermKeys();
+			int counter;
 			for (std::vector<std::string>::iterator kit=shard_keys.begin(); kit!=shard_keys.end(); kit++) {
 				std::unordered_map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(*kit);
-				std::cout << *kit << std::endl;
 				if (tit != unigram_terms.end()) {
 					// insert the term and data into the last shard.
-					shard.insert(tit->first, tit->second);
+					shard.update(tit->first, tit->second);
 					// insert the shard number for the term to the index.
-					// unigram_shard_term_index.insert(std::pair<std::string,int>(tit->first, shard.id));
+					unigram_shard_term_index.insert(std::pair<std::string,int>(tit->first, shard.id));
 					// erase the completed terms
 					unigram_terms.erase(tit++);
+					counter++;
 				}
 			}
+			std::cout << "shard_manager.cc : " << counter << " terms synced into shard " << shard.id << std::endl;
+			// were should be finished with this shard, so write it.
+			shard.write();
 		} else {
 			// this is a new term. find the next available shard.
-			if (last_shard.get()->size() >= SHARD_SIZE) {
+			if (last_shard.get()->size() == SHARD_SIZE) {
+				std::cout << "shard_manager.cc : max shard size reached, creating new shard" << std::endl;
 				last_shard.get()->write();
 				int last_shard_id = last_shard.get()->id;
-				std::cout << "CREATING SHARD " << last_shard_id+1 << std::endl;
-				last_shard = std::make_shared<Shard>(Shard::Type::UNIGRAM, last_shard_id+1);
+				last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id+1);
 			}
 			// insert the term and data into the last shard.
 			last_shard.get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
@@ -82,7 +89,13 @@ void ShardManager::syncShards() {
 			// remove the term from the current map
 			unigram_terms.erase(unigram_terms.begin());
 		}
+		std::cout << "shard_manager.cc : " << unigram_terms.size() << " terms left to sync." << std::endl;
 	}
+	// finially write our last (probably not full) shard.
+	last_shard.get()->write();
+	time_t aftertime = time(0);
+	double seconds = difftime(aftertime, beforetime);
+	std::cout << "shard_manager.cc : syncShards of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
 }
 
 void ShardManager::loadLastShard() {
@@ -99,10 +112,11 @@ void ShardManager::loadLastShard() {
 	*/
 	if (index_files.empty()) {
 		std::cout << "no index files create new shard" << std::endl;
-		last_shard = std::make_shared<Shard>(Shard::Type::UNIGRAM,0);
+		last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM,1);
 	} else {
 		int shard_id = stoi(index_files.back().substr(index_files.back().find('_')+1,(index_files.back()).find('.')));
-		last_shard = std::make_shared<Shard>(Shard::Type::UNIGRAM,shard_id);
+		std::cout << "loading last shard with id " << shard_id << std::endl;
+		last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM,shard_id);
 	}
 }
 

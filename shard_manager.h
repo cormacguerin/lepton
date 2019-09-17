@@ -30,7 +30,8 @@ class ShardManager {
 		std::unordered_map<std::string, std::map<int, Shard::Term>> unigram_terms;
 		std::unordered_map<std::string, std::map<int, Shard::Term>> bigram_terms;
 		std::unordered_map<std::string, std::map<int, Shard::Term>> trigram_terms;
-		int SHARD_SIZE=10;
+		int SHARD_SIZE=100000;
+		int BATCH_SIZE=300000;
 		void loadLastShard();
 
 	public:
@@ -38,7 +39,7 @@ class ShardManager {
 		ShardManager();
 		~ShardManager();
 
-		std::shared_ptr<Shard> last_shard;
+		std::unique_ptr<Shard> last_shard;
 		void addTerms(std::map<std::string, Shard::Term> doc_unigrams,
 			std::map<std::string, Shard::Term> doc_bigrams, 
 			std::map<std::string, Shard::Term> doc_trigrams);
