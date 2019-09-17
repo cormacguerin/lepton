@@ -71,13 +71,14 @@ void ShardManager::syncShards() {
 					counter++;
 				}
 			}
-			std::cout << "shard_manager.cc : " << counter << " terms synced into shard " << shard.id << std::endl;
+			std::cout << "shard_manager.cc : " << counter << " url terms synced into shard " << shard.id << std::endl;
 			// were should be finished with this shard, so write it.
 			shard.write();
+			std::cout << "shard_manager.cc : " << unigram_terms.size() << " terms left to sync." << std::endl;
 		} else {
 			// this is a new term. find the next available shard.
 			if (last_shard.get()->size() == SHARD_SIZE) {
-				std::cout << "shard_manager.cc : max shard size reached, creating new shard" << std::endl;
+			//	std::cout << "shard_manager.cc : max shard size reached, write this shard and create new." << std::endl;
 				last_shard.get()->write();
 				int last_shard_id = last_shard.get()->id;
 				last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id+1);
@@ -89,7 +90,6 @@ void ShardManager::syncShards() {
 			// remove the term from the current map
 			unigram_terms.erase(unigram_terms.begin());
 		}
-		std::cout << "shard_manager.cc : " << unigram_terms.size() << " terms left to sync." << std::endl;
 	}
 	// finially write our last (probably not full) shard.
 	last_shard.get()->write();

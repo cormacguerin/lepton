@@ -77,6 +77,8 @@ void Proton::processFeeds(std::string lang) {
 	
 		indexDocument(id.c_str(), url.c_str(), feed.c_str(), lang);
 	}
+	// sync the remainder.
+	shardManager.syncShards();
 
 }
 
