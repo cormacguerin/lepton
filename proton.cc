@@ -44,40 +44,63 @@ void Proton::init() {
 }
 
 void Proton::processFeeds(std::string lang) {
-	cout << "process feeds for " << lang << endl;
-	std::string statement = "SELECT id,url,feed FROM docs_";
-	statement.append(lang);
-	statement.append(" LIMIT 100000");
-	//statement.append(" WHERE index_date is NULL");
-	pqxx::work txn(*C);
-	C->prepare("process", statement);
-	pqxx::result r = txn.prepared("process").exec();
-	//pqxx::result r = txn.prepared("process")("22018").exec();
-	txn.commit();
+	int num_docs;
+	int max_doc_id;
+	int batch_size;
+	int base_batch_size = 10000;
+	getNumDocs(num_docs, lang);
+	getMaxDocId(max_doc_id, lang);
+	std::cout << "proton.cc : num_docs : " << num_docs << std::endl;
+	std::cout << "proton.cc : max_doc_id : " << max_doc_id << std::endl;
+	int num_batches = num_docs/base_batch_size;
+	if (num_batches < 1) {
+		num_batches = 1;
+		batch_size = max_doc_id;
+	} else {
+		batch_size = max_doc_id/num_batches;
+	}
+	std::cout << "proton.cc : batch_size " << batch_size << std::endl;
+	std::cout << "proton.cc : num_batches : " << num_batches << std::endl;
+	std::string statement = "SELECT id,url,feed FROM docs_" + lang + " WHERE id BETWEEN $1 AND $2";
 
-	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-		const pqxx::field id = (row)[0];
-		const pqxx::field url = (row)[1];
-		const pqxx::field feed = (row)[2];
-		std::cout << " - - - - - " << std::endl;
-		std::cout << "url : " << url.c_str() << std::endl;
-		std::cout << "lang : " << lang.c_str() << std::endl;
-		if (url.is_null()) {
-			std::cout << "skip : url is null" << std::endl;;
-			continue;
+	int batch_position = 0;
+
+	for (int i = 0; i <= max_doc_id; ) {
+		batch_position += batch_size;
+
+		pqxx::work txn(*C);
+		C->prepare("process_docs_batch", statement);
+
+		std::cout << "proton.cc : process feeds for batch " << i << " " << batch_position << " " << lang << std::endl;
+		pqxx::result r = txn.prepared("process_docs_batch")(i)(batch_position).exec();
+		txn.commit();
+
+		for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+			const pqxx::field id = (row)[0];
+			const pqxx::field url = (row)[1];
+			const pqxx::field feed = (row)[2];
+			std::cout << " - - - - - " << std::endl;
+			std::cout << "url : " << url.c_str() << std::endl;
+			std::cout << "lang : " << lang.c_str() << std::endl;
+			if (url.is_null()) {
+				std::cout << "skip : url is null" << std::endl;;
+				continue;
+			}
+			if (feed.is_null()) {
+				std::cout << "skip : feed is null" << std::endl;;
+				continue;
+			}
+			if (lang.empty()) {
+				std::cout << "skip : lang is null" << std::endl;;
+				continue;
+			}
+		
+			indexDocument(id.c_str(), url.c_str(), feed.c_str(), lang);
 		}
-		if (feed.is_null()) {
-			std::cout << "skip : feed is null" << std::endl;;
-			continue;
-		}
-		if (lang.empty()) {
-			std::cout << "skip : lang is null" << std::endl;;
-			continue;
-		}
-	
-		indexDocument(id.c_str(), url.c_str(), feed.c_str(), lang);
+		i = batch_position;
 	}
 	// sync the remainder.
+	std::cout << "proton.cc : batch finished - sync remaining terms." << std::endl;
 	shardManager.syncShards();
 
 }
@@ -238,6 +261,16 @@ void Proton::getMaxNgramId(int &num, std::string gram, std::string lang) {
 	num = atoi(c.c_str());
 }
 
+
+void Proton::getMaxDocId(int &num, std::string lang) {
+	prepare_max_doc_id(*C, lang);
+	pqxx::work txn(*C);
+	pqxx::result r = txn.prepared("max_doc_id").exec();
+	txn.commit();
+	const pqxx::field c = r.back()[0];
+	num = atoi(c.c_str());
+}
+
 void Proton::updateNgramIdf(std::map<int, double> idfbatch, std::string gram, std::string lang) {
 	if (gram=="uni") {
 		prepare_update_unigram_idf(*C, lang);
@@ -319,6 +352,10 @@ void Proton::updateIdf(std::string lang) {
 			std::cout << "Doc " << ng << "gram idf update " << complete*100 << "% complete" << std::endl;
 		}
 	}
+}
+
+void Proton::prepare_max_doc_id(pqxx::connection_base &c, std::string lang) {
+	c.prepare("max_doc_id", "SELECT MAX(id) FROM docs_" + lang);
 }
 
 void Proton::prepare_max_unigram_id(pqxx::connection_base &c, std::string lang) {

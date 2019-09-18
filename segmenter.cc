@@ -284,6 +284,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 					if ((git->first).size() == 1 && git->second > 0) {
 						double tf = (double)git->second/sqrt(gramcount);
 						shard_term.url_id = atoi(id.c_str());
+						shard_term.weight = 0;
 						shard_term.tf = tf;
 						doc_unigram_map.insert(std::pair<std::string, Shard::Term>(trim(gram).c_str(),shard_term));
 						isAdd = true;
@@ -293,6 +294,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
 						double tf = (double)git->second/sqrt((gramcount));
 						shard_term.url_id = atoi(id.c_str());
+						shard_term.weight = 0;
 						shard_term.tf = tf;
 						doc_bigram_map.insert(std::pair<std::string, Shard::Term>(trim(gram).c_str(),shard_term));
 						isAdd = true;
@@ -302,6 +304,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 						// same as above.
 						double tf = (double)git->second/sqrt((gramcount));
 						shard_term.url_id = atoi(id.c_str());
+						shard_term.weight = 0;
 						shard_term.tf = tf;
 						doc_trigram_map.insert(std::pair<std::string, Shard::Term>(trim(gram).c_str(),shard_term));
 						isAdd = true;

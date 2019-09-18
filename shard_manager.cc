@@ -1,9 +1,10 @@
 #include "shard_manager.h"
 #include <string>
 #include <iostream>
-#include <filesystem>
+//#include <filesystem>
 #include <algorithm>
 #include <ctime>
+#include "dirent.h"
 
 ShardManager::ShardManager()
 {
@@ -19,7 +20,7 @@ void ShardManager::addTerms(std::map<std::string, Shard::Term> doc_unigrams,
 
 	// add unigrams
 	for (std::map<std::string, Shard::Term>::const_iterator it = doc_unigrams.begin(); it != doc_unigrams.end(); ++it) {
-		std::unordered_map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(it->first);
+		phmap::flat_hash_map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(it->first);
 		if (tit != unigram_terms.end()) {
 			std::map<int, Shard::Term>::iterator iit = (tit->second).find((it->second).url_id);
 			if (iit != (tit->second).end()) {
@@ -34,6 +35,8 @@ void ShardManager::addTerms(std::map<std::string, Shard::Term> doc_unigrams,
 		}
 		//std::cout << "unigram_terms.size(): " << unigram_terms.size() << std::endl;
 		if ((unigram_terms.size()+1)%BATCH_SIZE==0) {
+			std::cout << "shard_manager.cc : batch size reached unigram_terms.size() " << std::endl;
+			std::cout << "shard_manager.cc : unigram_terms.size() " << unigram_terms.size()+1 << std::endl;
 			syncShards();
 		}
 	}
@@ -51,21 +54,23 @@ void ShardManager::syncShards() {
 	loadLastShard();
 	while (unigram_terms.size()>0) {
 		// find shard by first term.
-		std::unordered_map<std::string, int>::iterator it = unigram_shard_term_index.find(unigram_terms.begin()->first);
+		phmap::parallel_flat_hash_map<std::string, int>::iterator it = unigram_shard_term_index.find(unigram_terms.begin()->first);
 		if (it != unigram_shard_term_index.end()) {
-			std::cout << "Existing term " << it->first << " found in shard " << it->second << std::endl;
+
+	//		std::cout << "Existing term " << it->first << " found in shard " << it->second << std::endl;
 			// load shard
 			Shard shard(Shard::Type::UNIGRAM, it->second);
+			
 			// find and move / merge all terms into the shard.
 			std::vector<std::string> shard_keys = shard.getTermKeys();
 			int counter;
 			for (std::vector<std::string>::iterator kit=shard_keys.begin(); kit!=shard_keys.end(); kit++) {
-				std::unordered_map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(*kit);
+				phmap::flat_hash_map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(*kit);
 				if (tit != unigram_terms.end()) {
 					// insert the term and data into the last shard.
 					shard.update(tit->first, tit->second);
 					// insert the shard number for the term to the index.
-					unigram_shard_term_index.insert(std::pair<std::string,int>(tit->first, shard.id));
+					// unigram_shard_term_index.insert(std::pair<std::string,int>(tit->first, shard.id));
 					// erase the completed terms
 					unigram_terms.erase(tit++);
 					counter++;
@@ -101,15 +106,34 @@ void ShardManager::syncShards() {
 void ShardManager::loadLastShard() {
 	std::vector<std::string> index_files;
 	std::string path = "index/";
+	/*
 	for (const auto & entry : std::filesystem::directory_iterator(path)) {
 		index_files.push_back(entry.path());
 	}
+	*/
+	struct dirent *entry;
+	DIR *dp;
+
+	dp = opendir(path.c_str());
+		if (dp == NULL)
+	{
+	perror("opendir");
+		std::cout << "shard_manager.cc : Error , unable to load last shard" << std::endl;;
+		exit;
+	}
+	std::string ext = ".shard";
+	while (entry = readdir(dp)) {
+		std::string e_(entry->d_name);
+		if ((e_.find(ext) != std::string::npos)) {
+			index_files.push_back(entry->d_name);
+		}
+	}
+	closedir(dp);
+
 	std::sort(index_files.begin(),index_files.end());
-	/*
 	for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
 		std::cout << *it << std::endl;
 	}
-	*/
 	if (index_files.empty()) {
 		std::cout << "no index files create new shard" << std::endl;
 		last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM,1);

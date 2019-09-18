@@ -11,6 +11,7 @@
 #include <set>
 #include <map>
 #include <unordered_map>
+#include "parallel_hashmap/phmap.h"
 #include <vector>
 #include <memory>
 #include <iostream>
@@ -23,15 +24,16 @@
 class ShardManager {
 	private:
 		// hash map of term strings to shard ids
-		std::unordered_map<std::string, int> unigram_shard_term_index;
-		std::unordered_map<std::string, int> bigram_shard_term_index;
-		std::unordered_map<std::string, int> trigram_shard_term_index;
+		// std::map<std::string, int> unigram_shard_term_index;
+		phmap::parallel_flat_hash_map<std::string, int> unigram_shard_term_index;
+		std::map<std::string, int> bigram_shard_term_index;
+		std::map<std::string, int> trigram_shard_term_index;
 		// hash map of term strings to a map of doc ids term data
-		std::unordered_map<std::string, std::map<int, Shard::Term>> unigram_terms;
-		std::unordered_map<std::string, std::map<int, Shard::Term>> bigram_terms;
-		std::unordered_map<std::string, std::map<int, Shard::Term>> trigram_terms;
-		int SHARD_SIZE=100000;
-		int BATCH_SIZE=300000;
+		phmap::flat_hash_map<std::string, std::map<int, Shard::Term>> unigram_terms;
+		phmap::flat_hash_map<std::string, std::map<int, Shard::Term>> bigram_terms;
+		phmap::flat_hash_map<std::string, std::map<int, Shard::Term>> trigram_terms;
+		int SHARD_SIZE=10000;
+		int BATCH_SIZE=1000000;
 		void loadLastShard();
 
 	public:

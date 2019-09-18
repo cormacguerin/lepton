@@ -1,7 +1,7 @@
 #include <sstream>
 #include <fstream>
 #include <iomanip>
-#include <filesystem>
+//#include <filesystem>
 #include "shard.h"
 #include "texttools.h"
 
@@ -35,14 +35,19 @@ void Shard::load(int shard_id) {
 	filename.append(postfix.str());
 	filename.append(".shard");
 
-	if (std::filesystem::exists(filename)) {
-		time_t beforetime = time(0);
-		std::ifstream ifs(filename);
+	//if (std::filesystem::exists(filename)) {
+	time_t beforetime = time(0);
+	std::ifstream ifs(filename);
+
+	if (ifs.good()) {
 		rapidjson::Document d;
 		d.Parse(readFile(filename).c_str());
 
 		if (d.HasParseError()) {
 			std::cout << "shard.cc : failed to parse JSON in shard << " << shard_id << ", shard will be automatically discarded" << std::endl;
+			// wipe the shard and write it.
+			shard_map.clear();
+			write();
 			return;
 		}
 

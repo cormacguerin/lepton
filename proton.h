@@ -35,9 +35,11 @@ class Proton {
 		void prepare_unigram_document_frequency(pqxx::connection_base &c, std::string lang);
 		void prepare_bigram_document_frequency(pqxx::connection_base &c, std::string lang);
 		void prepare_trigram_document_frequency(pqxx::connection_base &c, std::string lang);
+		void prepare_max_doc_id(pqxx::connection_base &c, std::string lang);
 		void prepare_max_unigram_id(pqxx::connection_base &c, std::string lang);
 		void prepare_max_bigram_id(pqxx::connection_base &c, std::string lang);
 		void prepare_max_trigram_id(pqxx::connection_base &c, std::string lang);
+		void getMaxDocId(int &num, std::string lang);
 		void getNumDocs(int &count, std::string lang);
 		void getNumNgrams(int &count, std::string gram, std::string lang);
 		void getMaxNgramId(int &numm, std::string gram, std::string lang);
