@@ -29,11 +29,11 @@ class ShardManager {
 		std::map<std::string, int> bigram_shard_term_index;
 		std::map<std::string, int> trigram_shard_term_index;
 		// hash map of term strings to a map of doc ids term data
-		phmap::flat_hash_map<std::string, std::map<int, Shard::Term>> unigram_terms;
-		phmap::flat_hash_map<std::string, std::map<int, Shard::Term>> bigram_terms;
-		phmap::flat_hash_map<std::string, std::map<int, Shard::Term>> trigram_terms;
-		int SHARD_SIZE=10000;
-		int BATCH_SIZE=1000000;
+		std::map<std::string, std::map<int, Shard::Term>> unigram_terms;
+		std::map<std::string, std::map<int, Shard::Term>> bigram_terms;
+		std::map<std::string, std::map<int, Shard::Term>> trigram_terms;
+		int SHARD_SIZE=50000;
+		int BATCH_SIZE=500000;
 		void loadLastShard();
 
 	public:

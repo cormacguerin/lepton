@@ -20,7 +20,7 @@ void ShardManager::addTerms(std::map<std::string, Shard::Term> doc_unigrams,
 
 	// add unigrams
 	for (std::map<std::string, Shard::Term>::const_iterator it = doc_unigrams.begin(); it != doc_unigrams.end(); ++it) {
-		phmap::flat_hash_map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(it->first);
+		std::map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(it->first);
 		if (tit != unigram_terms.end()) {
 			std::map<int, Shard::Term>::iterator iit = (tit->second).find((it->second).url_id);
 			if (iit != (tit->second).end()) {
@@ -65,7 +65,7 @@ void ShardManager::syncShards() {
 			std::vector<std::string> shard_keys = shard.getTermKeys();
 			int counter;
 			for (std::vector<std::string>::iterator kit=shard_keys.begin(); kit!=shard_keys.end(); kit++) {
-				phmap::flat_hash_map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(*kit);
+				std::map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(*kit);
 				if (tit != unigram_terms.end()) {
 					// insert the term and data into the last shard.
 					shard.update(tit->first, tit->second);
@@ -101,6 +101,7 @@ void ShardManager::syncShards() {
 	time_t aftertime = time(0);
 	double seconds = difftime(aftertime, beforetime);
 	std::cout << "shard_manager.cc : syncShards of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
+	std::cout << "shard_manager.cc : Index Term Size : "  << unigram_shard_term_index.size() << std::endl;
 }
 
 void ShardManager::loadLastShard() {
