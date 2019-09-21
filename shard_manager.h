@@ -32,8 +32,8 @@ class ShardManager {
 		std::map<std::string, std::map<int, Shard::Term>> unigram_terms;
 		std::map<std::string, std::map<int, Shard::Term>> bigram_terms;
 		std::map<std::string, std::map<int, Shard::Term>> trigram_terms;
-		int SHARD_SIZE=50000;
-		int BATCH_SIZE=500000;
+		int SHARD_SIZE=100000;
+		int BATCH_SIZE=200000;
 		void loadLastShard();
 
 	public:

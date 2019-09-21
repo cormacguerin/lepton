@@ -53,8 +53,20 @@ void ShardManager::syncShards() {
 	// load last shard (for new insertions)
 	loadLastShard();
 	while (unigram_terms.size()>0) {
+		unigram_shard_term_index.insert(std::pair<std::string,int>(unigram_terms.begin()->first, last_shard.get()->id));
+
+		if (last_shard.get()->size() == SHARD_SIZE) {
+		//	std::cout << "shard_manager.cc : max shard size reached, write this shard and create new." << std::endl;
+			last_shard.get()->write();
+			int last_shard_id = last_shard.get()->id;
+			last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id+1);
+		}
+
 		// find shard by first term.
 		phmap::parallel_flat_hash_map<std::string, int>::iterator it = unigram_shard_term_index.find(unigram_terms.begin()->first);
+		last_shard.get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
+		unigram_terms.erase(unigram_terms.begin());
+		/*
 		if (it != unigram_shard_term_index.end()) {
 
 	//		std::cout << "Existing term " << it->first << " found in shard " << it->second << std::endl;
@@ -95,6 +107,7 @@ void ShardManager::syncShards() {
 			// remove the term from the current map
 			unigram_terms.erase(unigram_terms.begin());
 		}
+		*/
 	}
 	// finially write our last (probably not full) shard.
 	last_shard.get()->write();
