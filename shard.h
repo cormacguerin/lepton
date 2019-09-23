@@ -42,7 +42,7 @@ class Shard {
 		void insert(std::string s, std::map<int,Shard::Term> m);
 		void update(std::string s, std::map<int,Shard::Term> m);
 		void load(int shard_id);
-		void addToIndex(std::unordered_map<std::string, std::map<int, Shard::Term>> &index);
+		void addToIndex(phmap::parallel_flat_hash_map<std::string, std::map<int, Shard::Term>> &index);
 		std::string readFile(std::string filename);
 
 };

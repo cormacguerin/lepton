@@ -34,8 +34,10 @@ void IndexServer::init() {
 	} catch (const std::exception &e) {
 		cerr << e.what() << std::endl;
 	}
-	std::string ngrams[] = {"uni","bi","tri"};
-	std::string langs[] = {"en","ja","zh"};
+	//std::string ngrams[] = {"uni","bi","tri"};
+	//std::string langs[] = {"en","ja","zh"};
+	std::string ngrams[] = {"uni"};
+	std::string langs[] = {"en"};
 	for (const string &ng : ngrams) {
 		for (const string &l : langs) {
 			loadIndex(ng, l);
@@ -80,11 +82,13 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 		std::cout << "no index files create new shard" << std::endl;
 		return;
 	} else {
+		std::cout << "unigramurls_map.size() " << unigramurls_map.size() << std::endl;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
-			int shard_id = stoi(index_files.back().substr((*it).find('_')+1,(*it).find('.')));
+			int shard_id = stoi((*it).substr((*it).find('_')+1,(*it).find('.')));
 			Shard shard(Shard::Type::UNIGRAM, shard_id);
 			std::cout << *it << std::endl;
 			shard.addToIndex(unigramurls_map);
+			std::cout << "unigramurls_map.size() " << unigramurls_map.size() << std::endl;
 		}
 	}
 
@@ -183,7 +187,7 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		std::string converted;
 		query.term.term.toUTF8String(converted);
 		std::cout << "index_server.cc - looking for " << converted << std::endl;
-		std::unordered_map<std::string,std::map<int,Shard::Term>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
+		phmap::parallel_flat_hash_map<std::string, std::map<int, Shard::Term>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
 		if (urls != indexServer->unigramurls_map.end()) {
 			std::cout << "index_server.cc Found " << converted << std::endl;
 

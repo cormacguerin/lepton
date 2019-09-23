@@ -88,7 +88,7 @@ void Shard::load(int shard_id) {
 	}
 }
 
-void Shard::addToIndex(std::unordered_map<std::string, std::map<int, Shard::Term>> &index) {
+void Shard::addToIndex(phmap::parallel_flat_hash_map<std::string, std::map<int, Shard::Term>> &index) {
 	for (std::map<std::string, std::map<int, Shard::Term>>::iterator tit = shard_map.begin(); tit != shard_map.end(); ++tit) {
 		// std::cout << tit->first << std::endl;
 		index[tit->first].insert(tit->second.begin(), tit->second.end());
