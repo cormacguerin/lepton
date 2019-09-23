@@ -93,9 +93,9 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 	std::cout << "CANDIDATES SIZE " << this->candidates.size() << std::endl;
 	if (this->candidates.size() > 0) {
 		rapidjson::Value candidates(rapidjson::kArrayType);
-		for (std::vector<int>::iterator it = this->candidates.begin() ; it != this->candidates.end(); ++it) {
+		for (std::vector<std::pair<int,Shard::Term>>::iterator it = this->candidates.begin() ; it != this->candidates.end(); ++it) {
 			//	std::cout << *it << std::endl;
-			candidates.PushBack(rapidjson::Value().SetInt(*it), allocator);
+			candidates.PushBack(rapidjson::Value().SetInt(it->first), allocator);
 		}
 		serialized_query.AddMember("candidates", candidates, allocator);
 	}

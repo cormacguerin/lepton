@@ -4,6 +4,7 @@
 //#include <filesystem>
 #include <algorithm>
 #include <ctime>
+#include <unordered_set>
 #include "dirent.h"
 
 ShardManager::ShardManager()
@@ -43,9 +44,6 @@ void ShardManager::addTerms(std::map<std::string, Shard::Term> doc_unigrams,
 }
 
 // function to sync all index loaded terms to shards.
-// function can definitely be more efficient.
-// probably should do all existing shards first and
-// then batch copy the rest into new shard(s)
 void ShardManager::syncShards() {
 	int syncsize = unigram_terms.size();
 	time_t beforetime = time(0);
@@ -66,25 +64,55 @@ void ShardManager::syncShards() {
 		phmap::parallel_flat_hash_map<std::string, int>::iterator it = unigram_shard_term_index.find(unigram_terms.begin()->first);
 		last_shard.get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
 		unigram_terms.erase(unigram_terms.begin());
-		/*
-		if (it != unigram_shard_term_index.end()) {
+	}
+	// finially write our last (probably not full) shard.
+	last_shard.get()->write();
+	time_t aftertime = time(0);
+	double seconds = difftime(aftertime, beforetime);
+	std::cout << "shard_manager.cc : syncShards of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
+	std::cout << "shard_manager.cc : Index Term Size : "  << unigram_shard_term_index.size() << std::endl;
+}
 
+/*
+ * Merging while crawling is just too slow.. this might mean json is too slow, or it might just be that rapid json is too slow.
+ * In fact the problem is loading / parsing the json that is slow.. writing is fast.
+ * This function is some of the logic I had for merging shards. maybe we can run it as a separate process, to clean up the shards
+ */
+void ShardManager::mergeShards() {
+	int syncsize = unigram_terms.size();
+	time_t beforetime = time(0);
+	std::cout << "shard_manager.cc : begin syncShards " << beforetime << std::endl;
+	// load last shard (for new insertions)
+	loadLastShard();
+	std::unordered_set<std::string> unigram_term_index;
+	for (std::map<std::string, std::map<int, Shard::Term>>::iterator it=unigram_terms.begin(); it!=unigram_terms.end(); it++) {
+
+		if (unigram_term_index.find(it->first) != unigram_term_index.end()) {
+//			std::cout << "shard_manager.cc " << it->first  << " indexed" << std::endl;
+			continue;
+		} else {
+//			std::cout << "shard_manager.cc " << it->first  << " not indexed" << std::endl;
+		}
+		phmap::parallel_flat_hash_map<std::string, int>::iterator iit = unigram_shard_term_index.find(it->first);
+
+		if (iit != unigram_shard_term_index.end()) {
+			
 	//		std::cout << "Existing term " << it->first << " found in shard " << it->second << std::endl;
 			// load shard
-			Shard shard(Shard::Type::UNIGRAM, it->second);
-			
+			Shard shard(Shard::Type::UNIGRAM, iit->second);
+
 			// find and move / merge all terms into the shard.
 			std::vector<std::string> shard_keys = shard.getTermKeys();
-			int counter;
+			int counter=0;
 			for (std::vector<std::string>::iterator kit=shard_keys.begin(); kit!=shard_keys.end(); kit++) {
 				std::map<std::string, std::map<int, Shard::Term>>::iterator tit = unigram_terms.find(*kit);
 				if (tit != unigram_terms.end()) {
 					// insert the term and data into the last shard.
 					shard.update(tit->first, tit->second);
 					// insert the shard number for the term to the index.
-					// unigram_shard_term_index.insert(std::pair<std::string,int>(tit->first, shard.id));
+					unigram_term_index.insert(tit->first);
 					// erase the completed terms
-					unigram_terms.erase(tit++);
+					// unigram_terms.erase(tit++);
 					counter++;
 				}
 			}
@@ -101,14 +129,16 @@ void ShardManager::syncShards() {
 				last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id+1);
 			}
 			// insert the term and data into the last shard.
-			last_shard.get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
+			// std::cout << "shard_manager.cc : insert to last shard (" << last_shard.get()->id <<  ")" << it->first << " " << std::endl;
+
+			last_shard.get()->insert(it->first, it->second);
 			// insert the shard number for the term to the index.
-			unigram_shard_term_index.insert(std::pair<std::string,int>(unigram_terms.begin()->first, last_shard.get()->id));
+			unigram_shard_term_index.insert(std::pair<std::string,int>(it->first, last_shard.get()->id));
 			// remove the term from the current map
-			unigram_terms.erase(unigram_terms.begin());
+			// unigram_terms.erase(unigram_terms.begin());
 		}
-		*/
 	}
+	unigram_terms.clear();
 	// finially write our last (probably not full) shard.
 	last_shard.get()->write();
 	time_t aftertime = time(0);

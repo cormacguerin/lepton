@@ -7,6 +7,7 @@
 #include "query.h"
 #include <ctime>
 #include "texttools.h"
+#include "dirent.h"
 
 
 using namespace std;
@@ -47,6 +48,47 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	time_t beforeload = time(0);
 	std::cout << "loading index... (this might take a while)." << std::endl;
 
+
+	std::vector<std::string> index_files;
+	std::string path = "index/";
+	/*
+	for (const auto & entry : std::filesystem::directory_iterator(path)) {
+		index_files.push_back(entry.path());
+	}
+	*/
+	struct dirent *entry;
+	DIR *dp;
+
+	dp = opendir(path.c_str());
+	if (dp == NULL)
+	{
+	perror("opendir");
+		std::cout << "shard_manager.cc : Error , unable to load last shard" << std::endl;;
+		exit;
+	}
+	std::string ext = ".shard";
+	while (entry = readdir(dp)) {
+		std::string e_(entry->d_name);
+		if ((e_.find(ext) != std::string::npos)) {
+			index_files.push_back(entry->d_name);
+		}
+	}
+	closedir(dp);
+
+	std::sort(index_files.begin(),index_files.end());
+	if (index_files.empty()) {
+		std::cout << "no index files create new shard" << std::endl;
+		return;
+	} else {
+		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
+			int shard_id = stoi(index_files.back().substr((*it).find('_')+1,(*it).find('.')));
+			Shard shard(Shard::Type::UNIGRAM, shard_id);
+			std::cout << *it << std::endl;
+			shard.addToIndex(unigramurls_map);
+		}
+	}
+
+	/*
 	pqxx::work txn(*C);
 	C->prepare("load_"+ng+"gram_"+lang+"_urls_batch", "SELECT "+ng+"grams_"+lang+".gram, array_agg(url_id)::int[] FROM (SELECT gram_id, url_id, weight FROM docunigrams_en ORDER BY score) AS dng INNER JOIN "+ng+"grams_"+lang+" ON ("+ng+"grams_"+lang+".id = dng.gram_id) GROUP BY "+ng+"grams_"+lang+".gram");
 
@@ -64,9 +106,10 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 		} else {
 			std::vector<int> gramurls; // mximum no of grams per url
 			csvToIntVector(urls.as<std::string>(), gramurls);
-			/*
+			
 			int k=0; // char array position tracker
 			char j[10]; // url
+			-- delete below --
 			for (int i=1; i<strlen(urls_c)-1; i++) {
 				if (i > 100000) {
 					break;
@@ -83,7 +126,7 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 					k++;
 				}
 			}
-			*/
+			-- delete above --
 			if (ng == "uni") {
 				unigramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
 			} else if (ng == "bi") {
@@ -100,6 +143,7 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 		}
 	}
 	txn.commit();
+	*/
 	time_t afterload = time(0);
 	double seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc finished loading " << ng << "gram " << lang << " index in " << seconds << " seconds." << std::endl;
@@ -131,16 +175,29 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
  * - sort by idf rather than incidence
  * - post filter based on pagerank maybe..
  */
+typedef std::pair<int,Shard::Term> termpair;
+
 void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer) {
-	std::cout << "index_server.cc add query canditates" << std::endl;
+	std::cout << "index_server.cc add query candidates" << std::endl;
 	if (!query.term.term.isEmpty()) {
 		std::string converted;
 		query.term.term.toUTF8String(converted);
 		std::cout << "index_server.cc - looking for " << converted << std::endl;
-		std::unordered_map<std::string,std::vector<int>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
+		std::unordered_map<std::string,std::map<int,Shard::Term>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
 		if (urls != indexServer->unigramurls_map.end()) {
 			std::cout << "index_server.cc Found " << converted << std::endl;
-			query.candidates=urls->second;
+
+			std::copy(urls->second.begin(),
+				urls->second.end(),
+				std::back_inserter<std::vector<std::pair<int,Shard::Term>>>(query.candidates));
+
+			std::sort(query.candidates.begin(), query.candidates.end(),
+				[](const termpair& l, const termpair& r) {
+				if (l.second.tf != r.second.tf)
+				return l.second.tf < r.second.tf;
+
+				return l.first < r.first;
+			});
 		}
 	} else {
 		std::cout << "index_server.cc empty query node term seen." << std::endl;

@@ -12,6 +12,7 @@
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/istreamwrapper.h>
+#include "parallel_hashmap/phmap.h"
 
 // some notes
 
@@ -41,6 +42,7 @@ class Shard {
 		void insert(std::string s, std::map<int,Shard::Term> m);
 		void update(std::string s, std::map<int,Shard::Term> m);
 		void load(int shard_id);
+		void addToIndex(std::unordered_map<std::string, std::map<int, Shard::Term>> &index);
 		std::string readFile(std::string filename);
 
 };

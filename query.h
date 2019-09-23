@@ -16,6 +16,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
+#include "shard.h"
 
 // some notes
 // sorting is done by idf -ln(probability)
@@ -69,7 +70,7 @@ class Query {
 			void deserialize();
 			void updateQuery();
 			std::vector<Node> leafNodes;
-			std::vector<int> candidates;
+			std::vector<std::pair<int,Shard::Term>> candidates;
 		};
 
 		rapidjson::Document serializeTerm(Query::Term t);

@@ -32,7 +32,7 @@ class ShardManager {
 		std::map<std::string, std::map<int, Shard::Term>> unigram_terms;
 		std::map<std::string, std::map<int, Shard::Term>> bigram_terms;
 		std::map<std::string, std::map<int, Shard::Term>> trigram_terms;
-		int SHARD_SIZE=100000;
+		int SHARD_SIZE=10000;
 		int BATCH_SIZE=200000;
 		void loadLastShard();
 
@@ -46,6 +46,7 @@ class ShardManager {
 			std::map<std::string, Shard::Term> doc_bigrams, 
 			std::map<std::string, Shard::Term> doc_trigrams);
 		void syncShards();
+		void mergeShards();
 
 };
 

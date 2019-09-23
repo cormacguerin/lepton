@@ -41,6 +41,7 @@ void Shard::load(int shard_id) {
 
 	if (ifs.good()) {
 		rapidjson::Document d;
+	//	d.ParseInsitu((char*)readFile(filename).c_str());
 		d.Parse(readFile(filename).c_str());
 
 		if (d.HasParseError()) {
@@ -87,6 +88,13 @@ void Shard::load(int shard_id) {
 	}
 }
 
+void Shard::addToIndex(std::unordered_map<std::string, std::map<int, Shard::Term>> &index) {
+	for (std::map<std::string, std::map<int, Shard::Term>>::iterator tit = shard_map.begin(); tit != shard_map.end(); ++tit) {
+		// std::cout << tit->first << std::endl;
+		index[tit->first].insert(tit->second.begin(), tit->second.end());
+	}
+}
+
 void Shard::write() {
 	time_t beforetime = time(0);
 	std::string filename;
@@ -112,10 +120,14 @@ void Shard::write() {
 	std::ofstream f{filename};
 //	std::cout << (std::string)buffer.GetString() << std::endl;
 	f << (std::string)buffer.GetString();
+	f.close();
 
 	time_t aftertime = time(0);
 	double seconds = difftime(aftertime, beforetime);
 	std::cout << "shard.cc : shard " << id << " (" << shard_map.size() << " terms) written in " << seconds << " seconds." << std::endl;
+
+	buffer.Clear();
+	shard_map.clear();
 }
 
 void Shard::serialize_(rapidjson::Document &serialized_shard) {
@@ -183,7 +195,7 @@ std::string Shard::readFile(std::string filename) {
 		std::ostringstream contents;
 		contents << in.rdbuf();
 		in.close();
-		return(contents.str());
+		return(contents.str().c_str());
 	}
 	throw(errno);
 }

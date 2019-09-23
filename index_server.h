@@ -9,6 +9,7 @@
 #include "rapidjson/stringbuffer.h"
 #include <future>
 #include "query_builder.h"
+#include "shard.h"
 
 class IndexServer {
 
@@ -23,9 +24,9 @@ class IndexServer {
 	private:
 		pqxx::connection* C;
 		pqxx::work* txn;
-		std::unordered_map<std::string, std::vector<int>> unigramurls_map;
-		std::unordered_map<std::string, std::vector<int>> bigramurls_map;
-		std::unordered_map<std::string, std::vector<int>> trigramurls_map;
+		std::unordered_map<std::string, std::map<int, Shard::Term>> unigramurls_map;
+		std::unordered_map<std::string, std::map<int, Shard::Term>> bigramurls_map;
+		std::unordered_map<std::string, std::map<int, Shard::Term>> trigramurls_map;
 		void loadIndex(std::string gram, std::string lang);
 
 };
