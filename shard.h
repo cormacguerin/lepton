@@ -23,10 +23,11 @@ class Shard {
 		enum Type { UNIGRAM=0, BIGRAM=1, TRIGRAM=2 };
 		Type prefix_type;
 
-		Shard(Type type, int shard_id);
+		Shard(Type type, int _shard_id, int _fragment_id=0);
 		~Shard();
 
-		int id;
+		int shard_id;
+		int fragment_id;
 
 		struct Term {
 			int url_id;
@@ -41,7 +42,7 @@ class Shard {
 		size_t size();
 		void insert(std::string s, std::map<int,Shard::Term> m);
 		void update(std::string s, std::map<int,Shard::Term> m);
-		void load(int shard_id);
+		void load();
 		void addToIndex(phmap::parallel_flat_hash_map<std::string, std::map<int, Shard::Term>> &index);
 		std::string readFile(std::string filename);
 

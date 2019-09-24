@@ -35,6 +35,8 @@ class ShardManager {
 		int SHARD_SIZE=10000;
 		int BATCH_SIZE=200000;
 		void loadLastShard();
+		void loadShards();
+		int last_shard_id;
 
 	public:
 
@@ -42,6 +44,7 @@ class ShardManager {
 		~ShardManager();
 
 		std::unique_ptr<Shard> last_shard;
+		std::map<int,std::unique_ptr<Shard>> shards;
 		void addTerms(std::map<std::string, Shard::Term> doc_unigrams,
 			std::map<std::string, Shard::Term> doc_bigrams, 
 			std::map<std::string, Shard::Term> doc_trigrams);

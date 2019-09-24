@@ -49,24 +49,28 @@ void ShardManager::syncShards() {
 	time_t beforetime = time(0);
 	std::cout << "shard_manager.cc : begin syncShards " << beforetime << std::endl;
 	// load last shard (for new insertions)
-	loadLastShard();
+	//loadLastShard();
+	loadShards();
 	while (unigram_terms.size()>0) {
-		unigram_shard_term_index.insert(std::pair<std::string,int>(unigram_terms.begin()->first, last_shard.get()->id));
-
-		if (last_shard.get()->size() == SHARD_SIZE) {
-		//	std::cout << "shard_manager.cc : max shard size reached, write this shard and create new." << std::endl;
-			last_shard.get()->write();
-			int last_shard_id = last_shard.get()->id;
-			last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id+1);
-		}
-
-		// find shard by first term.
 		phmap::parallel_flat_hash_map<std::string, int>::iterator it = unigram_shard_term_index.find(unigram_terms.begin()->first);
-		last_shard.get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
-		unigram_terms.erase(unigram_terms.begin());
+		if (it != unigram_shard_term_index.end()) {
+			shards[it->second].get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
+		} else {
+			unigram_shard_term_index.insert(std::pair<std::string,int>(unigram_terms.begin()->first, last_shard_id));
+			if (shards[last_shard_id].get()->size() == SHARD_SIZE) {
+				// write this shard fragment and create a new one for new entries.
+				shards[last_shard_id].get()->write();
+				shards[last_shard_id] = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id);
+				// increment creating a new shard and first fragment.
+				last_shard_id = last_shard_id+1;
+				shards[last_shard_id] = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id, 1);
+			}
+			shards[last_shard_id].get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
+			unigram_terms.erase(unigram_terms.begin());
+		}
 	}
 	// finially write our last (probably not full) shard.
-	last_shard.get()->write();
+	// last_shard.get()->write();
 	time_t aftertime = time(0);
 	double seconds = difftime(aftertime, beforetime);
 	std::cout << "shard_manager.cc : syncShards of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
@@ -75,7 +79,7 @@ void ShardManager::syncShards() {
 
 /*
  * Merging while crawling is just too slow.. this might mean json is too slow, or it might just be that rapid json is too slow.
- * In fact the problem is loading / parsing the json that is slow.. writing is fast.
+ * In fact the problem is loading / parsing the json that is slow.. writing is fast (order of magnitude faster). 
  * This function is some of the logic I had for merging shards. maybe we can run it as a separate process, to clean up the shards
  */
 void ShardManager::mergeShards() {
@@ -116,7 +120,7 @@ void ShardManager::mergeShards() {
 					counter++;
 				}
 			}
-			std::cout << "shard_manager.cc : " << counter << " url terms synced into shard " << shard.id << std::endl;
+			std::cout << "shard_manager.cc : " << counter << " url terms synced into shard " << shard.shard_id << std::endl;
 			// were should be finished with this shard, so write it.
 			shard.write();
 			std::cout << "shard_manager.cc : " << unigram_terms.size() << " terms left to sync." << std::endl;
@@ -125,7 +129,6 @@ void ShardManager::mergeShards() {
 			if (last_shard.get()->size() == SHARD_SIZE) {
 			//	std::cout << "shard_manager.cc : max shard size reached, write this shard and create new." << std::endl;
 				last_shard.get()->write();
-				int last_shard_id = last_shard.get()->id;
 				last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id+1);
 			}
 			// insert the term and data into the last shard.
@@ -133,7 +136,7 @@ void ShardManager::mergeShards() {
 
 			last_shard.get()->insert(it->first, it->second);
 			// insert the shard number for the term to the index.
-			unigram_shard_term_index.insert(std::pair<std::string,int>(it->first, last_shard.get()->id));
+			unigram_shard_term_index.insert(std::pair<std::string,int>(it->first, last_shard.get()->shard_id));
 			// remove the term from the current map
 			// unigram_terms.erase(unigram_terms.begin());
 		}
@@ -159,7 +162,7 @@ void ShardManager::loadLastShard() {
 	DIR *dp;
 
 	dp = opendir(path.c_str());
-		if (dp == NULL)
+	if (dp == NULL)
 	{
 	perror("opendir");
 		std::cout << "shard_manager.cc : Error , unable to load last shard" << std::endl;;
@@ -180,11 +183,67 @@ void ShardManager::loadLastShard() {
 	}
 	if (index_files.empty()) {
 		std::cout << "no index files create new shard" << std::endl;
-		last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM,1);
+		last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM,1,1);
 	} else {
 		int shard_id = stoi(index_files.back().substr(index_files.back().find('_')+1,(index_files.back()).find('.')));
 		std::cout << "loading last shard with id " << shard_id << std::endl;
 		last_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM,shard_id);
+	}
+}
+
+
+void ShardManager::loadShards() {
+	std::vector<std::string> index_files;
+	std::string path = "index/";
+	/*
+	for (const auto & entry : std::filesystem::directory_iterator(path)) {
+		index_files.push_back(entry.path());
+	}
+	*/
+	struct dirent *entry;
+	DIR *dp;
+
+	dp = opendir(path.c_str());
+	if (dp == NULL)
+	{
+	perror("opendir");
+		std::cout << "shard_manager.cc : Error , unable to load last shard" << std::endl;;
+		exit;
+	}
+	std::string ext = ".shard";
+	while (entry = readdir(dp)) {
+		std::string e_(entry->d_name);
+		if ((e_.find(ext) != std::string::npos)) {
+			index_files.push_back(entry->d_name);
+		}
+	}
+	closedir(dp);
+
+	std::sort(index_files.begin(),index_files.end());
+	if (index_files.empty()) {
+		std::cout << "no index files create new shard" << std::endl;
+		shards[1] = std::make_unique<Shard>(Shard::Type::UNIGRAM,1,1);
+		last_shard_id = 1;
+	} else {
+		int this_shard_id = 1;
+		int this_frag_id = 1;
+		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
+			std::cout << *it << std::endl;
+			std::string shard_string = (*it).substr((*it).find('_')+1,(*it).length());
+
+			std::cout << shard_string.substr(0, shard_string.find('.')) << std::endl;
+			int shard_id = stoi(shard_string.substr(0, shard_string.find('.')));
+			std::cout << shard_string.substr(shard_string.find('.')+1,shard_string.length()) << std::endl;
+			int shard_frag_id = stoi(shard_string.substr(shard_string.find(".shard")+1,shard_string.length()));
+
+			std::cout << "shard_id " << shard_id << std::endl;
+			std::cout << "shard_frag_id " << shard_frag_id << std::endl;
+			if (this_shard_id!=shard_id) {
+				shards[this_shard_id] = std::make_unique<Shard>(Shard::Type::UNIGRAM,this_shard_id,this_frag_id);
+			}
+			this_shard_id=shard_id;
+			this_frag_id=shard_frag_id;
+		}
 	}
 }
 

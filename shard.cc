@@ -7,18 +7,23 @@
 
 rapidjson::Document serialized_shard;
 
-Shard::Shard(Shard::Type type, int shard_id) : prefix_type(), id()
+Shard::Shard(Shard::Type type, int _shard_id, int _fragment_id) : prefix_type(), shard_id(), fragment_id()
 {
 	prefix_type=type;
-	id=shard_id;
-	load(shard_id);
+	shard_id=_shard_id;
+	if (_fragment_id == 0) {
+		fragment_id = fragment_id+1;
+	} else {
+		fragment_id = 1;
+	}
+	load();
 }
 
 Shard::~Shard()
 {
 }
 
-void Shard::load(int shard_id) {
+void Shard::load() {
 	std::string filename;
 	if (prefix_type==Shard::Type::UNIGRAM){
 		filename = "index/unigram_";
@@ -29,11 +34,19 @@ void Shard::load(int shard_id) {
 	} else {
 		return;
 	}
+
+	std::stringstream shard_id_string;
+	shard_id_string << std::setw(5) << std::setfill('0') << shard_id;
 	
-	std::stringstream postfix;
-	postfix << std::setw(5) << std::setfill('0') << shard_id;
-	filename.append(postfix.str());
-	filename.append(".shard");
+	filename.append(shard_id_string.str());
+	if (fragment_id==0) {
+		filename.append(".shard");
+	} else {
+		filename.append(".shard.");
+		std::stringstream fragment_id_string;
+		fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
+		filename.append(fragment_id_string.str());
+	}
 
 	//if (std::filesystem::exists(filename)) {
 	time_t beforetime = time(0);
@@ -107,10 +120,21 @@ void Shard::write() {
 	} else {
 		return;
 	}
-	std::stringstream postfix;
-	postfix << std::setw(5) << std::setfill('0') << id;
-	filename.append(postfix.str());
-	filename.append(".shard");
+	
+	std::stringstream shard_id_string;
+	shard_id_string << std::setw(5) << std::setfill('0') << shard_id;
+
+	filename.append(shard_id_string.str());
+	if (fragment_id==0) {
+		filename.append(".shard");
+	} else {
+		filename.append(".shard.");
+		std::stringstream fragment_id_string;
+		fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
+		filename.append(fragment_id_string.str());
+	}
+
+	//if (std::filesystem::exists(filename)) {
 
 	rapidjson::Document d;
 	serialize_(d);
@@ -124,7 +148,7 @@ void Shard::write() {
 
 	time_t aftertime = time(0);
 	double seconds = difftime(aftertime, beforetime);
-	std::cout << "shard.cc : shard " << id << " (" << shard_map.size() << " terms) written in " << seconds << " seconds." << std::endl;
+	std::cout << "shard.cc : shard " << shard_id << " (" << shard_map.size() << " terms) written in " << seconds << " seconds." << std::endl;
 
 	buffer.Clear();
 	shard_map.clear();
