@@ -47,7 +47,7 @@ void Proton::processFeeds(std::string lang) {
 	int num_docs;
 	int max_doc_id;
 	int batch_size;
-	int base_batch_size = 10000;
+	int base_batch_size = 1000;
 	getNumDocs(num_docs, lang);
 	getMaxDocId(max_doc_id, lang);
 	std::cout << "proton.cc : num_docs : " << num_docs << std::endl;

@@ -179,9 +179,10 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
  * - sort by idf rather than incidence
  * - post filter based on pagerank maybe..
  */
-typedef std::pair<int,Shard::Term> termpair;
+typedef std::pair<int,Query::Term> termpair;
 
 void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer) {
+
 	std::cout << "index_server.cc add query candidates" << std::endl;
 	if (!query.term.term.isEmpty()) {
 		std::string converted;
@@ -191,9 +192,25 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		if (urls != indexServer->unigramurls_map.end()) {
 			std::cout << "index_server.cc Found " << converted << std::endl;
 
+			/*
 			std::copy(urls->second.begin(),
 				urls->second.end(),
-				std::back_inserter<std::vector<std::pair<int,Shard::Term>>>(query.candidates));
+				std::back_inserter<std::vector<std::pair<int,Query::Term>>>(query.candidates));
+			*/
+
+			for (std::map<int, Shard::Term>::const_iterator it = urls->second.begin(); it != urls->second.end(); ++it) {
+				Query::Term term;
+				term.tf=it->second.tf;;
+
+				pqxx::work txn(*C);
+				C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
+				pqxx::result r = txn.prepared("get_url")(it->first).exec();
+				txn.commit();
+				const pqxx::field c = r.back()[0];
+
+				term.debug_url=c.as<std::string>();
+				query.candidates.push_back(std::pair<int,Query::Term>(it->first,term));
+			}
 
 			std::sort(query.candidates.begin(), query.candidates.end(),
 				[](const termpair& l, const termpair& r) {

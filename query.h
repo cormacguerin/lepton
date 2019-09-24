@@ -54,6 +54,9 @@ class Query {
 			icu::UnicodeString term;
 			std::map<Modifier, AttributeValue> mods;
 			double idf;
+			double w;
+			double tf;
+			std::string debug_url;
 		};
 
 		struct Node {
@@ -63,14 +66,13 @@ class Query {
 			std::string raw_query;
 			std::string lang;
 
-			double weight;
 			std::string serialize();
 			// internal worker function of the above.
 			void serialize_(rapidjson::Document &serialized_query);
 			void deserialize();
 			void updateQuery();
 			std::vector<Node> leafNodes;
-			std::vector<std::pair<int,Shard::Term>> candidates;
+			std::vector<std::pair<int, Query::Term>> candidates;
 		};
 
 		rapidjson::Document serializeTerm(Query::Term t);
