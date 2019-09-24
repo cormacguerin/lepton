@@ -233,8 +233,8 @@ void ShardManager::loadShards() {
 
 			std::cout << shard_string.substr(0, shard_string.find('.')) << std::endl;
 			int shard_id = stoi(shard_string.substr(0, shard_string.find('.')));
-			std::cout << shard_string.substr(shard_string.find('.')+1,shard_string.length()) << std::endl;
-			int shard_frag_id = stoi(shard_string.substr(shard_string.find(".shard")+1,shard_string.length()));
+			std::cout << shard_string.substr(shard_string.find('.')+7,shard_string.length()) << std::endl;
+			int shard_frag_id = stoi(shard_string.substr(shard_string.find(".shard")+7,shard_string.length()));
 
 			std::cout << "shard_id " << shard_id << std::endl;
 			std::cout << "shard_frag_id " << shard_frag_id << std::endl;
