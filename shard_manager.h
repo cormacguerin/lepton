@@ -36,6 +36,7 @@ class ShardManager {
 		int BATCH_SIZE=200000;
 		void loadLastShard();
 		void loadShards();
+		void saveShards();
 		int last_shard_id;
 
 	public:

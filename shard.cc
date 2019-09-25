@@ -11,8 +11,8 @@ Shard::Shard(Shard::Type type, int _shard_id, int _fragment_id) : prefix_type(),
 {
 	prefix_type=type;
 	shard_id=_shard_id;
-	if (_fragment_id == 0) {
-		fragment_id = fragment_id+1;
+	if (_fragment_id != 0) {
+		fragment_id = _fragment_id;
 	} else {
 		fragment_id = 1;
 	}
@@ -39,14 +39,10 @@ void Shard::load() {
 	shard_id_string << std::setw(5) << std::setfill('0') << shard_id;
 	
 	filename.append(shard_id_string.str());
-	if (fragment_id==0) {
-		filename.append(".shard");
-	} else {
-		filename.append(".shard.");
-		std::stringstream fragment_id_string;
-		fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
-		filename.append(fragment_id_string.str());
-	}
+	filename.append(".shard.");
+	std::stringstream fragment_id_string;
+	fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
+	filename.append(fragment_id_string.str());
 
 	//if (std::filesystem::exists(filename)) {
 	time_t beforetime = time(0);
@@ -58,7 +54,7 @@ void Shard::load() {
 		d.Parse(readFile(filename).c_str());
 
 		if (d.HasParseError()) {
-			std::cout << "shard.cc : failed to parse JSON in shard << " << shard_id << ", shard will be automatically discarded" << std::endl;
+			std::cout << "shard.cc : failed to parse JSON in shard << " << shard_id << "." << fragment_id << ", shard will be automatically discarded" << std::endl;
 			// wipe the shard and write it.
 			shard_map.clear();
 			write();
@@ -89,14 +85,16 @@ void Shard::load() {
 			shard_map.insert(std::pair<std::string,std::map<int,Shard::Term>>(jit->name.GetString(), term_map));
 		}
 
+		/*
 		rapidjson::StringBuffer buffer;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 		d.Accept(writer);
+		*/
 		time_t aftertime = time(0);
 		double seconds = difftime(aftertime, beforetime);
-		std::cout << "shard.cc : Shard "<< shard_id << " loaded with size : " << shard_map.size() << " in " << seconds << " seconds." << std::endl;
+		std::cout << "shard.cc : Shard " << shard_id << "." << fragment_id << " loaded with size : " << shard_map.size() << " in " << seconds << " seconds." << std::endl;
 	} else {
-		std::cout << "shard.cc : Creating new shard(" << shard_id << ")" << std::endl;
+		std::cout << "shard.cc : Creating Shard << " << shard_id << "." << fragment_id << " " << std::endl;
 		return;
 	}
 }
@@ -106,6 +104,49 @@ void Shard::addToIndex(phmap::parallel_flat_hash_map<std::string, std::map<int, 
 		// std::cout << tit->first << std::endl;
 		index[tit->first].insert(tit->second.begin(), tit->second.end());
 	}
+}
+
+void Shard::writeIndex() {
+	time_t beforetime = time(0);
+	std::string filename;
+	if (prefix_type==Shard::Type::UNIGRAM){
+		filename = "index/unigram_";
+	} else if (prefix_type==Shard::Type::UNIGRAM){
+		filename = "index/bigram_";
+	} else if (prefix_type==Shard::Type::UNIGRAM){
+		filename = "index/trigram_";
+	} else {
+		return;
+	}
+	
+	std::stringstream shard_id_string;
+	shard_id_string << std::setw(5) << std::setfill('0') << shard_id;
+	filename.append(shard_id_string.str());
+	filename.append(".idx");
+
+	rapidjson::Document d_;
+	rapidjson::Document::AllocatorType& allocator = serialized_shard.GetAllocator();
+
+	rapidjson::Value index_;
+	index_.SetObject();
+
+	rapidjson::Value index_arr(rapidjson::kArrayType);
+	for (std::map<std::string, std::map<int, Shard::Term>>::iterator it = shard_map.begin(); it != shard_map.end(); ++it) {
+		index_arr.PushBack(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), d_.GetAllocator());
+	}
+	std::string d_id = std::to_string(shard_id);
+	d_.SetObject();
+	d_.AddMember(rapidjson::Value(const_cast<char*>(d_id.c_str()), allocator).Move(), index_arr, allocator);
+
+	// d_.AddMember(index_, allocator);
+
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	d_.Accept(writer);
+	std::ofstream f{filename};
+	f << (std::string)buffer.GetString();
+	f.close();
+
 }
 
 void Shard::write() {

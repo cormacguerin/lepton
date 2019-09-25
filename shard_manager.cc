@@ -55,20 +55,24 @@ void ShardManager::syncShards() {
 		phmap::parallel_flat_hash_map<std::string, int>::iterator it = unigram_shard_term_index.find(unigram_terms.begin()->first);
 		if (it != unigram_shard_term_index.end()) {
 			shards[it->second].get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
+			unigram_terms.erase(unigram_terms.begin());
 		} else {
 			unigram_shard_term_index.insert(std::pair<std::string,int>(unigram_terms.begin()->first, last_shard_id));
 			if (shards[last_shard_id].get()->size() == SHARD_SIZE) {
 				// write this shard fragment and create a new one for new entries.
-				shards[last_shard_id].get()->write();
-				shards[last_shard_id] = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id);
+				// shards[last_shard_id].get()->write();
+				// shards[last_shard_id] = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id);
 				// increment creating a new shard and first fragment.
+				shards[last_shard_id].get()->writeIndex();
 				last_shard_id = last_shard_id+1;
-				shards[last_shard_id] = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id, 1);
+				shards[last_shard_id] = std::make_unique<Shard>(Shard::Type::UNIGRAM, last_shard_id);
 			}
 			shards[last_shard_id].get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
 			unigram_terms.erase(unigram_terms.begin());
 		}
 	}
+	shards[last_shard_id].get()->writeIndex();
+	saveShards();
 	// finially write our last (probably not full) shard.
 	// last_shard.get()->write();
 	time_t aftertime = time(0);
@@ -101,7 +105,7 @@ void ShardManager::mergeShards() {
 
 		if (iit != unigram_shard_term_index.end()) {
 			
-	//		std::cout << "Existing term " << it->first << " found in shard " << it->second << std::endl;
+			// std::cout << "Existing term " << it->first << " found in shard " << it->second << std::endl;
 			// load shard
 			Shard shard(Shard::Type::UNIGRAM, iit->second);
 
@@ -210,7 +214,7 @@ void ShardManager::loadShards() {
 		std::cout << "shard_manager.cc : Error , unable to load last shard" << std::endl;;
 		exit;
 	}
-	std::string ext = ".shard";
+	std::string ext = ".shard.";
 	while (entry = readdir(dp)) {
 		std::string e_(entry->d_name);
 		if ((e_.find(ext) != std::string::npos)) {
@@ -239,11 +243,22 @@ void ShardManager::loadShards() {
 			std::cout << "shard_id " << shard_id << std::endl;
 			std::cout << "shard_frag_id " << shard_frag_id << std::endl;
 			if (this_shard_id!=shard_id) {
-				shards[this_shard_id] = std::make_unique<Shard>(Shard::Type::UNIGRAM,this_shard_id,this_frag_id);
+				shards[this_shard_id] = std::make_unique<Shard>(Shard::Type::UNIGRAM,this_shard_id,this_frag_id+1);
 			}
 			this_shard_id=shard_id;
 			this_frag_id=shard_frag_id;
 		}
+		last_shard_id=this_shard_id;
+		shards[last_shard_id] = std::make_unique<Shard>(Shard::Type::UNIGRAM,this_shard_id+1,this_frag_id+1);
 	}
+}
+
+void ShardManager::saveShards() {
+	std::cout << "save shards" << std::endl;
+	for (std::map<int,std::unique_ptr<Shard>>::iterator it = shards.begin() ; it != shards.end(); ++it) {
+		it->second.get()->write();
+		it->second.reset();
+	}
+	shards.clear();
 }
 

@@ -39,6 +39,7 @@ class Shard {
 
 		void serialize_(rapidjson::Document &serialized_shard);
 		void write();
+		void writeIndex();
 		size_t size();
 		void insert(std::string s, std::map<int,Shard::Term> m);
 		void update(std::string s, std::map<int,Shard::Term> m);
