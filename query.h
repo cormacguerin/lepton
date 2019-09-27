@@ -56,6 +56,7 @@ class Query {
 			double idf;
 			double w;
 			double tf;
+			double weight;
 			std::string debug_url;
 		};
 

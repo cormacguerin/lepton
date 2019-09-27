@@ -260,11 +260,11 @@ void Shard::addWeights(int num_docs) {
 		// TODO store the idf somewhere also.
 		double idf = log((double)num_docs/(double)it->second.size());
 		// each word term in the index has an idf value.
-		std::cout << "shard.cc : idf value for term " << it->first << " : " << idf << std::endl;
+		// std::cout << "shard.cc : idf value for term " << it->first << " : " << idf << std::endl;
 		// each term for each url has a weight value.
 		for (std::map<int, Shard::Term>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
 			tit->second.weight = idf*tit->second.tf;
-			std::cout << "shard.cc : weight value for term " << it->first << " in url id " << tit->first << " : " << tit->second.weight << std::endl;
+			// std::cout << "shard.cc : weight value for term " << it->first << " in url id " << tit->first << " : " << tit->second.weight << std::endl;
 		}
 	}
 }

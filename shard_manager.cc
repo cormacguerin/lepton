@@ -90,7 +90,7 @@ void ShardManager::mergeShards(int num_docs, std::string lang) {
 	int syncsize = unigram_terms.size();
 	time_t beforetime = time(0);
 
-	std::cout << "shard_manager.cc : begin syncShards " << beforetime << std::endl;
+	std::cout << "shard_manager.cc : begin mergeShards " << beforetime << std::endl;
 
 	std::vector<std::string> index_files = getFiles("index/",".shard");
 	if (index_files.empty()) {
@@ -106,7 +106,7 @@ void ShardManager::mergeShards(int num_docs, std::string lang) {
 			int shard_id = stoi(shard_string.substr(0, shard_string.find(".")));
 
 			if (this_shard_id!=shard_id) {
-				std::cout << " - - - NEXT - - - " << std::endl;
+				std::cout << " - - - SHARD " << this_shard_id << " DONE - - - " << std::endl;
 				if (this_shard_id != 0) {
 					main_shard.get()->addWeights(num_docs);
 					main_shard.get()->write();
@@ -224,7 +224,7 @@ void ShardManager::loadShards() {
 
 
 void ShardManager::saveShards() {
-	std::cout << "save shards" << std::endl;
+	std::cout << "shard_manager.cc : save shards" << std::endl;
 	for (std::map<int,std::unique_ptr<Shard>>::iterator it = shards.begin() ; it != shards.end(); ++it) {
 		it->second.get()->write();
 		it->second.reset();
