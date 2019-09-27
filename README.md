@@ -2,27 +2,16 @@ lepton is a indexing/serving framework.
 
 Deps.
 
- - cpp_redis (https://github.com/google/sentencepiece)
- from https://github.com/Cylix/cpp_redis/wiki/Mac-&-Linux-Install
-
- # Clone the project
- git clone https://github.com/Cylix/cpp_redis.git
- # Go inside the project directory
- cd cpp_redis
- # Get tacopie submodule
- git submodule init && git submodule update
- # Create a build directory and move into it
- mkdir build && cd build
- # Generate the Makefile using CMake
- cmake .. -DCMAKE_BUILD_TYPE=Release
- # Build the library
- make
- # Install the library
- sudo make install
+# BUILD SOFTWARE 
+make
+# there are two executables
+# - indexroot (will read the documents from postgres and convert them in a reverse index in the index directory (it's pretty slow))
+# - serveroot (a server that accepts queries (you can query from nodejs search endpoint))
 
  - python
  pip install pycurl requests bs4 urlmatch lxml --user
 
+# DONT NEED SENTENCEPIECE - SKIP to rapidjson
  - sentencepiece (https://github.com/google/sentencepiece)
  # install autotools if it's not already installed.
  apt-get install autotools
@@ -34,6 +23,7 @@ Deps.
  make
  sudo make install
 
+ # USING RAPIDJSON NOW, INSTALL THIS
  - rapidjson (https://github.com/Tencent/rapidjson.git)
  git clone https://github.com/Tencent/rapidjson.git
  cd rapidjson
@@ -42,17 +32,21 @@ Deps.
  sudo make install
 
 
+# install postgres and add the schema in the server directory
+# install nodejs and run node lepton.js
+
  - testing indexing api.
  curl -H "Content-Type: application/json" -X POST --data "@testdocs.json" '127.0.0.1:3000/addDocument?type=content'
  - testing query api
 curl 'https://35.239.29.200/search?query=test%20timing%202' -H 'accept: application/json' -H 'Connection: keep-alive' -H 'Accept-Encoding: gzip, deflate, br' -H 'Referer: https://35.239.29.200/' -H 'Accept-Language: en-US,en;q=0.9' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36' --compressed --insecure -s -o /dev/null -w  "%{time_starttransfer}\n"
 
 
- - web crawler
+ - there is also a web crawler
  add your start urls (start.urls) and start url follow patters (patterns.urls)
  - to start the crawler type the below (ensure node lepton.js is running first!)
  python crawler.py
 
+# THE FOLLOWING IS NOT NECESSARY - skip to DEBIAN INSTALL INSTRUCTION
  - export the vocabulary.
  ./main
 
@@ -96,17 +90,4 @@ make
 make install
 cd ..
 
-
-git clone https://github.com/Cylix/cpp_redis.git
-cd cpp_redis/
-# Get tacopie submodule
-git submodule init && git submodule update
-# Create a build directory and move into it
-mkdir build && cd build
-# Generate the Makefile using CMake
-cmake .. -DCMAKE_BUILD_TYPE=Release
-# Build the library
-make
-# Install the library
-make install
 

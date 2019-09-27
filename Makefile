@@ -8,7 +8,8 @@ LOCALINC = /usr/local/include/
 PQXXINC = /usr/include/pqxx/
 ASIOINC = /usr/include/asio/
 PQXXINCLOCAL = /usr/local/include/pqxx/
-INCLUDES = -I$(INC) -I$(LOCALINC) -I$(REDISINC) -I$(PQXXINC) -I$(PQXXINCLOCAL) -I$(ASIOINC)
+PARALLEL_HASHMAP_INC = parallel-hashmap/
+INCLUDES = -I$(INC) -I$(LOCALINC) -I$(REDISINC) -I$(PQXXINC) -I$(PQXXINCLOCAL) -I$(ASIOINC) -I$(PARALLEL_HASHMAP_INC)
 #ICUOPTS = `/usr/bin/icu-config --ldflags --cppflags`
 
 #
@@ -48,11 +49,11 @@ all: serveroot indexroot
 serveroot: serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o shard_manager.o shard.o
 	${LINKER} -o serveroot serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o shard_manager.o shard.o $(LD_FLAGS)
 
-indexroot: indexroot.o proton.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o
-	${LINKER} -o indexroot indexroot.o proton.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o $(LD_FLAGS) 
+indexroot: indexroot.o index_manager.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o
+	${LINKER} -o indexroot indexroot.o index_manager.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o $(LD_FLAGS) 
 
-proton.o : proton.cc proton.h
-	${COMPILE} proton.cc
+index_manager.o : index_manager.cc index_manager.h
+	${COMPILE} index_manager.cc
 
 query.o : query.cc query.h
 	${COMPILE} query.cc

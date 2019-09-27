@@ -11,11 +11,7 @@ Shard::Shard(Shard::Type type, int _shard_id, int _fragment_id) : prefix_type(),
 {
 	prefix_type=type;
 	shard_id=_shard_id;
-	if (_fragment_id != 0) {
-		fragment_id = _fragment_id;
-	} else {
-		fragment_id = 1;
-	}
+	fragment_id = _fragment_id;
 	load();
 }
 
@@ -38,11 +34,16 @@ void Shard::load() {
 	std::stringstream shard_id_string;
 	shard_id_string << std::setw(5) << std::setfill('0') << shard_id;
 	
-	filename.append(shard_id_string.str());
-	filename.append(".shard.");
-	std::stringstream fragment_id_string;
-	fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
-	filename.append(fragment_id_string.str());
+	if (fragment_id==0) {
+		filename.append(shard_id_string.str());
+		filename.append(".shard");
+	} else {
+		filename.append(shard_id_string.str());
+		filename.append(".shard.");
+		std::stringstream fragment_id_string;
+		fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
+		filename.append(fragment_id_string.str());
+	}
 
 	//if (std::filesystem::exists(filename)) {
 	time_t beforetime = time(0);
@@ -54,7 +55,11 @@ void Shard::load() {
 		d.Parse(readFile(filename).c_str());
 
 		if (d.HasParseError()) {
-			std::cout << "shard.cc : failed to parse JSON in shard << " << shard_id << "." << fragment_id << ", shard will be automatically discarded" << std::endl;
+			if (fragment_id==0) {
+				std::cout << "shard.cc : failed to parse JSON in shard << " << shard_id << ", shard will be automatically discarded" << std::endl;
+			} else {
+				std::cout << "shard.cc : failed to parse JSON in shard << " << shard_id << "." << fragment_id << ", shard will be automatically discarded" << std::endl;
+			}
 			// wipe the shard and write it.
 			shard_map.clear();
 			write();
@@ -66,18 +71,20 @@ void Shard::load() {
 			std::map<int, Shard::Term> term_map;
 			for (rapidjson::Value::ConstMemberIterator jtit = jit->value.MemberBegin(); jtit != jit->value.MemberEnd(); ++jtit) {
 				Term term;
-//				std::cout << "shard.cc  n: " << jtit->name.GetString() << std::endl;
+//				std::cout << "shard.cc  nc : " << jtit->name.GetString() << std::endl;
 				for (rapidjson::Value::ConstMemberIterator jtit_ = jtit->value.MemberBegin(); jtit_ != jtit->value.MemberEnd(); ++jtit_) {
-//					std::cout << "shard.cc  n_: " << jtit_->name.GetString() << std::endl;
-//					std::cout << "shard.cc  v_: " << jtit_->value.GetDouble() << std::endl;
-					if (jtit_->name.GetString()=="url_id") {
-						 term.url_id=jtit_->value.GetInt();
+//					std::cout << "TEST " << jtit_->name.GetString() << std::endl;
+					if (strcmp(jtit_->name.GetString(),"url_id")==0) {
+//						std::cout << "shard.cc  url_id : " << jtit_->value.GetInt() << std::endl;
+						term.url_id=jtit_->value.GetInt();
 					}
-					if (jtit_->name.GetString()=="tf") {
-						 term.tf=jtit_->value.GetDouble();
+					if (strcmp(jtit_->name.GetString(),"tf")==0) {
+//						std::cout << "shard.cc  tf : " << jtit_->value.GetDouble() << std::endl;
+						term.tf=jtit_->value.GetDouble();
 					}
-					if (jtit_->name.GetString()=="weight") {
-						 term.weight=jtit_->value.GetDouble();
+					if (strcmp(jtit_->name.GetString(),"weight")==0) {
+//						std::cout << "shard.cc  weight : " << jtit_->value.GetDouble() << std::endl;
+						term.weight=jtit_->value.GetDouble();
 					}
 				}
 				term_map.insert(std::pair<int, Shard::Term>(atoi(jtit->name.GetString()), term));
@@ -92,9 +99,17 @@ void Shard::load() {
 		*/
 		time_t aftertime = time(0);
 		double seconds = difftime(aftertime, beforetime);
-		std::cout << "shard.cc : Shard " << shard_id << "." << fragment_id << " loaded with size : " << shard_map.size() << " in " << seconds << " seconds." << std::endl;
+		if (fragment_id==0) {
+			std::cout << "shard.cc : Shard " << shard_id << " loaded with size : " << shard_map.size() << " in " << seconds << " seconds." << std::endl;
+		} else {
+			std::cout << "shard.cc : Shard " << shard_id << "." << fragment_id << " loaded with size : " << shard_map.size() << " in " << seconds << " seconds." << std::endl;
+		}
 	} else {
-		std::cout << "shard.cc : Creating Shard << " << shard_id << "." << fragment_id << " " << std::endl;
+		if (fragment_id==0) {
+			std::cout << "shard.cc : Creating Shard << " << shard_id << " " << std::endl;
+		} else {
+			std::cout << "shard.cc : Creating Shard << " << shard_id << "." << fragment_id << " " << std::endl;
+		}
 		return;
 	}
 }
@@ -174,6 +189,8 @@ void Shard::write() {
 		fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
 		filename.append(fragment_id_string.str());
 	}
+	std::string tmp_filename = filename;
+	tmp_filename.append("_");
 
 	//if (std::filesystem::exists(filename)) {
 
@@ -182,10 +199,13 @@ void Shard::write() {
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	d.Accept(writer);
-	std::ofstream f{filename};
+	std::ofstream f{tmp_filename};
 //	std::cout << (std::string)buffer.GetString() << std::endl;
 	f << (std::string)buffer.GetString();
 	f.close();
+
+	// finally rename the shard to it's proper name.
+	rename(tmp_filename.c_str(),filename.c_str());
 
 	time_t aftertime = time(0);
 	double seconds = difftime(aftertime, beforetime);
@@ -230,6 +250,25 @@ std::vector<std::string> Shard::getTermKeys() {
 	return v;
 }
 
+/*
+ * function to assign a weight to each term for each url.
+ * standard calculation for this is the term frequency times the idf(inverse document frequency).
+ * idf is usually calculated as log(no. docs in corpus/no. of documents that contain the term)
+ */
+void Shard::addWeights(int num_docs) {
+	for (std::map<std::string, std::map<int, Shard::Term>>::iterator it = shard_map.begin(); it != shard_map.end(); ++it) {
+		// TODO store the idf somewhere also.
+		double idf = log((double)num_docs/(double)it->second.size());
+		// each word term in the index has an idf value.
+		std::cout << "shard.cc : idf value for term " << it->first << " : " << idf << std::endl;
+		// each term for each url has a weight value.
+		for (std::map<int, Shard::Term>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
+			tit->second.weight = idf*tit->second.tf;
+			std::cout << "shard.cc : weight value for term " << it->first << " in url id " << tit->first << " : " << tit->second.weight << std::endl;
+		}
+	}
+}
+
 void Shard::insert(std::string s, std::map<int,Shard::Term> m) {
 	shard_map.insert(std::pair<std::string,std::map<int,Shard::Term>>(s,m));
 }
@@ -243,7 +282,8 @@ void Shard::update(std::string s, std::map<int,Shard::Term> m) {
 		std::cout << "shard.cc b - " << it->first << std::endl;
 	}
 	*/
-	shard_map.at(s).insert(m.begin(), m.end());
+	// shard_map.at(s).insert(m.begin(), m.end());
+	shard_map[s].insert(m.begin(), m.end());
 	/*
 	std::cout << "shard.cc after : " << std::endl;
 	std::map<int, Shard::Term>::iterator it_;

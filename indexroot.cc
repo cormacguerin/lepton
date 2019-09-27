@@ -1,11 +1,11 @@
 #include <iostream>
-#include "proton.h"
+#include "index_manager.h"
 
 using namespace std;
 
 std::string port = "3333";
 
-Proton proton;
+IndexManager indexManager;
 
 int main(int argc, char** argv)
 {
@@ -15,14 +15,14 @@ int main(int argc, char** argv)
 
 	std::string raw_query = "running up that hill";
 
-	proton.init();
+	indexManager.init();
 
 	for (vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); ++lit) {
-		proton.processFeeds(*lit);
-		//proton.updateIdf(*lit);
+		indexManager.processFeeds(*lit);
+		//indexManager.updateIdf(*lit);
 	}
 
-//	proton.exportVocab("en");
+//	indexManager.exportVocab("en");
 	return 0;
 }
 

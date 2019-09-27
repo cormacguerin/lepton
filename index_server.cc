@@ -71,7 +71,7 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	std::string ext = ".shard";
 	while (entry = readdir(dp)) {
 		std::string e_(entry->d_name);
-		if ((e_.find(ext) != std::string::npos)) {
+		if (e_.substr(e_.length()-6).compare(".shard") == 0) {
 			index_files.push_back(entry->d_name);
 		}
 	}
@@ -201,6 +201,7 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 			for (std::map<int, Shard::Term>::const_iterator it = urls->second.begin(); it != urls->second.end(); ++it) {
 				Query::Term term;
 				term.tf=it->second.tf;;
+				term.weight=it->second.weight;;
 
 				pqxx::work txn(*C);
 				C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
@@ -214,8 +215,8 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 
 			std::sort(query.candidates.begin(), query.candidates.end(),
 				[](const termpair& l, const termpair& r) {
-				if (l.second.tf != r.second.tf)
-				return l.second.tf < r.second.tf;
+				if (l.second.weight != r.second.weight)
+				return l.second.weight < r.second.weight;
 
 				return l.first < r.first;
 			});

@@ -43,6 +43,7 @@ class Shard {
 		size_t size();
 		void insert(std::string s, std::map<int,Shard::Term> m);
 		void update(std::string s, std::map<int,Shard::Term> m);
+		void addWeights(int num_docs);
 		void load();
 		void addToIndex(phmap::parallel_flat_hash_map<std::string, std::map<int, Shard::Term>> &index);
 		std::string readFile(std::string filename);
