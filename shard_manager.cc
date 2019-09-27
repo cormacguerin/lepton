@@ -106,10 +106,10 @@ void ShardManager::mergeShards(int num_docs, std::string lang) {
 			int shard_id = stoi(shard_string.substr(0, shard_string.find(".")));
 
 			if (this_shard_id!=shard_id) {
-				std::cout << " - - - SHARD " << this_shard_id << " DONE - - - " << std::endl;
 				if (this_shard_id != 0) {
 					main_shard.get()->addWeights(num_docs);
 					main_shard.get()->write();
+					std::cout << " - - - SHARD " << this_shard_id << " DONE - - - " << std::endl;
 				}
 				main_shard = std::make_unique<Shard>(Shard::Type::UNIGRAM,shard_id);
 			}
