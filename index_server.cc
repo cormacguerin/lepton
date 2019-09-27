@@ -53,26 +53,23 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 
 	std::vector<std::string> index_files;
 	std::string path = "index/";
-	/*
-	for (const auto & entry : std::filesystem::directory_iterator(path)) {
-		index_files.push_back(entry.path());
-	}
-	*/
+
 	struct dirent *entry;
 	DIR *dp;
 
 	dp = opendir(path.c_str());
-	if (dp == NULL)
-	{
-	perror("opendir");
+	if (dp == NULL) {
+		perror("opendir");
 		std::cout << "shard_manager.cc : Error , unable to load last shard" << std::endl;;
 		exit;
 	}
 	std::string ext = ".shard";
 	while (entry = readdir(dp)) {
 		std::string e_(entry->d_name);
-		if (e_.substr(e_.length()-6).compare(".shard") == 0) {
-			index_files.push_back(entry->d_name);
+		if ((e_.find(ext) != std::string::npos)) {
+			if (e_.substr(e_.length()-6).compare(".shard") == 0) {
+				index_files.push_back(entry->d_name);
+			}
 		}
 	}
 	closedir(dp);
