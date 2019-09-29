@@ -91,3 +91,10 @@ make install
 cd ..
 
 
+# web frontend
+tere is a react frontend in web-app 
+to build it enter the directory and execute..
+npm install
+npm run build
+
+you can then restart nodejs and access at 127.0.0.1:3000
