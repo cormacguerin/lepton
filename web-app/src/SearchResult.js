@@ -13,7 +13,6 @@ class SearchResult extends React.Component {
 			<div className="result">
 				<a href={this.props.result}>{this.props.result}</a>
 			</div>
-			<br>
 		);
 	}
 }

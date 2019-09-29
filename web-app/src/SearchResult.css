@@ -1,17 +1,17 @@
 .result {
-	display: inline-flex;
-	flex-basis: 100%;
-	background-color: #fff;
-	border-radius: 4px;
-	margin-top: 10px;
-	padding: 5px;
-	float: left;
+	display: flex;
+	justify-content: left;
 }
 
 a {
 	color: #000;
+	display: flex;
+	background-color: #e5edf5;
+	border-radius: 4px;
+	margin-top: 20px;
+	padding: 10px;
 }
 
 a:visited {
-	color: #000;
+	color: #fff;
 }
