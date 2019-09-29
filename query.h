@@ -54,9 +54,9 @@ class Query {
 			icu::UnicodeString term;
 			std::map<Modifier, AttributeValue> mods;
 			double idf;
-			double w;
 			double tf;
 			double weight;
+			int debug_url_id;
 			std::string debug_url;
 		};
 
@@ -73,7 +73,7 @@ class Query {
 			void deserialize();
 			void updateQuery();
 			std::vector<Node> leafNodes;
-			std::vector<std::pair<int, Query::Term>> candidates;
+			std::vector<Query::Term> candidates;
 		};
 
 		rapidjson::Document serializeTerm(Query::Term t);

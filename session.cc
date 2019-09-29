@@ -73,7 +73,7 @@ void Session::do_read_body() {
 			[this, self](std::error_code ec, std::size_t) {
 				if (!ec) {
 					std::cout << "req.body_length B " << req.body_length << std::endl;
-					std::cout << "body B : " << req.body << std::endl;
+					std::cout << "req.body : " << req.body << std::endl;
 					std::string lang="en";
 					std::promise<std::string> promiseObj;
 					std::future<std::string> futureObj = promiseObj.get_future();

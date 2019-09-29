@@ -1,0 +1,39 @@
+.searchBox {
+	display: flex;
+	flex: 1;
+	flex-basis: 0;
+	flex-direction: row;
+	align-items: stretch;
+	-ms-flex-positive: 1;
+	flex-grow: 1;
+	max-width: 100%;
+}
+
+input.searchBox {
+	display: flex;
+	font-size: 1.4em;
+	flex-direction: row;
+	flex: 1;
+	padding-right: 15px;
+	padding-left: 15px;
+	padding-top: .4rem;
+    padding-bottom: .4rem;
+    background-color: #E5EDF5;
+    border: 1px solid #C9C1D5;
+    color: #5F5F5F;
+	border-radius: 4px;
+}
+
+.searchButton {
+	width:40px;
+	margin-left: 20px;
+	background-image: url('lsearch.png');
+	cursor: pointer;
+	background-size: contain;
+}
+
+form.form-horizontal {
+	display: flex;
+	flex: 1;
+}
+

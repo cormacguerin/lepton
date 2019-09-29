@@ -94,10 +94,9 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 	if (this->candidates.size() > 0) {
 		rapidjson::Value candidates(rapidjson::kArrayType);
 		rapidjson::Value debug_urls(rapidjson::kArrayType);
-		for (std::vector<std::pair<int, Query::Term>>::iterator it = this->candidates.begin() ; it != this->candidates.end(); ++it) {
-			//	std::cout << *it << std::endl;
-			candidates.PushBack(rapidjson::Value().SetInt(it->first), allocator);
-			std::string u = it->second.debug_url;
+		for (std::vector<Query::Term>::iterator it = this->candidates.begin() ; it != this->candidates.end(); ++it) {
+			candidates.PushBack(rapidjson::Value().SetInt(it->debug_url_id), allocator);
+			std::string u = it->debug_url;
 			debug_urls.PushBack(rapidjson::Value(const_cast<char*>(u.c_str()), allocator).Move(), allocator);
 		}
 		serialized_query.AddMember("candidates", candidates, allocator);

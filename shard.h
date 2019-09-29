@@ -34,6 +34,7 @@ class Shard {
 			double tf;
 			double weight;
 		};
+		typedef std::pair<int,Shard::Term> termpair;
 		std::map<std::string, std::map<int, Shard::Term>> shard_map;
 		std::vector<std::string> getTermKeys();
 
@@ -45,7 +46,8 @@ class Shard {
 		void update(std::string s, std::map<int,Shard::Term> m);
 		void addWeights(int num_docs);
 		void load();
-		void addToIndex(phmap::parallel_flat_hash_map<std::string, std::map<int, Shard::Term>> &index);
+		//void addToIndex(phmap::parallel_flat_hash_map<std::string, phmap::flat_hash_map<int, Shard::Term>> &index);
+		void addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Shard::Term>> &index);
 		std::string readFile(std::string filename);
 
 };

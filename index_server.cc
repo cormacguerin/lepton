@@ -176,7 +176,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
  * - sort by idf rather than incidence
  * - post filter based on pagerank maybe..
  */
-typedef std::pair<int,Query::Term> termpair;
+typedef Query::Term termpair;
 
 void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer) {
 
@@ -185,38 +185,26 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		std::string converted;
 		query.term.term.toUTF8String(converted);
 		std::cout << "index_server.cc - looking for " << converted << std::endl;
-		phmap::parallel_flat_hash_map<std::string, std::map<int, Shard::Term>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
+
+		phmap::parallel_flat_hash_map<std::string, std::vector<Shard::Term>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
 		if (urls != indexServer->unigramurls_map.end()) {
 			std::cout << "index_server.cc Found " << converted << std::endl;
 
-			/*
-			std::copy(urls->second.begin(),
-				urls->second.end(),
-				std::back_inserter<std::vector<std::pair<int,Query::Term>>>(query.candidates));
-			*/
-
-			for (std::map<int, Shard::Term>::const_iterator it = urls->second.begin(); it != urls->second.end(); ++it) {
+			for (std::vector<Shard::Term>::const_iterator it = urls->second.begin(); it != urls->second.begin()+30; ++it) {
 				Query::Term term;
-				term.tf=it->second.tf;;
-				term.weight=it->second.weight;;
+				term.tf=it->tf;
+				term.weight=it->weight;
+				term.debug_url_id=it->url_id;
 
 				pqxx::work txn(*C);
 				C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
-				pqxx::result r = txn.prepared("get_url")(it->first).exec();
+				pqxx::result r = txn.prepared("get_url")(it->url_id).exec();
 				txn.commit();
 				const pqxx::field c = r.back()[0];
 
 				term.debug_url=c.as<std::string>();
-				query.candidates.push_back(std::pair<int,Query::Term>(it->first,term));
+				query.candidates.push_back(term);
 			}
-
-			std::sort(query.candidates.begin(), query.candidates.end(),
-				[](const termpair& l, const termpair& r) {
-				if (l.second.weight != r.second.weight)
-				return l.second.weight < r.second.weight;
-
-				return l.first < r.first;
-			});
 		}
 	} else {
 		std::cout << "index_server.cc empty query node term seen." << std::endl;

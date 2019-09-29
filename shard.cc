@@ -45,7 +45,6 @@ void Shard::load() {
 		filename.append(fragment_id_string.str());
 	}
 
-	//if (std::filesystem::exists(filename)) {
 	time_t beforetime = time(0);
 	std::ifstream ifs(filename);
 
@@ -92,11 +91,6 @@ void Shard::load() {
 			shard_map.insert(std::pair<std::string,std::map<int,Shard::Term>>(jit->name.GetString(), term_map));
 		}
 
-		/*
-		rapidjson::StringBuffer buffer;
-		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-		d.Accept(writer);
-		*/
 		time_t aftertime = time(0);
 		double seconds = difftime(aftertime, beforetime);
 		if (fragment_id==0) {
@@ -114,10 +108,16 @@ void Shard::load() {
 	}
 }
 
-void Shard::addToIndex(phmap::parallel_flat_hash_map<std::string, std::map<int, Shard::Term>> &index) {
-	for (std::map<std::string, std::map<int, Shard::Term>>::iterator tit = shard_map.begin(); tit != shard_map.end(); ++tit) {
-		// std::cout << tit->first << std::endl;
-		index[tit->first].insert(tit->second.begin(), tit->second.end());
+void Shard::addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Shard::Term>> &index) {
+	for (std::map<std::string, std::map<int, Shard::Term>>::iterator it = shard_map.begin(); it != shard_map.end(); ++it) {
+		// std::cout << "shard.cc : " << it->first << std::endl;
+		for (std::map<int, Shard::Term>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
+			index[it->first].push_back(tit->second);
+		}
+		std::sort(index[it->first].begin(), index[it->first].end(),
+			[](const Shard::Term& l, const Shard::Term& r) {
+			return l.weight > r.weight;
+		});
 	}
 }
 

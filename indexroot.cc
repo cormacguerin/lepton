@@ -19,7 +19,6 @@ int main(int argc, char** argv)
 
 	for (vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); ++lit) {
 		indexManager.processFeeds(*lit);
-		//indexManager.updateIdf(*lit);
 	}
 
 //	indexManager.exportVocab("en");

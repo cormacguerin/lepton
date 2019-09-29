@@ -1,0 +1,17 @@
+.result {
+	display: inline-flex;
+	flex-basis: 100%;
+	background-color: #fff;
+	border-radius: 4px;
+	margin-top: 10px;
+	padding: 5px;
+	float: left;
+}
+
+a {
+	color: #000;
+}
+
+a:visited {
+	color: #000;
+}

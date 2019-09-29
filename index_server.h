@@ -25,7 +25,7 @@ class IndexServer {
 	private:
 		pqxx::connection* C;
 		pqxx::work* txn;
-		phmap::parallel_flat_hash_map<std::string, std::map<int, Shard::Term>> unigramurls_map;
+		phmap::parallel_flat_hash_map<std::string, std::vector<Shard::Term>> unigramurls_map;
 		std::unordered_map<std::string, std::map<int, Shard::Term>> bigramurls_map;
 		std::unordered_map<std::string, std::map<int, Shard::Term>> trigramurls_map;
 		void loadIndex(std::string gram, std::string lang);

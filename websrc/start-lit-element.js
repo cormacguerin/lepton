@@ -52,7 +52,7 @@ export class StartLitElement extends LitElement {
 			<iron-ajax
 				id="ajaxsearch"
 				method="GET"
-				url="https://35.239.29.200/search"
+				url="http://127.0.0.1:3000/search"
 				handle-as="json"
 				on-response="searchResponse"
 				debounce-duration="300">

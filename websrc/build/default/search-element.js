@@ -6,10 +6,10 @@ define(["exports", "./start-lit-element.js"], function (_exports, _startLitEleme
   });
   _exports.SearchElement = _exports.$searchElement = void 0;
 
-  function _templateObject_bc7bec40b10d11e982043b39def8a96f() {
+  function _templateObject_488eb6c0dfc311e9a9caf342f5dd962f() {
     var data = babelHelpers.taggedTemplateLiteral(["\n      <style>\n        :host { display: block; }\n        :host([hidden]) { display: none; }\n      </style>\n    "]);
 
-    _templateObject_bc7bec40b10d11e982043b39def8a96f = function _templateObject_bc7bec40b10d11e982043b39def8a96f() {
+    _templateObject_488eb6c0dfc311e9a9caf342f5dd962f = function _templateObject_488eb6c0dfc311e9a9caf342f5dd962f() {
       return data;
     };
 
@@ -44,7 +44,7 @@ define(["exports", "./start-lit-element.js"], function (_exports, _startLitEleme
        * `render` function. `render` must return a lit-html TemplateResult.
        */
       value: function render() {
-        return (0, _startLitElement.html)(_templateObject_bc7bec40b10d11e982043b39def8a96f());
+        return (0, _startLitElement.html)(_templateObject_488eb6c0dfc311e9a9caf342f5dd962f());
       }
     }]);
     return SearchElement;
