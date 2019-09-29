@@ -49,7 +49,6 @@ void IndexManager::processFeeds(std::string lang) {
 	int batch_size;
 	int base_batch_size = 10000;
 	getNumDocs(num_docs, lang);
-	/*
 	getMaxDocId(max_doc_id, lang);
 	shardManager.mergeShards(num_docs, lang);
 	return;
@@ -106,7 +105,6 @@ void IndexManager::processFeeds(std::string lang) {
 	std::cout << "indexManager.cc : batch finished - sync remaining terms." << std::endl;
 	shardManager.syncShards();
 	// merge shard fragments into shard.
-	*/
 	shardManager.mergeShards(num_docs, lang);
 }
 
