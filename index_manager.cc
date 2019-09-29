@@ -50,8 +50,6 @@ void IndexManager::processFeeds(std::string lang) {
 	int base_batch_size = 10000;
 	getNumDocs(num_docs, lang);
 	getMaxDocId(max_doc_id, lang);
-	shardManager.mergeShards(num_docs, lang);
-	return;
 	std::cout << "indexManager.cc : num_docs : " << num_docs << std::endl;
 	std::cout << "indexManager.cc : max_doc_id : " << max_doc_id << std::endl;
 	int num_batches = num_docs/base_batch_size;
