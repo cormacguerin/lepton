@@ -39,6 +39,12 @@ app.use(bodyParser.urlencoded({limit: '1mb',extended: true })); // for parsing a
 app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '5mb'}));
 app.use(bodyParser.raw({type:'image/jpeg',limit: '5mb'}));
 
+app.all('*', function(req, res, next) {
+	res.header("Access-Control-Allow-Origin", "*");
+	res.header("Access-Control-Allow-Headers", "X-Requested-With");
+	next();
+});
+
 /*
  * A function to add a document(s) to our corpus.
  */
@@ -118,49 +124,66 @@ app.post('/addDocument', function(req, res, next) {
 app.get('/search', function(req, res, next) {
 	try {
 	var queryData = url.parse(req.url, true).query;
-	var client = new net.Socket();
-	client.connect(3333, '127.0.0.1', function() {
+	var socket = new net.Socket();
+	if (!queryData.query) {
+		res.json({"error":"no query"});
+		return;
+	}
+	socket.connect(3333, '127.0.0.1', function() {
 		console.log('Connected');
 		console.log("write : " + queryData.query);
 		var data_length = queryData.query.length;
 		var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":"; 
 		console.log("header : " + header);
-		client.write(header.concat(queryData.query),'utf8', function(r) {
+		console.log("socket.bufferSize : " + socket.bufferSize);
+		socket.write(header.concat(queryData.query),'utf8', function(r) {
 			console.log(r);
 		});
-		client.end();
+		socket.end();
 	});
-		/*
+	/*
 	const client = net.createConnection({ port: 3333 }, () => {
 		console.log('connected to server!');
 		console.log("write : " + queryData.query);
 		client.write(queryData.query + '\r\n');
 	});*/
-	client.on('data', (data) => {
+	var packet = "";
+	socket.on('data', (data) => {
+		packet += data.toString();
 		console.log('data received');
-		console.log(data.toString());
-		res.send(data.toString());
-		client.end();
+		console.log(packet);
+		socket.end();
 	});
-	client.on('end', () => {
+	socket.on('end', () => {
+		// res.send({"error":"disconnected"});
+		console.log('res.json packet');
+		res.json(packet);
 		console.log('disconnected from server');
 	});
-	client.on('unhandledRejection', (error, promise) => {
+	socket.on('unhandledRejection', (error, promise) => {
+		res.send({"error":+error+"\""});
 		console.log(error);
+		return;
 	});
-	client.on('uncaughtException', (error, promise) => {
+	socket.on('uncaughtException', (error, promise) => {
+		res.send({"error":+error+"\""});
 		console.log(error);
+		return;
 	});
-	client.on('error', (error, promise) => {
+	socket.on('error', (error, promise) => {
+		res.send({"error":+error+"\""});
 		console.log(error);
+		return;
 	});
 	} catch(e) { 
+		res.send({"error":"\""+e+"\""});
 		console.log(e);
+		return;
 	}
 });
 
 // web root
-app.use('/', express.static(__dirname + '/websrc/build/default/'));
+app.use('/', express.static(__dirname + '/web-app/build/'));
 
 // start the server.
 var server = app.listen(process.env.PORT || 3000, function () {
