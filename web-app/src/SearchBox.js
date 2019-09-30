@@ -22,13 +22,12 @@ class SearchBox extends React.Component {
 		$.get("https://35.239.29.200/search",
 			{
 				"query": query
-			//}, function(data,status) {
 			}, (data) => {
 				if (data) {
 					const results = JSON.parse(data);
 					console.log(results);
 					this.setState({
-						results: results.nodes[0].nodes[0].debug_urls
+						results: results.debug_urls
 					});
 				}
 			});
@@ -61,7 +60,5 @@ class SearchBox extends React.Component {
 		);
 	}
 }
-
-//						<button type="button" onClick={this.onSubmit.bind(this)} className="button">Search</button>
 
 export default SearchBox;
