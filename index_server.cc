@@ -180,7 +180,7 @@ typedef Query::Term termpair;
 
 void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer) {
 
-	std::cout << "index_server.cc add query candidates" << std::endl;
+	std::cout << "index_server.cc : add query candidates" << std::endl;
 	if (!query.term.term.isEmpty()) {
 		std::string converted;
 		query.term.term.toUTF8String(converted);
@@ -188,9 +188,10 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 
 		phmap::parallel_flat_hash_map<std::string, std::vector<Shard::Term>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
 		if (urls != indexServer->unigramurls_map.end()) {
-			std::cout << "index_server.cc Found " << converted << std::endl;
+			// std::cout << "index_server.cc Found " << converted << std::endl;
+			// std::cout << "index_server.cc Debug " << urls->first << std::endl;
 
-			for (std::vector<Shard::Term>::const_iterator it = urls->second.begin(); it != urls->second.begin()+30; ++it) {
+			for (std::vector<Shard::Term>::const_iterator it = urls->second.begin(); it != urls->second.end(); ++it) {
 				Query::Term term;
 				term.tf=it->tf;
 				term.weight=it->weight;
@@ -202,8 +203,15 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 				txn.commit();
 				const pqxx::field c = r.back()[0];
 
-				term.debug_url=c.as<std::string>();
+				// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
+				// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
+
+				term.debug_url=pqxx::to_string(c);
 				query.candidates.push_back(term);
+
+				if (it == urls->second.begin()+MAX_CANDIDATES_COUNT) {
+					break;
+				}
 			}
 		}
 	} else {

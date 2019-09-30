@@ -29,6 +29,7 @@ class IndexServer {
 		std::unordered_map<std::string, std::map<int, Shard::Term>> bigramurls_map;
 		std::unordered_map<std::string, std::map<int, Shard::Term>> trigramurls_map;
 		void loadIndex(std::string gram, std::string lang);
+		const int MAX_CANDIDATES_COUNT = 1000;
 
 };
 

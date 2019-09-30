@@ -37,8 +37,8 @@ rapidjson::Document Query::serializeTerm(Query::Term t) {
 }
 
 std::string Query::Node::serialize() {
-	std::cout << "raw_query " << raw_query << std::endl;
-	std::cout << "raw_query length " << (raw_query).length() << std::endl;
+	std::cout << "query.cc : raw_query " << raw_query << std::endl;
+	std::cout << "query.cc : raw_query length " << (raw_query).length() << std::endl;
 	if ((this->raw_query).length()==0) {
 		return "";
 	}
@@ -47,7 +47,7 @@ std::string Query::Node::serialize() {
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	d.Accept(writer);
-	std::cout << (std::string)buffer.GetString() << std::endl;
+	// std::cout << "query.cc : " << (std::string)buffer.GetString() << std::endl;
 	return (std::string)buffer.GetString();
 }
 
@@ -76,7 +76,6 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 
 	std::string converted;
 	t.term.toUTF8String(converted);
-	std::cout << "converted " + converted<< std::endl;
 
 	if (!TypeList[t.type].empty()) {
 		serialized_.AddMember("type", rapidjson::Value(const_cast<char*>((TypeList[t.type]).c_str()), allocator).Move(), allocator);
@@ -121,7 +120,6 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
  * - post filter based on pagerank maybe..
  */
 void Query::Node::updateQuery() {
-	std::cout << "add query canditates" << std::endl;
 	for (std::vector<Query::Node>::iterator it = this->leafNodes.begin() ; it != this->leafNodes.end(); ++it) {
 		(*it).updateQuery();
 	}

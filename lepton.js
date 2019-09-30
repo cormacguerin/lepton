@@ -122,13 +122,18 @@ app.post('/addDocument', function(req, res, next) {
  * A function to add a document(s) to our corpus.
  */
 app.get('/search', function(req, res, next) {
+	console.log('search');
 	try {
+	console.log('in try');
 	var queryData = url.parse(req.url, true).query;
 	var socket = new net.Socket();
+	console.log('deb 1');
 	if (!queryData.query) {
 		res.json({"error":"no query"});
 		return;
 	}
+	console.log('deb 2');
+	console.log('req in ' + queryData.query);
 	socket.connect(3333, '127.0.0.1', function() {
 		console.log('Connected');
 		console.log("write : " + queryData.query);

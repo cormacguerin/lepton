@@ -19,7 +19,7 @@ void Server::do_accept() {
 	acceptor_.async_accept([this](std::error_code ec, asio::ip::tcp::socket socket) {
 		if (!ec) {
 			std::cout << "accept" << std::endl;
-					std::make_shared<Session>(std::move(socket))->start(std::move(indexServer));
+			std::make_shared<Session>(std::move(socket))->start(std::move(indexServer));
 		} else {
 			std::cout << "EC" << std::endl;
 			std::cout << ec << std::endl;
@@ -29,7 +29,7 @@ void Server::do_accept() {
 }
 
 void Server::run() {
-	std::cout << "io context RUN" << std::endl;
+	std::cout << "Run Server." << std::endl;
 	io_context.run();
 }
 

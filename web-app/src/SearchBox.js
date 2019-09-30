@@ -19,7 +19,7 @@ class SearchBox extends React.Component {
 		var query = this.state.query;
 		console.log(query);
 
-		$.get("http://127.0.0.1:3000/search",
+		$.get("https://35.239.29.200/search",
 			{
 				"query": query
 			//}, function(data,status) {

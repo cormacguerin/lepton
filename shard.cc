@@ -110,7 +110,6 @@ void Shard::load() {
 
 void Shard::addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Shard::Term>> &index) {
 	for (std::map<std::string, std::map<int, Shard::Term>>::iterator it = shard_map.begin(); it != shard_map.end(); ++it) {
-		// std::cout << "shard.cc : " << it->first << std::endl;
 		for (std::map<int, Shard::Term>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
 			index[it->first].push_back(tit->second);
 		}

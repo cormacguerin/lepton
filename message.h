@@ -29,17 +29,16 @@ struct Message;
 template<class T>
 struct Message<true, T> : BaseMessage {
 	const bool decode_message() {
-		std::cout << "header "<< header << std::endl;
+		// std::cout << "message.h : header "<< header << std::endl;
 		strncpy(len, header+strlen("length:"), 13);
-		std::cout << "message len " << len << std::endl;
+		// std::cout << "message.h : message len " << len << std::endl;
 		if (body_length > max_body_length) {
 			body_length = 0;
 			return false;
 		} else {
 			body_length = atoi(len);
-			std::cout << "request message body_length " << body_length << std::endl;
+			// std::cout << "message.h : request message body_length " << body_length << std::endl;
 			body = (char*)malloc(body_length);
-			std::cout << "sizeof body " << sizeof body << std::endl;
 			// memset(body, 0, sizeof body);
 			body[body_length] = '\0';
 			return true;
