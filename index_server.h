@@ -18,7 +18,7 @@ class IndexServer {
 		IndexServer();
 		~IndexServer();
 		void init();
-		void addQueryCandidates(Query::Node &query, IndexServer *indexServer);
+		void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Query::Term> &candidates);
 		void execute(std::string lang, std::string query, std::promise<std::string> promiseObj);
 		static void search(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer);
 

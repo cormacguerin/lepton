@@ -160,24 +160,83 @@ void IndexServer::execute(std::string lang, std::string parsed_query, std::promi
 	th.join();
 }
 
+/*
+ * In a massively scaled out version these would all be separate services with their own network stack
+ * The query would run to various servelets getting rewritten and then results retrieved and scored.
+ */
 void IndexServer::search(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer) {
 	QueryBuilder queryBuilder;
 	Query::Node query;
+	//Result::Item item;
 	queryBuilder.build(lang, parsed_query, query);
-	indexServer->addQueryCandidates(query, indexServer);
+	// TODO update query with other stuff.
+	// queueRewrite->spellingServlet.correctSpelling();
+	// queueRewrite->synsServlet.addSynonyms();
+	// queueRewrite->coneptServlet.addConcepts();
+	// queueRewrite->otherServlet.addOther();
+	// indexServer->retrieveResults();
+	// indexServer->resolveQuery(query, indexServer);
+	std::vector<Query::Term> candidates;
+	indexServer->addQueryCandidates(query, indexServer, candidates);
+	query.candidates = candidates;
+	//cScorer.score(&result);
 	std::string result = query.serialize();
 	promiseObj.set_value(result);
 }
 
-/*
- * Function to populate the query with the best candidate urls.
- * TODO: this just returns urls in order of the incidence of the term.
- * We need a better way to return the 'best' doc matches, to do that we should..
- * - sort by idf rather than incidence
- * - post filter based on pagerank maybe..
- */
-typedef Query::Term termpair;
 
+/*
+ * Retrieval function populate the query
+ */
+void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Query::Term> &candidates) {
+
+	std::cout << "index_server.cc : add query candidates" << std::endl;
+	if (query.leafNodes.size()==0) {
+		std::string converted;
+		query.term.term.toUTF8String(converted);
+		std::cout << "index_server.cc - looking for " << converted << std::endl;
+
+		phmap::parallel_flat_hash_map<std::string, std::vector<Shard::Term>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
+		if (urls != indexServer->unigramurls_map.end()) {
+			// std::cout << "index_server.cc Found " << converted << std::endl;
+			// std::cout << "index_server.cc Debug " << urls->first << std::endl;
+
+			for (std::vector<Shard::Term>::const_iterator it = urls->second.begin(); it != urls->second.end(); ++it) {
+				Query::Term term;
+				term.tf=it->tf;
+				term.weight=it->weight;
+				term.debug_url_id=it->url_id;
+
+				pqxx::work txn(*C);
+				C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
+				pqxx::result r = txn.prepared("get_url")(it->url_id).exec();
+				txn.commit();
+				const pqxx::field c = r.back()[0];
+
+				// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
+				// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
+
+				term.debug_url=pqxx::to_string(c);
+				candidates.push_back(term);
+				// query.candidates.push_back(term);
+
+				if (it == urls->second.begin()+MAX_CANDIDATES_COUNT) {
+					break;
+				}
+			}
+		}
+	} else {
+		for (std::vector<Query::Node>::iterator it = query.leafNodes.begin() ; it != query.leafNodes.end(); ++it) {
+			addQueryCandidates(*it, indexServer, candidates);
+		}
+	}
+}
+
+
+/*
+ * Retrieval function populate the query
+ */
+/*
 void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer) {
 
 	std::cout << "index_server.cc : add query candidates" << std::endl;
@@ -221,4 +280,5 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		addQueryCandidates(*it, indexServer);
 	}
 }
+*/
 
