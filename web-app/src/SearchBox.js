@@ -39,7 +39,8 @@ class SearchBox extends React.Component {
 	}
 
 	execute(q) {
-		$.get("https://35.239.29.200/search",
+	//	$.get("https://35.239.29.200/search",
+		$.get("https://127.0.0.1/search",
 			{
 				"query": q
 			}, (data) => {
