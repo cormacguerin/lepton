@@ -178,6 +178,10 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 	// indexServer->resolveQuery(query, indexServer);
 	std::vector<Query::Term> candidates;
 	indexServer->addQueryCandidates(query, indexServer, candidates);
+	std::sort(candidates.begin(), candidates.end(),
+		[](const Query::Term& l, const Query::Term& r) {
+		return l.weight > r.weight;
+	});
 	query.candidates = candidates;
 	//cScorer.score(&result);
 	std::string result = query.serialize();
@@ -226,16 +230,25 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 			}
 		}
 	} else {
-		std::vector<Query::Term> parent_candidates;
+		std::vector<Query::Term> node_candidates;
 		for (std::vector<Query::Node>::iterator it = query.leafNodes.begin() ; it != query.leafNodes.end(); ++it) {
 			std::vector<Query::Term> candidates_;
 			addQueryCandidates(*it, indexServer, candidates_);
-			for (std::vector<Query::Term>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
-				// introduce AND , OR logic here.
-				parent_candidates.push_back(*tit);
+			if (node_candidates.empty()) {
+				node_candidates=candidates_;
+			} else {
+				for (std::vector<Query::Term>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
+					// introduce AND , OR logic here.
+					auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Query::Term t) {
+							return t.debug_url_id == tit->debug_url_id;
+					});
+					if (ait != node_candidates.end()) {
+						node_candidates.at(std::distance(node_candidates.begin(),ait)).weight = ait->weight + tit->weight;
+					}
+				}
 			}
 		}
-		candidates = parent_candidates;
+		candidates = node_candidates;
 	}
 }
 
