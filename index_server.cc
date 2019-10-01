@@ -237,15 +237,18 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 			if (node_candidates.empty()) {
 				node_candidates=candidates_;
 			} else {
+				std::vector<Query::Term> new_candidates;
 				for (std::vector<Query::Term>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
 					// introduce AND , OR logic here.
 					auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Query::Term t) {
 							return t.debug_url_id == tit->debug_url_id;
 					});
 					if (ait != node_candidates.end()) {
-						node_candidates.at(std::distance(node_candidates.begin(),ait)).weight = ait->weight + tit->weight;
+						ait->weight=ait->weight + tit->weight;
+						new_candidates.push_back(*ait);
 					}
 				}
+				node_candidates = new_candidates;
 			}
 		}
 		candidates = node_candidates;
