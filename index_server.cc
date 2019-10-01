@@ -211,6 +211,15 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 				term.weight=it->weight;
 				term.debug_url_id=it->url_id;
 
+				pqxx::work txn(*C);
+				C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
+				pqxx::result r = txn.prepared("get_url")(it->url_id).exec();
+				txn.commit();
+				const pqxx::field c = r.back()[0];
+				// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
+				// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
+				term.debug_url=pqxx::to_string(c);
+
 				candidates.push_back(term);
 				// query.candidates.push_back(term);
 
@@ -235,16 +244,6 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 					});
 					if (ait != node_candidates.end()) {
 						ait->weight=ait->weight + tit->weight;
-
-						pqxx::work txn(*C);
-						C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
-						pqxx::result r = txn.prepared("get_url")(ait->debug_url_id).exec();
-						txn.commit();
-						const pqxx::field c = r.back()[0];
-						// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
-						// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
-						ait->debug_url=pqxx::to_string(c);
-
 						new_candidates.push_back(*ait);
 					}
 				}
