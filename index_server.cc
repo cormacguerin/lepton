@@ -247,7 +247,11 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 						new_candidates.push_back(*ait);
 					}
 				}
-				node_candidates = new_candidates;
+				if (new_candidates.empty()) {
+					node_candidates.clear();
+				} else {
+					node_candidates = new_candidates;
+				}
 			}
 		}
 		candidates = node_candidates;

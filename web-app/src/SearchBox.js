@@ -10,7 +10,9 @@ class SearchBox extends React.Component {
 		this.state = { "query": '' };
 		this.state = { "results": [] };
 		this.handleChange = this.handleChange.bind(this);
+		this.keyPress = this.keyPress.bind(this);
 		this.onSubmit = this.onSubmit.bind(this);
+		this.execute = this.execute.bind(this);
 	}
 
 	onSubmit(e) {
@@ -18,19 +20,15 @@ class SearchBox extends React.Component {
 		e.preventDefault();
 		var query = this.state.query;
 		console.log(query);
+		this.execute(query);
+	}
 
-		$.get("https://35.239.29.200/search",
-			{
-				"query": query
-			}, (data) => {
-				if (data) {
-					const results = JSON.parse(data);
-					console.log(results);
-					this.setState({
-						results: results.debug_urls
-					});
-				}
-			});
+	keyPress(e){
+		console.log(e);
+		e.preventDefault();
+		if(e.keyCode == 13){
+			this.execute(this.state.query);
+		}
 	}
 
 	handleChange(e) {
@@ -41,12 +39,29 @@ class SearchBox extends React.Component {
 		})
 	}
 
+	execute(q) {
+		$.get("https://35.239.29.200/search",
+			{
+				"query": q
+			}, (data) => {
+				if (data) {
+					const results = JSON.parse(data);
+					console.log(results);
+					if (results.debug_urls) {
+						this.setState({
+							results: results.debug_urls
+						});
+					}
+				}
+			});
+	}
+
 	render(){
 		return (
 			<React.Fragment>
 				<div className="searchBox">
 					<form className="form-horizontal">
-						<input type="text" name="query" value={this.props.query} className="searchBox" onChange={this.handleChange} />
+						<input type="text" name="query" value={this.props.query} className="searchBox" onChange={this.handleChange} onKeyDown={this.keyPress} />
 					</form>
 					<div className="searchButton" onClick={this.onSubmit.bind(this)}>
 					</div>
@@ -54,7 +69,7 @@ class SearchBox extends React.Component {
 				<div>
 					{this.state.results.map(function(result){
 						return (<SearchResult result={result}></SearchResult>)
-       				})}
+					})}
 				</div>
 			</React.Fragment>
 		);
