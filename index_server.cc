@@ -226,9 +226,16 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 			}
 		}
 	} else {
+		std::vector<Query::Term> parent_candidates;
 		for (std::vector<Query::Node>::iterator it = query.leafNodes.begin() ; it != query.leafNodes.end(); ++it) {
-			addQueryCandidates(*it, indexServer, candidates);
+			std::vector<Query::Term> candidates_;
+			addQueryCandidates(*it, indexServer, candidates_);
+			for (std::vector<Query::Term>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
+				// introduce AND , OR logic here.
+				parent_candidates.push_back(*tit);
+			}
 		}
+		candidates = parent_candidates;
 	}
 }
 
