@@ -25,7 +25,6 @@ class SearchBox extends React.Component {
 
 	keyPress(e){
 		console.log(e);
-		e.preventDefault();
 		if(e.keyCode == 13){
 			this.execute(this.state.query);
 		}
