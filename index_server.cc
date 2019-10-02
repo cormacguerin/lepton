@@ -4,8 +4,9 @@
 #include <unistd.h>
 #include "base64.h"
 #include <algorithm>
-#include "query.h"
 #include <ctime>
+#include "query.h"
+#include "result.h"
 #include "texttools.h"
 #include "dirent.h"
 
@@ -60,14 +61,14 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	dp = opendir(path.c_str());
 	if (dp == NULL) {
 		perror("opendir");
-		std::cout << "shard_manager.cc : Error , unable to load last shard" << std::endl;;
+		std::cout << "frag_manager.cc : Error , unable to load last frag" << std::endl;;
 		exit;
 	}
-	std::string ext = ".shard";
+	std::string ext = ".frag";
 	while (entry = readdir(dp)) {
 		std::string e_(entry->d_name);
 		if ((e_.find(ext) != std::string::npos)) {
-			if (e_.substr(e_.length()-6).compare(".shard") == 0) {
+			if (e_.substr(e_.length()-5).compare(".frag") == 0) {
 				index_files.push_back(entry->d_name);
 			}
 		}
@@ -76,15 +77,15 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 
 	std::sort(index_files.begin(),index_files.end());
 	if (index_files.empty()) {
-		std::cout << "no index files create new shard" << std::endl;
+		std::cout << "no index files create new frag" << std::endl;
 		return;
 	} else {
 		std::cout << "unigramurls_map.size() " << unigramurls_map.size() << std::endl;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
-			int shard_id = stoi((*it).substr((*it).find('_')+1,(*it).find('.')));
-			Shard shard(Shard::Type::UNIGRAM, shard_id);
+			int frag_id = stoi((*it).substr((*it).find('_')+1,(*it).find('.')));
+			Frag frag(Frag::Type::UNIGRAM, frag_id);
 			std::cout << *it << std::endl;
-			shard.addToIndex(unigramurls_map);
+			frag.addToIndex(unigramurls_map);
 			std::cout << "unigramurls_map.size() " << unigramurls_map.size() << std::endl;
 		}
 	}
@@ -176,23 +177,45 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 	// queueRewrite->otherServlet.addOther();
 	// indexServer->retrieveResults();
 	// indexServer->resolveQuery(query, indexServer);
-	std::vector<Query::Term> candidates;
+	std::vector<Frag::Item> candidates;
 	indexServer->addQueryCandidates(query, indexServer, candidates);
 	std::sort(candidates.begin(), candidates.end(),
-		[](const Query::Term& l, const Query::Term& r) {
+		[](const Frag::Item& l, const Frag::Item& r) {
 		return l.weight > r.weight;
 	});
-	query.candidates = candidates;
-	//cScorer.score(&result);
-	std::string result = query.serialize();
-	promiseObj.set_value(result);
+	Result result;
+	for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
+		Result::Item item;
+		item.tf = tit->tf;
+		item.weight = tit->weight;
+		item.url_id = tit->url_id;
+		item.url = indexServer->getUrl(tit->url_id);
+
+
+		// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
+		// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
+
+		result.items.push_back(item);
+	}
+	// cScorer.score(&result);
+	/*
+	*/
+	promiseObj.set_value(result.serialize());
 }
 
+std::string IndexServer::getUrl(int url_id) {
+	pqxx::work txn(*C);
+	C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
+	pqxx::result r = txn.prepared("get_url")(url_id).exec();
+	txn.commit();
+	const pqxx::field c = r.back()[0];
+	return pqxx::to_string(c);
+}
 
 /*
  * Retrieval function populate the query
  */
-void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Query::Term> &candidates) {
+void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates) {
 
 	std::cout << "index_server.cc : add query candidates" << std::endl;
 	if (query.leafNodes.size()==0) {
@@ -200,57 +223,50 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		query.term.term.toUTF8String(converted);
 		std::cout << "index_server.cc - looking for " << converted << std::endl;
 
-		phmap::parallel_flat_hash_map<std::string, std::vector<Shard::Term>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
+		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
 		if (urls != indexServer->unigramurls_map.end()) {
 			// std::cout << "index_server.cc Found " << converted << std::endl;
 			// std::cout << "index_server.cc Debug " << urls->first << std::endl;
 
-			for (std::vector<Shard::Term>::const_iterator it = urls->second.begin(); it != urls->second.end(); ++it) {
-				Query::Term term;
-				term.tf=it->tf;
-				term.weight=it->weight;
-				term.debug_url_id=it->url_id;
-
-				pqxx::work txn(*C);
-				C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
-				pqxx::result r = txn.prepared("get_url")(it->url_id).exec();
-				txn.commit();
-				const pqxx::field c = r.back()[0];
-				// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
-				// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
-				term.debug_url=pqxx::to_string(c);
-
-				candidates.push_back(term);
-				// query.candidates.push_back(term);
-
-				if (it == urls->second.begin()+MAX_CANDIDATES_COUNT) {
-					break;
-				}
+			std::vector<Frag::Item>::const_iterator sit = urls->second.begin();
+			std::vector<Frag::Item>::const_iterator eit;
+			if (urls->second.size() > MAX_CANDIDATES_COUNT) {
+				eit = urls->second.begin() + MAX_CANDIDATES_COUNT;
+			} else {
+				eit = urls->second.end();
 			}
+			candidates=std::vector(sit,eit);
 		}
 	} else {
-		std::vector<Query::Term> node_candidates;
+		std::vector<Frag::Item> node_candidates;
 		for (std::vector<Query::Node>::iterator it = query.leafNodes.begin() ; it != query.leafNodes.end(); ++it) {
-			std::vector<Query::Term> candidates_;
+			std::vector<Frag::Item> candidates_;
 			addQueryCandidates(*it, indexServer, candidates_);
 			if (node_candidates.empty()) {
 				node_candidates=candidates_;
 			} else {
-				std::vector<Query::Term> new_candidates;
-				for (std::vector<Query::Term>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
-					// introduce AND , OR logic here.
-					auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Query::Term t) {
-							return t.debug_url_id == tit->debug_url_id;
-					});
-					if (ait != node_candidates.end()) {
-						ait->weight=ait->weight + tit->weight;
-						new_candidates.push_back(*ait);
+				std::vector<Frag::Item> new_candidates;
+				// AND/OR is counter intuitive, AND means intersect of results while OR is union.
+				if (query.op=Query::Operator::AND) {
+					for (std::vector<Frag::Item>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
+						// introduce AND , OR logic here.
+						auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Frag::Item r) {
+							return r.url_id == tit->url_id;
+						});
+						if (ait != node_candidates.end()) {
+							ait->weight=ait->weight + tit->weight;
+							new_candidates.push_back(*ait);
+						}
 					}
-				}
-				if (new_candidates.empty()) {
-					node_candidates.clear();
+					if (new_candidates.empty()) {
+						node_candidates.clear();
+					} else {
+						node_candidates = new_candidates;
+					}
+				} else if (query.op=Query::Operator::OR) {
+					node_candidates.insert(node_candidates.end(), candidates_.begin(), candidates_.end());
 				} else {
-					node_candidates = new_candidates;
+					continue;
 				}
 			}
 		}
@@ -271,16 +287,16 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		query.term.term.toUTF8String(converted);
 		std::cout << "index_server.cc - looking for " << converted << std::endl;
 
-		phmap::parallel_flat_hash_map<std::string, std::vector<Shard::Term>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
+		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
 		if (urls != indexServer->unigramurls_map.end()) {
 			// std::cout << "index_server.cc Found " << converted << std::endl;
 			// std::cout << "index_server.cc Debug " << urls->first << std::endl;
 
-			for (std::vector<Shard::Term>::const_iterator it = urls->second.begin(); it != urls->second.end(); ++it) {
-				Query::Term term;
+			for (std::vector<Frag::Item>::const_iterator it = urls->second.begin(); it != urls->second.end(); ++it) {
+				Frag::Item term;
 				term.tf=it->tf;
 				term.weight=it->weight;
-				term.debug_url_id=it->url_id;
+				item.debug_url_id=it->url_id;
 
 				pqxx::work txn(*C);
 				C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
@@ -291,7 +307,7 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 				// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
 				// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
 
-				term.debug_url=pqxx::to_string(c);
+				item.debug_url=pqxx::to_string(c);
 				query.candidates.push_back(term);
 
 				if (it == urls->second.begin()+MAX_CANDIDATES_COUNT) {

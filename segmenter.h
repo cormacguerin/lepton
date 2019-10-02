@@ -24,7 +24,7 @@
 #include <numeric>
 #include <pqxx/pqxx>
 #include <postgresql/libpq-fe.h>
-#include "shard.h"
+#include "frag.h"
 
 class Segmenter {
 	private:
@@ -41,9 +41,9 @@ class Segmenter {
 		~Segmenter();
 		void init();
 		void parse(std::string id, std::string url, std::string lang, std::string str_in,
-				   std::map<std::string, Shard::Term> &doc_unigram_map,
-				   std::map<std::string, Shard::Term> &doc_bigram_map,
-				   std::map<std::string, Shard::Term> &doc_trigram_map);
+				   std::map<std::string, Frag::Item> &doc_unigram_map,
+				   std::map<std::string, Frag::Item> &doc_bigram_map,
+				   std::map<std::string, Frag::Item> &doc_trigram_map);
 		//std::string update_docngrams_table(std::string url, std::string gram, std::string c);
 		//std::string update_ngrams_table(std::string gram);
 		//std::string update_all_tables(std::string id, std::string url, std::string gram, std::string c);

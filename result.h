@@ -1,6 +1,6 @@
 
-#ifndef _QUERY_H_
-#define _QUERY_H_
+#ifndef _RESULT_H_
+#define _RESULT_H_
 
 //#include <unicode/ures.h>
 #include <unicode/unistr.h>
@@ -24,12 +24,12 @@
 // it seems to me that in this implementation we can ignore that as we will naturally promote phrases instead.
 // we need to add confidence scores at some point, for both synonyms and concepts
 
-// In this implimentation there is no explicit PHRASE Term or WORD Operator
-// Instead everything can be a phrase, which are generically captured as a Term.
-// A term could be a word or a phrase, words or phrases would also be considered concepts equally.
+// In this implimentation there is no explicit PHRASE Item or WORD Operator
+// Instead everything can be a phrase, which are generically captured as a Item.
+// A item could be a word or a phrase, words or phrases would also be considered concepts equally.
 
 
-class Query {
+class Result {
 	private:
 
 	public:
@@ -49,34 +49,27 @@ class Query {
 			double d;
 		};
 
-		struct Term {
+		struct Item {
 			Type type;
-			icu::UnicodeString term;
+			icu::UnicodeString item;
 			std::map<Modifier, AttributeValue> mods;
 			double idf;
-			int debug_url_id;
-			std::string debug_url;
-		};
-
-		struct Node {
-			bool root;
-			Operator op;
-			Query::Term term;
-			std::string raw_query;
+			double tf;
+			double weight;
+			int url_id;
 			std::string lang;
-
-			std::string serialize();
-			// internal worker function of the above.
-			void serialize_(rapidjson::Document &serialized_query);
+			std::string url;
+			void serialize_(rapidjson::Document &serialized_result);
+			void updateResult();
 			void deserialize();
-			void updateQuery();
-			std::vector<Node> leafNodes;
 		};
 
-		rapidjson::Document serializeTerm(Frag::Item t);
+		const std::string serialize();
 
-		Query(bool root, std::string raw_query);
-		~Query();
+		std::vector<Result::Item> items;
+
+		Result();
+		~Result();
 
 };
 

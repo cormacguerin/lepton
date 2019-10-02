@@ -46,17 +46,20 @@ LINKER = $(COMPILER) $(LINKOPTS)
 
 all: serveroot indexroot
 
-serveroot: serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o shard_manager.o shard.o
-	${LINKER} -o serveroot serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o shard_manager.o shard.o $(LD_FLAGS)
+serveroot: serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o frag_manager.o frag.o result.o
+	${LINKER} -o serveroot serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o frag_manager.o frag.o result.o $(LD_FLAGS)
 
-indexroot: indexroot.o index_manager.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o
-	${LINKER} -o indexroot indexroot.o index_manager.o base64.o segmenter.o shard_manager.o shard.o murmur_hash3.o $(LD_FLAGS) 
+indexroot: indexroot.o index_manager.o base64.o segmenter.o frag_manager.o frag.o murmur_hash3.o
+	${LINKER} -o indexroot indexroot.o index_manager.o base64.o segmenter.o frag_manager.o frag.o murmur_hash3.o $(LD_FLAGS) 
 
 index_manager.o : index_manager.cc index_manager.h
 	${COMPILE} index_manager.cc
 
 query.o : query.cc query.h
 	${COMPILE} query.cc
+
+result.o : result.cc result.h
+	${COMPILE} result.cc
 
 query_builder.o : query_builder.cc query_builder.h
 	${COMPILE} query_builder.cc
@@ -73,11 +76,11 @@ server.o : server.cc server.h
 murmur_hash3.o : murmur_hash3.cc murmur_hash3.h
 	${COMPILE} murmur_hash3.cc
 
-shard.o : shard.cc shard.h
-	${COMPILE} shard.cc
+frag.o : frag.cc frag.h
+	${COMPILE} frag.cc
 
-shard_manager.o : shard_manager.cc shard_manager.h
-	${COMPILE} shard_manager.cc
+frag_manager.o : frag_manager.cc frag_manager.h
+	${COMPILE} frag_manager.cc
 
 indexroot.o : indexroot.cc
 	${COMPILE} indexroot.cc

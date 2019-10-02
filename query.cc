@@ -17,7 +17,7 @@ Query::~Query()
 {
 }
 
-rapidjson::Document Query::serializeTerm(Query::Term t) {
+rapidjson::Document Query::serializeTerm(Frag::Item t) {
 	rapidjson::Document serialized_;
 	//std::map<Modifier, AttributeValue> mods;
 	/*
@@ -66,25 +66,27 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 		serialized_query.AddMember("raw_query", rapidjson::Value(const_cast<char*>(this->raw_query.c_str()), allocator).Move(), allocator);
 	}
 
-	Query::Term t = this->term;
+	//Frag::Item t = this->term;
 
 	rapidjson::Value serialized_;
 	serialized_.SetObject();
 
+	/*
 	std::ostringstream strs;
 	strs << t.idf;
+	*/
 
+	/*
 	std::string converted;
 	t.term.toUTF8String(converted);
-
+	if (!strs.str().empty()) {
+		serialized_.AddMember("idf", rapidjson::Value(const_cast<char*>(strs.str().c_str()), allocator).Move(), allocator);
+	}
 	if (!TypeList[t.type].empty()) {
 		serialized_.AddMember("type", rapidjson::Value(const_cast<char*>((TypeList[t.type]).c_str()), allocator).Move(), allocator);
 	}
 	if (!converted.empty()) {
 		serialized_.AddMember("term", rapidjson::Value(const_cast<char*>(converted.c_str()), allocator).Move(), allocator);
-	}
-	if (!strs.str().empty()) {
-		serialized_.AddMember("idf", rapidjson::Value(const_cast<char*>(strs.str().c_str()), allocator).Move(), allocator);
 	}
 	if (serialized_!=NULL) {
 		serialized_query.AddMember("term", serialized_, allocator);
@@ -93,7 +95,7 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 	if (this->candidates.size() > 0) {
 		rapidjson::Value candidates(rapidjson::kArrayType);
 		rapidjson::Value debug_urls(rapidjson::kArrayType);
-		for (std::vector<Query::Term>::iterator it = this->candidates.begin() ; it != this->candidates.end(); ++it) {
+		for (std::vector<Frag::Item>::iterator it = this->candidates.begin() ; it != this->candidates.end(); ++it) {
 			candidates.PushBack(rapidjson::Value().SetInt(it->debug_url_id), allocator);
 			std::string u = it->debug_url;
 			debug_urls.PushBack(rapidjson::Value(const_cast<char*>(u.c_str()), allocator).Move(), allocator);
@@ -101,6 +103,7 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 		serialized_query.AddMember("candidates", candidates, allocator);
 		serialized_query.AddMember("debug_urls", debug_urls, allocator);
 	}
+	*/
 
 	rapidjson::Document d_;
 	rapidjson::Value nodes(rapidjson::kArrayType);

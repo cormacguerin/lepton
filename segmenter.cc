@@ -74,9 +74,9 @@ void Segmenter::init() {
 
 
 void Segmenter::parse(std::string id, std::string url, std::string lang, std::string str_in,
-				   std::map<std::string, Shard::Term> &doc_unigram_map,
-				   std::map<std::string, Shard::Term> &doc_bigram_map,
-				   std::map<std::string, Shard::Term> &doc_trigram_map) {
+				   std::map<std::string, Frag::Item> &doc_unigram_map,
+				   std::map<std::string, Frag::Item> &doc_bigram_map,
+				   std::map<std::string, Frag::Item> &doc_trigram_map) {
 	// postgres worker
 	pqxx::work txn(*C);
 
@@ -280,33 +280,33 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 					// I couldn't find any way to parse the id as a json path is postgres so supplying it directly here instead.
 					bool isAdd = false;
 
-					Shard::Term shard_term;
+					Frag::Item frag_term;
 					if ((git->first).size() == 1 && git->second > 0) {
 						double tf = (double)git->second/sqrt(gramcount);
-						shard_term.url_id = atoi(id.c_str());
-						shard_term.weight = 0;
-						shard_term.tf = tf;
-						doc_unigram_map.insert(std::pair<std::string, Shard::Term>(trim(gram).c_str(),shard_term));
+						frag_term.url_id = atoi(id.c_str());
+						frag_term.weight = 0;
+						frag_term.tf = tf;
+						doc_unigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
 						isAdd = true;
 					}
 					if ((git->first).size() == 2 && git->second > 2) {
 						// unsure about this, should we compensate for fequency with ngrams..
 						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
 						double tf = (double)git->second/sqrt((gramcount));
-						shard_term.url_id = atoi(id.c_str());
-						shard_term.weight = 0;
-						shard_term.tf = tf;
-						doc_bigram_map.insert(std::pair<std::string, Shard::Term>(trim(gram).c_str(),shard_term));
+						frag_term.url_id = atoi(id.c_str());
+						frag_term.weight = 0;
+						frag_term.tf = tf;
+						doc_bigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
 						isAdd = true;
 					}
 					// - For trigrams(ngrams) there need to be three or more occurrences.
 					if ((git->first).size() > 2 && git->second > 2) {
 						// same as above.
 						double tf = (double)git->second/sqrt((gramcount));
-						shard_term.url_id = atoi(id.c_str());
-						shard_term.weight = 0;
-						shard_term.tf = tf;
-						doc_trigram_map.insert(std::pair<std::string, Shard::Term>(trim(gram).c_str(),shard_term));
+						frag_term.url_id = atoi(id.c_str());
+						frag_term.weight = 0;
+						frag_term.tf = tf;
+						doc_trigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
 						isAdd = true;
 					}
 					if (isAdd == false) {

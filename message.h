@@ -50,15 +50,16 @@ struct Message<true, T> : BaseMessage {
 // struct template response specialization:
 template<class T>
 struct Message<false, T> : BaseMessage {
-	const bool encode_message(char* msg) {
+	const bool encode_message(std::string msg) {
 		if (body_length > max_body_length) {
-			body_length = 0;
+//			body_length = 0;
 			return false;
 		} else {
-			body_length = strlen(msg);
-			body = (char*)malloc(body_length);
+			body = msg;
+			//body_length = strlen(msg);
+//			body = (char*)malloc(body_length);
 			//memset(body, 0, sizeof body);
-			memcpy(body, msg, body_length);
+//			memcpy(body, msg, body_length);
 			//body[body_length] = '\0';
 			return true;
 		}

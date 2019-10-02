@@ -8,13 +8,13 @@
 #include "rapidjson/stringbuffer.h"
 #include <pqxx/pqxx>
 #include "segmenter.h"
-#include "shard_manager.h"
+#include "frag_manager.h"
 
 class IndexManager {
 	private:
 		// SentencePieceProcessor spp;
 		Segmenter seg;
-		ShardManager shardManager;
+		FragManager fragManager;
 		pqxx::connection* C;
 		char SPS[4];
 		std::string SPC;

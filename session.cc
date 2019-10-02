@@ -17,7 +17,7 @@ Session::~Session()
 }
 
 request<char*> req;
-response<char*> res;
+response<std::string> res;
 
 //void Session::start(IndexServer *indexServer) {
 void Session::start(const std::shared_ptr<IndexServer> &indexServer) {
@@ -27,8 +27,6 @@ void Session::start(const std::shared_ptr<IndexServer> &indexServer) {
 	} else {
 		std::cout << "session.cc : req length " << strlen(req.body) << std::endl;
 	}
-	free(req.body);
-	free(res.body);
 	do_read_header();
 }
 
@@ -59,23 +57,20 @@ void Session::do_read_body() {
 					std::promise<std::string> promiseObj;
 					std::future<std::string> futureObj = promiseObj.get_future();
 					is_.get()->execute(lang, std::string(req.body), std::move(promiseObj));
-					do_write(futureObj.get().c_str());
+					do_write(futureObj.get());
 				} else {
 					std::cout << ec << std::endl;
 				}
+				free(req.body);
 	});
 }
 
-void Session::do_write(const char* response) {
-	if (sizeof(response)==0 || response == NULL) {
-		return;
-	}
-	res.encode_message(const_cast<char*>(response));
+void Session::do_write(std::string response) {
+	// res.encode_message(const_cast<char*>(response));
 	// std::cout << "session.cc : res.body_length " << res.body_length << std::endl;
 	auto self(shared_from_this());
 	asio::async_write(socket_,
-			asio::buffer(res.body,
-			res.body_length),
+			asio::buffer(response, response.length()),
 			[this, self](std::error_code ec, std::size_t /*length*/) {
 				if (!ec) {
 					// std::cout << "session.cc : body - " << res.body << std::endl;

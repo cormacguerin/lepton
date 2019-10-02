@@ -47,7 +47,7 @@ class SearchBox extends React.Component {
 				if (data) {
 					const results = JSON.parse(data);
 					console.log(results);
-					if (results.debug_urls) {
+					if (results.urls) {
 						this.setState({
 							results: results.debug_urls
 						});

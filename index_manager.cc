@@ -101,9 +101,9 @@ void IndexManager::processFeeds(std::string lang) {
 	}
 	// sync the remainder.
 	std::cout << "indexManager.cc : batch finished - sync remaining terms." << std::endl;
-	shardManager.syncShards();
-	// merge shard fragments into shard.
-	shardManager.mergeShards(num_docs, lang);
+	fragManager.syncFrags();
+	// merge frag fragments into frag.
+	fragManager.mergeFrags(num_docs, lang);
 }
 
 
@@ -142,12 +142,12 @@ void IndexManager::indexDocument(string id, string dockey, string rawdoc, string
 	// this is the cormac tokenizer
 	
 	// container for our url term / frequency
-	std::map<std::string, Shard::Term> doc_unigram_map;
-	std::map<std::string, Shard::Term> doc_bigram_map;
-	std::map<std::string, Shard::Term> doc_trigram_map;
+	std::map<std::string, Frag::Item> doc_unigram_map;
+	std::map<std::string, Frag::Item> doc_bigram_map;
+	std::map<std::string, Frag::Item> doc_trigram_map;
 	seg.parse(id, dockey, lang, decoded_doc_body, 
 		doc_unigram_map, doc_bigram_map, doc_trigram_map);
-	shardManager.addTerms(doc_unigram_map, doc_bigram_map, doc_trigram_map);
+	fragManager.addTerms(doc_unigram_map, doc_bigram_map, doc_trigram_map);
 }
 
 bool IndexManager::isSPS(char firstchar) {

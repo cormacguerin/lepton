@@ -19,7 +19,7 @@ class Session : public std::enable_shared_from_this<Session> {
 		asio::ip::tcp::socket socket_;
 		void do_read_header();
 		void do_read_body();
-		void do_write(const char*);
+		void do_write(std::string s);
 //		request<char*> req;
 //		response<char*> res;
 		QueryBuilder queryBuilder;
