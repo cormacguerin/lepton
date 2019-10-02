@@ -24,7 +24,7 @@ const std::string Result::serialize() {
 	for (std::vector<Result::Item>::const_iterator it = items.begin(); it != items.end(); ++it) {
 		rapidjson::Document result;
 		result.SetObject();
-		result.AddMember("result",rapidjson::Value(const_cast<char*>(it->url.c_str()), allocator).Move(), allocator);
+		result.AddMember("url",rapidjson::Value(const_cast<char*>(it->url.c_str()), allocator).Move(), allocator);
 		urls.PushBack(rapidjson::Value(result, allocator).Move(), allocator);
 	}
 	serialized_result.AddMember("urls", urls, allocator);

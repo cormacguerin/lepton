@@ -39,8 +39,8 @@ class SearchBox extends React.Component {
 	}
 
 	execute(q) {
-	//	$.get("https://35.239.29.200/search",
-		$.get("http://127.0.0.1:3000/search",
+		$.get("https://35.239.29.200/search",
+	//	$.get("http://127.0.0.1:3000/search",
 			{
 				"query": q
 			}, (data) => {
@@ -49,7 +49,7 @@ class SearchBox extends React.Component {
 					console.log(results);
 					if (results.urls) {
 						this.setState({
-							results: results.debug_urls
+							results: results.urls
 						});
 					}
 				}
@@ -68,7 +68,7 @@ class SearchBox extends React.Component {
 				</div>
 				<div>
 					{this.state.results.map(function(result){
-						return (<SearchResult result={result}></SearchResult>)
+						return (<SearchResult result={result.url}></SearchResult>)
 					})}
 				</div>
 			</React.Fragment>
