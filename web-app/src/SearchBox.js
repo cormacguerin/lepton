@@ -16,17 +16,15 @@ class SearchBox extends React.Component {
 	}
 
 	onSubmit(e) {
-		console.log(e);
 		e.preventDefault();
 		var query = this.state.query;
-		console.log(query);
 		this.execute(query);
 	}
 
 	keyPress(e){
-		console.log(e);
 		if(e.keyCode == 13){
-			this.execute(this.state.query);
+		//	e.preventDefault();
+		//	this.execute(this.state.query);
 		}
 	}
 
@@ -39,37 +37,52 @@ class SearchBox extends React.Component {
 	}
 
 	execute(q) {
+		console.log(q);
 		$.get("https://35.239.29.200/search",
 	//	$.get("http://127.0.0.1:3000/search",
 			{
 				"query": q
 			}, (data) => {
 				if (data) {
+					const noResults = document.querySelector('#noResults');
+					const hasResults = document.querySelector('#hasResults');
 					const results = JSON.parse(data);
 					console.log(results);
-					if (results.urls) {
+					console.log(results.query);
+					if (results.items) {
+						hasResults.hidden = false;
+						noResults.hidden = true;
 						this.setState({
-							results: results.urls
+							results: results.items
+						});
+					} else {
+						hasResults.hidden = true;
+						noResults.hidden = false;
+						this.setState({
+							results: null
 						});
 					}
 				}
 			});
 	}
 
-	render(){
+	render() {
 		return (
 			<React.Fragment>
 				<div className="searchBox">
-					<form className="form-horizontal">
+					<form onSubmit={this.onSubmit.bind(this)} className="form-horizontal">
 						<input type="text" name="query" value={this.props.query} className="searchBox" onChange={this.handleChange} onKeyDown={this.keyPress} />
 					</form>
 					<div className="searchButton" onClick={this.onSubmit.bind(this)}>
 					</div>
 				</div>
-				<div>
-					{this.state.results.map(function(result){
+				<div id="hasResults">
+					{this.state.results.map(function(result) {
 						return (<SearchResult result={result.url}></SearchResult>)
 					})}
+				</div>
+				<div id="noResults">
+					No Results Found.
 				</div>
 			</React.Fragment>
 		);

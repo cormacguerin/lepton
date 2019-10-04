@@ -17,6 +17,7 @@
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 #include "frag.h"
+#include "query.h"
 
 // some notes
 // sorting is done by idf -ln(probability)
@@ -59,12 +60,12 @@ class Result {
 			int url_id;
 			std::string lang;
 			std::string url;
-			void serialize_(rapidjson::Document &serialized_result);
 			void updateResult();
-			void deserialize();
 		};
 
 		const std::string serialize();
+		// return the query for debugging purposes.
+		Query::Node query;
 
 		std::vector<Result::Item> items;
 

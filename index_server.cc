@@ -184,6 +184,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 		return l.weight > r.weight;
 	});
 	Result result;
+	result.query = query;
 	for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
 		Result::Item item;
 		item.tf = tit->tf;
@@ -191,15 +192,12 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 		item.url_id = tit->url_id;
 		item.url = indexServer->getUrl(tit->url_id);
 
-
 		// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
 		// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
 
 		result.items.push_back(item);
 	}
 	// cScorer.score(&result);
-	/*
-	*/
 	promiseObj.set_value(result.serialize());
 }
 
@@ -213,7 +211,9 @@ std::string IndexServer::getUrl(int url_id) {
 }
 
 /*
- * Retrieval function populate the query
+ * Retrieval function populate the query.
+ * This all looks pretty efficient to me, but what do I know.
+ * Would be great to get review / rewrite.
  */
 void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates) {
 
@@ -247,7 +247,7 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 			} else {
 				std::vector<Frag::Item> new_candidates;
 				// AND/OR is counter intuitive, AND means intersect of results while OR is union.
-				if (query.op=Query::Operator::AND) {
+				if (query.op==Query::Operator::AND) {
 					for (std::vector<Frag::Item>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
 						// introduce AND , OR logic here.
 						auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Frag::Item r) {
@@ -263,8 +263,18 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 					} else {
 						node_candidates = new_candidates;
 					}
-				} else if (query.op=Query::Operator::OR) {
-					node_candidates.insert(node_candidates.end(), candidates_.begin(), candidates_.end());
+				} else if (query.op==Query::Operator::OR) {
+					for (std::vector<Frag::Item>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
+						// introduce AND , OR logic here.
+						auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Frag::Item r) {
+							return r.url_id == tit->url_id;
+						});
+						if (ait != node_candidates.end()) {
+							ait->weight = ait->weight + tit->weight;
+						} else {
+							node_candidates.push_back(*tit);
+						}
+					}
 				} else {
 					continue;
 				}

@@ -34,7 +34,7 @@ class Query {
 
 	public:
 
-		enum Operator { AND=0, OR=1, NOT=2, RESTRICT=3 };
+		enum Operator { TERM=0, AND=1, OR=2, NOT=3, RESTRICT=4 };
 		enum Type { ORIGINAL=0, SYNONYM=1, CONCEPT=2 };
 		enum Modifier { LITERAL=0, CONFIDENCE=1, COLLECTION=2, SYNCONF=3, STOPWORD=4 };
 
@@ -53,9 +53,6 @@ class Query {
 			Type type;
 			icu::UnicodeString term;
 			std::map<Modifier, AttributeValue> mods;
-			double idf;
-			int debug_url_id;
-			std::string debug_url;
 		};
 
 		struct Node {
@@ -72,8 +69,6 @@ class Query {
 			void updateQuery();
 			std::vector<Node> leafNodes;
 		};
-
-		rapidjson::Document serializeTerm(Frag::Item t);
 
 		Query(bool root, std::string raw_query);
 		~Query();

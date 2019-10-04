@@ -53,12 +53,12 @@ app.post('/addDocument', function(req, res, next) {
 	if (queryData.type == "content") {
 		if (req.body) {
 			var docs = req.body;
-            var hasError = false;
+			var hasError = false;
 			//multi = client.multi();
 			for (var i in docs) {
 				if (docs.hasOwnProperty(i)) {
-                    var doc_feed_lang;
-                    var doc_id_lang;
+					var doc_feed_lang;
+					var doc_id_lang;
 					if (docs[i].crawl_language == "en") {
 						doc_feed_lang = "en";
 						doc_id_lang = "en";
@@ -98,21 +98,20 @@ app.post('/addDocument', function(req, res, next) {
 						e => {
 							console.log(e.stack);
 							hasError = true;
-						}
-					)
+					})
 				}
 			}
 			if (hasError) {
-					res.status(503);
-					return res.json({
-							"status":"failed",
-							"error":e.stack
-					});
+				res.status(503);
+				return res.json({
+						"status":"failed",
+						"error":e.stack
+				});
 			} else {
-					res.status(200);
-					res.json({
-							"status":"successful"
-					});
+				res.status(200);
+				res.json({
+						"status":"successful"
+				});
 			}
 		}
 	}
@@ -122,70 +121,77 @@ app.post('/addDocument', function(req, res, next) {
  * A function to add a document(s) to our corpus.
  */
 app.get('/search', function(req, res, next) {
-	console.log('search');
 	try {
-	console.log('in try');
-	var queryData = url.parse(req.url, true).query;
-	var socket = new net.Socket();
-	console.log('deb 1');
-	if (!queryData.query) {
-		res.json({"error":"no query"});
-		return;
-	}
-	console.log('deb 2');
-	console.log('req in ' + queryData.query);
-	socket.connect(3333, '127.0.0.1', function() {
-		console.log('Connected');
-		console.log("write : " + queryData.query);
-		var data_length = queryData.query.length;
-		var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":"; 
-		console.log("header : " + header);
-		console.log("socket.bufferSize : " + socket.bufferSize);
-		socket.write(header.concat(queryData.query),'utf8', function(r) {
-			console.log(r);
-		});
-		socket.end();
-	});
-	/*
-	const client = net.createConnection({ port: 3333 }, () => {
-		console.log('connected to server!');
-		console.log("write : " + queryData.query);
-		client.write(queryData.query + '\r\n');
-	});*/
-	var packet = "";
-	socket.on('data', (data) => {
-		packet += data.toString();
-		console.log('data received');
-		console.log(packet);
-		socket.end();
-	});
-	socket.on('end', () => {
-		// res.send({"error":"disconnected"});
-		console.log('res.json packet');
-		res.json(packet);
-		console.log('disconnected from server');
-	});
-	socket.on('unhandledRejection', (error, promise) => {
-		res.send({"error":+error+"\""});
-		console.log(error);
-		return;
-	});
-	socket.on('uncaughtException', (error, promise) => {
-		res.send({"error":+error+"\""});
-		console.log(error);
-		return;
-	});
-	socket.on('error', (error, promise) => {
-		res.send({"error":+error+"\""});
-		console.log(error);
-		return;
-	});
-	} catch(e) { 
+		var queryData = url.parse(req.url, true).query;
+		var socket = new net.Socket();
+		if (!queryData.query) {
+			res.json({"error":"no query"});
+			return;
+		} else {
+			execute(req,res);
+		}
+	} catch(e) {
 		res.send({"error":"\""+e+"\""});
 		console.log(e);
 		return;
 	}
 });
+
+function execute(req, res) {
+		var queryData = url.parse(req.url, true).query;
+		var socket = new net.Socket();
+		socket.connect(3333, '127.0.0.1', function() {
+			var data_length = queryData.query.length;
+			var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":"; 
+			socket.write(header.concat(queryData.query),'utf8', function(r) {
+				console.log(r);
+			});
+			socket.end();
+		});
+		var packet = "";
+		socket.on('data', (data) => {
+			packet += data.toString();
+			// console.log('packet data');
+			// console.log(packet);
+			socket.end();
+		});
+		socket.on('end', () => {
+			res.json(packet);
+			console.log('disconnected from server');
+		});
+		socket.on('unhandledRejection', (error, promise) => {
+			res.send({"error":+error+"\""});
+			console.log(error);
+			return;
+		});
+		socket.on('uncaughtException', (error, promise) => {
+			res.send({"error":+error+"\""});
+			console.log(error);
+			return;
+		});
+		socket.on('error', (error, promise) => {
+			res.send({"error":+error+"\""});
+			console.log(error);
+			return;
+		});
+}
+
+/*
+app.get('/', function(req, res, next) {
+	try {
+		var queryData = url.parse(req.url, true).query;
+		if (!queryData.query) {
+			next();
+		} else {
+			execute(req,res);
+		}
+	} catch(e) {
+		res.send({"error":"\""+e+"\""});
+		console.log(e);
+		return;
+	}
+});
+*/
 
 // web root
 app.use('/', express.static(__dirname + '/web-app/build/'));

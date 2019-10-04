@@ -63,14 +63,12 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 	Query::Node rootNode = {};
 	rootNode.root = true;
 	rootNode.op = Query::Operator::OR;
-	rootNode.raw_query = query_str;
 	rootNode.lang = lang;
 
-	Query::Node termNode = {};
-	termNode.root = false;
-	termNode.op = Query::Operator::AND;
-	termNode.raw_query = query_str;
-	termNode.lang = lang;
+	Query::Node branchNode = {};
+	branchNode.root = false;
+	branchNode.op = Query::Operator::AND;
+	branchNode.lang = lang;
 
 	// temp containsers we use for processing
 	std::map<std::vector<std::string>, int> gramCandidates;
@@ -123,7 +121,6 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 		
 		icu::UnicodeString uc = icu::UnicodeString::fromUTF8(converted);
 		term.term = uc;
-		term.idf = 0.0;
 
 		if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted) != ja_stop_words.end() ) {
 			isStopWord = true;
@@ -137,14 +134,12 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 			term.mods.insert(std::pair<Query::Modifier,Query::AttributeValue>(Query::Modifier::STOPWORD, v));
 		}
 
-		Query::Node leafNode = {};
-		leafNode.root = false;
-		leafNode.op = Query::Operator::OR;
-		leafNode.raw_query = query_str;
-		leafNode.lang = lang;
-		//leafNode.terms.push_back(term);
-		leafNode.term = term;
-		termNode.leafNodes.push_back(leafNode);
+		Query::Node termNode = {};
+		termNode.root = false;
+		termNode.raw_query = query_str;
+		termNode.lang = lang;
+		termNode.term = term;
+		branchNode.leafNodes.push_back(termNode);
 
 		for (int j=0; j < N_GRAM_SIZE; j++) {
 			gramholder[j].push_back(converted);
@@ -159,7 +154,7 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 		}
 	}
 
-	rootNode.leafNodes.push_back(termNode);
+	rootNode.leafNodes.push_back(branchNode);
 
 	result = rootNode;
 

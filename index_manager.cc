@@ -106,7 +106,6 @@ void IndexManager::processFeeds(std::string lang) {
 	fragManager.mergeFrags(num_docs, lang);
 }
 
-
 /*
  * For each entry in the docfeeds table we ..
  * - read the data 
@@ -159,7 +158,6 @@ bool IndexManager::isSPS(char firstchar) {
 		return false;
 	}
 }
-
 
 void IndexManager::exportVocab(std::string lang) {
 	C->prepare("export_vocab", "select gram, incidence from ngrams WHERE gram NOT LIKE '% %' ORDER BY gram");
