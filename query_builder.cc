@@ -4,6 +4,7 @@ QueryBuilder::QueryBuilder()
 {
 #define N_GRAM_SIZE 3
 #define IS_CJK false
+	init();
 }
 
 QueryBuilder::~QueryBuilder()
@@ -117,7 +118,6 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 		if (converted.empty()) {
 			continue;
 		}
-		std::cout << "query builder converted " << converted << std::endl;
 		
 		icu::UnicodeString uc = icu::UnicodeString::fromUTF8(converted);
 		term.term = uc;
@@ -128,10 +128,12 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 		if ( std::find(en_stop_words.begin(), en_stop_words.end(), converted) != en_stop_words.end() ) {
 			isStopWord = true;
 		}
+		std::cout << converted << " : " << isStopWord << std::endl;
 		if (isStopWord == true) {
 			Query::AttributeValue v;
 			v.b=true;
-			term.mods.insert(std::pair<Query::Modifier,Query::AttributeValue>(Query::Modifier::STOPWORD, v));
+			//term.mods.push_back(std::vector<std::pair<Query::Modifier,Query::AttributeValue>>(Query::Modifier::STOPWORD, v));
+			term.mods.push_back(std::pair<Query::Modifier,Query::AttributeValue>(Query::Modifier::STOPWORD, v));
 		}
 
 		Query::Node termNode = {};
