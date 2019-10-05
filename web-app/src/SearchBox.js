@@ -7,8 +7,11 @@ class SearchBox extends React.Component {
 
 	constructor(props){
 		super(props);
-		this.state = { "query": '' };
-		this.state = { "results": [] };
+		this.state = {
+			"query": '',
+			"results": [],
+			"hasResults": true 
+		};
 		this.handleChange = this.handleChange.bind(this);
 		this.keyPress = this.keyPress.bind(this);
 		this.onSubmit = this.onSubmit.bind(this);
@@ -22,9 +25,7 @@ class SearchBox extends React.Component {
 	}
 
 	keyPress(e){
-		if(e.keyCode == 13){
-		//	e.preventDefault();
-		//	this.execute(this.state.query);
+		if (e.keyCode == 13){
 		}
 	}
 
@@ -38,27 +39,23 @@ class SearchBox extends React.Component {
 
 	execute(q) {
 		console.log(q);
-		$.get("https://35.239.29.200/search",
-	//	$.get("http://127.0.0.1:3000/search",
+	//	$.get("https://35.239.29.200/search",
+		$.get("http://127.0.0.1:3000/search",
 			{
 				"query": q
 			}, (data) => {
 				if (data) {
-					const noResults = document.querySelector('#noResults');
-					const hasResults = document.querySelector('#hasResults');
 					const results = JSON.parse(data);
 					console.log(results);
 					console.log(results.query);
-					if (results.items) {
-						hasResults.hidden = false;
-						noResults.hidden = true;
+					if (results.items.length > 0) {
 						this.setState({
+							hasResults: true,
 							results: results.items
 						});
 					} else {
-						hasResults.hidden = true;
-						noResults.hidden = false;
 						this.setState({
+							hasResults: false,
 							results: null
 						});
 					}
@@ -76,14 +73,16 @@ class SearchBox extends React.Component {
 					<div className="searchButton" onClick={this.onSubmit.bind(this)}>
 					</div>
 				</div>
-				<div id="hasResults">
-					{this.state.results.map(function(result) {
-						return (<SearchResult result={result.url}></SearchResult>)
-					})}
-				</div>
-				<div id="noResults">
-					No Results Found.
-				</div>
+				{this.state.hasResults ?
+					<div className="hasResults">
+						{this.state.results.map(function(result) {
+							return (<SearchResult result={result.url}></SearchResult>)
+						})}
+					</div> : 
+					<div className="noResults">
+						No Results Found.
+					</div>
+				}
 			</React.Fragment>
 		);
 	}

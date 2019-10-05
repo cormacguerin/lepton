@@ -20,7 +20,7 @@ class IndexServer {
 		void init();
 		void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates);
 		void execute(std::string lang, std::string query, std::promise<std::string> promiseObj);
-		static void search(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer);
+		static void search(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryParser);
 
 	private:
 		pqxx::connection* C;
@@ -30,6 +30,7 @@ class IndexServer {
 		std::unordered_map<std::string, std::map<int, Frag::Item>> trigramurls_map;
 		std::string getUrl(int url_id);
 		void loadIndex(std::string gram, std::string lang);
+		QueryBuilder queryBuilder;
 		const int MAX_CANDIDATES_COUNT = 1000;
 
 };

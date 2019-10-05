@@ -22,7 +22,6 @@ class Session : public std::enable_shared_from_this<Session> {
 		void do_write(std::string s);
 //		request<char*> req;
 //		response<char*> res;
-		QueryBuilder queryBuilder;
 		void run_query(std::promise<std::string> *promiseObj);
 
 };

@@ -157,7 +157,7 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 }
 
 void IndexServer::execute(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj) {
-	std::thread th(search, lang, parsed_query, std::move(promiseObj), this);
+	std::thread th(search, lang, parsed_query, std::move(promiseObj), this, queryBuilder);
 	th.join();
 }
 
@@ -165,8 +165,7 @@ void IndexServer::execute(std::string lang, std::string parsed_query, std::promi
  * In a massively scaled out version these would all be separate services with their own network stack
  * The query would run to various servelets getting rewritten and then results retrieved and scored.
  */
-void IndexServer::search(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer) {
-	QueryBuilder queryBuilder;
+void IndexServer::search(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryBuilder) {
 	Query::Node query;
 	//Result::Item item;
 	queryBuilder.build(lang, parsed_query, query);
@@ -240,6 +239,18 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 	} else {
 		std::vector<Frag::Item> node_candidates;
 		for (std::vector<Query::Node>::iterator it = query.leafNodes.begin() ; it != query.leafNodes.end(); ++it) {
+			bool isStopWord = false;
+			for (std::vector<std::pair<Query::Modifier, Query::AttributeValue>>::iterator mit = it->term.mods.begin() ; mit != it->term.mods.end(); ++mit) {
+				if (mit->first == Query::Modifier::STOPWORD) {
+					if (mit->second.b == true) {
+						isStopWord = true;
+					}
+				}
+			}
+			if (isStopWord==true) {
+				std::cout << " this is an en stopword - continue" << std::endl;
+				continue;
+			}
 			std::vector<Frag::Item> candidates_;
 			addQueryCandidates(*it, indexServer, candidates_);
 			if (node_candidates.empty()) {
@@ -283,54 +294,4 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		candidates = node_candidates;
 	}
 }
-
-
-/*
- * Retrieval function populate the query
- */
-/*
-void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer) {
-
-	std::cout << "index_server.cc : add query candidates" << std::endl;
-	if (!query.term.term.isEmpty()) {
-		std::string converted;
-		query.term.term.toUTF8String(converted);
-		std::cout << "index_server.cc - looking for " << converted << std::endl;
-
-		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
-		if (urls != indexServer->unigramurls_map.end()) {
-			// std::cout << "index_server.cc Found " << converted << std::endl;
-			// std::cout << "index_server.cc Debug " << urls->first << std::endl;
-
-			for (std::vector<Frag::Item>::const_iterator it = urls->second.begin(); it != urls->second.end(); ++it) {
-				Frag::Item term;
-				term.tf=it->tf;
-				term.weight=it->weight;
-				item.debug_url_id=it->url_id;
-
-				pqxx::work txn(*C);
-				C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
-				pqxx::result r = txn.prepared("get_url")(it->url_id).exec();
-				txn.commit();
-				const pqxx::field c = r.back()[0];
-
-				// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
-				// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
-
-				item.debug_url=pqxx::to_string(c);
-				query.candidates.push_back(term);
-
-				if (it == urls->second.begin()+MAX_CANDIDATES_COUNT) {
-					break;
-				}
-			}
-		}
-	} else {
-		std::cout << "index_server.cc empty query node term seen." << std::endl;
-	}
-	for (std::vector<Query::Node>::iterator it = query.leafNodes.begin() ; it != query.leafNodes.end(); ++it) {
-		addQueryCandidates(*it, indexServer);
-	}
-}
-*/
 

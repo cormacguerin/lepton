@@ -52,7 +52,7 @@ class Query {
 		struct Term {
 			Type type;
 			icu::UnicodeString term;
-			std::map<Modifier, AttributeValue> mods;
+			std::vector<std::pair<Modifier, AttributeValue>> mods;
 		};
 
 		struct Node {

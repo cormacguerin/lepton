@@ -17,11 +17,17 @@ input.searchBox {
 	padding-right: 15px;
 	padding-left: 15px;
 	padding-top: .4rem;
-    padding-bottom: .4rem;
-    background-color: #E5EDF5;
-    border: 1px solid #C9C1D5;
-    color: #5F5F5F;
+	padding-bottom: .4rem;
+	background-color: #E5EDF5;
+	border: 1px solid #C9C1D5;
+	color: #5F5F5F;
 	border-radius: 4px;
+}
+
+.noResults {
+	margin-top: 200px;
+	color : #fff;
+	font-size: 2em;
 }
 
 .searchButton {

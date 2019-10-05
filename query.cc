@@ -5,7 +5,7 @@
 
 static const std::string OperatorList[5] = { "TERM", "AND", "OR", "NOT", "RESTRICT" };
 static const std::string TypeList[4] = { "ORIGINAL", "SYNONYM", "CONCEPT" };
-static const std::string modifierList[5] = { "LITERAL", "CONFIDENCE", "COLLECTION", "SYNCONF", "STOPWORD" };
+static const std::string ModifierList[5] = { "LITERAL", "CONFIDENCE", "COLLECTION", "SYNCONF", "STOPWORD" };
 
 Query::Query(bool root, std::string raw_query)
 {
@@ -46,6 +46,18 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 
 	if (!TypeList[this->term.type].empty()) {
 	       serialized_query.AddMember("type", rapidjson::Value(const_cast<char*>((TypeList[this->term.type]).c_str()), allocator).Move(), allocator);
+	}
+	for (std::vector<std::pair<Modifier, AttributeValue>>::iterator it = this->term.mods.begin() ; it != this->term.mods.end(); ++it) {
+		if (it->first == Query::Modifier::STOPWORD) {
+			if (it->second.b == true) {
+				// serialized_query.AddMember("STOPWORD", rapidjson::Value(const_cast<char*>(std::boolalpha), allocator).Move(), allocator);
+				serialized_query.AddMember("STOPWORD", "true", allocator);
+			} else if (it->second.b == false) {
+				// a stopword can be false if it's anti-stopworded by a servlet or something.
+				// serialized_query.AddMember("STOPWORD", rapidjson::Value(const_cast<char*>(std::noboolalpha), allocator).Move(), allocator);
+				serialized_query.AddMember("STOPWORD", "false", allocator);
+			}
+		}
 	}
 	if (!converted.empty()) {
 	       serialized_query.AddMember("term", rapidjson::Value(const_cast<char*>(converted.c_str()), allocator).Move(), allocator);
