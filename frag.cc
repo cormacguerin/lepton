@@ -49,47 +49,8 @@ void Frag::load() {
 	std::ifstream ifs(filename);
 
 	if (ifs.good()) {
-		rapidjson::Document d;
-	//	d.ParseInsitu((char*)readFile(filename).c_str());
-		d.Parse(readFile(filename).c_str());
-
-		if (d.HasParseError()) {
-			if (fragment_id==0) {
-				std::cout << "frag.cc : failed to parse JSON in frag << " << frag_id << ", frag will be automatically discarded" << std::endl;
-			} else {
-				std::cout << "frag.cc : failed to parse JSON in frag << " << frag_id << "." << fragment_id << ", frag will be automatically discarded" << std::endl;
-			}
-			// wipe the frag and write it.
-			frag_map.clear();
-			write();
-			return;
-		}
-
-		for (rapidjson::Value::ConstMemberIterator jit = d.MemberBegin(); jit != d.MemberEnd(); ++jit) {
-//			std::cout << "frag.cc item : " << jit->name.GetString() << std::endl;
-			std::map<int, Frag::Item> item_map;
-			for (rapidjson::Value::ConstMemberIterator jtit = jit->value.MemberBegin(); jtit != jit->value.MemberEnd(); ++jtit) {
-				Frag::Item item;
-//				std::cout << "frag.cc  nc : " << jtit->name.GetString() << std::endl;
-				for (rapidjson::Value::ConstMemberIterator jtit_ = jtit->value.MemberBegin(); jtit_ != jtit->value.MemberEnd(); ++jtit_) {
-//					std::cout << "TEST " << jtit_->name.GetString() << std::endl;
-					if (strcmp(jtit_->name.GetString(),"url_id")==0) {
-//						std::cout << "frag.cc  url_id : " << jtit_->value.GetInt() << std::endl;
-						item.url_id=jtit_->value.GetInt();
-					}
-					if (strcmp(jtit_->name.GetString(),"tf")==0) {
-//						std::cout << "frag.cc  tf : " << jtit_->value.GetDouble() << std::endl;
-						item.tf=jtit_->value.GetDouble();
-					}
-					if (strcmp(jtit_->name.GetString(),"weight")==0) {
-//						std::cout << "frag.cc  weight : " << jtit_->value.GetDouble() << std::endl;
-						item.weight=jtit_->value.GetDouble();
-					}
-				}
-				item_map.insert(std::pair<int, Frag::Item>(atoi(jtit->name.GetString()), item));
-			}
-			frag_map.insert(std::pair<std::string,std::map<int,Frag::Item>>(jit->name.GetString(), item_map));
-		}
+		loadJsonFrag(filename);
+		// loadRawFrag(filename);
 
 		time_t aftertime = time(0);
 		double seconds = difftime(aftertime, beforetime);
@@ -105,6 +66,56 @@ void Frag::load() {
 			std::cout << "frag.cc : Creating Frag << " << frag_id << "." << fragment_id << " " << std::endl;
 		}
 		return;
+	}
+}
+
+/*
+ * TODO : Sean to implement.
+ */
+void Frag::loadRawFrag(std::string filename) {
+}
+
+void Frag::loadJsonFrag(std::string filename) {
+	rapidjson::Document d;
+//	d.ParseInsitu((char*)readFile(filename).c_str());
+	d.Parse(readFile(filename).c_str());
+
+	if (d.HasParseError()) {
+		if (fragment_id==0) {
+			std::cout << "frag.cc : failed to parse JSON in frag << " << frag_id << ", frag will be automatically discarded" << std::endl;
+		} else {
+			std::cout << "frag.cc : failed to parse JSON in frag << " << frag_id << "." << fragment_id << ", frag will be automatically discarded" << std::endl;
+		}
+		// wipe the frag and write it.
+		frag_map.clear();
+		write();
+		return;
+	}
+
+	for (rapidjson::Value::ConstMemberIterator jit = d.MemberBegin(); jit != d.MemberEnd(); ++jit) {
+//			std::cout << "frag.cc item : " << jit->name.GetString() << std::endl;
+		std::map<int, Frag::Item> item_map;
+		for (rapidjson::Value::ConstMemberIterator jtit = jit->value.MemberBegin(); jtit != jit->value.MemberEnd(); ++jtit) {
+			Frag::Item item;
+//				std::cout << "frag.cc  nc : " << jtit->name.GetString() << std::endl;
+			for (rapidjson::Value::ConstMemberIterator jtit_ = jtit->value.MemberBegin(); jtit_ != jtit->value.MemberEnd(); ++jtit_) {
+//					std::cout << "TEST " << jtit_->name.GetString() << std::endl;
+				if (strcmp(jtit_->name.GetString(),"url_id")==0) {
+//						std::cout << "frag.cc  url_id : " << jtit_->value.GetInt() << std::endl;
+					item.url_id=jtit_->value.GetInt();
+				}
+				if (strcmp(jtit_->name.GetString(),"tf")==0) {
+//						std::cout << "frag.cc  tf : " << jtit_->value.GetDouble() << std::endl;
+					item.tf=jtit_->value.GetDouble();
+				}
+				if (strcmp(jtit_->name.GetString(),"weight")==0) {
+//						std::cout << "frag.cc  weight : " << jtit_->value.GetDouble() << std::endl;
+					item.weight=jtit_->value.GetDouble();
+				}
+			}
+			item_map.insert(std::pair<int, Frag::Item>(atoi(jtit->name.GetString()), item));
+		}
+		frag_map.insert(std::pair<std::string,std::map<int,Frag::Item>>(jit->name.GetString(), item_map));
 	}
 }
 
@@ -160,7 +171,6 @@ void Frag::writeIndex() {
 	std::ofstream f{filename};
 	f << (std::string)buffer.GetString();
 	f.close();
-
 }
 
 void Frag::write() {
@@ -188,30 +198,37 @@ void Frag::write() {
 		fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
 		filename.append(fragment_id_string.str());
 	}
+	writeJsonFrag(filename);
+	// writeRawFrag(filename);
+
+	time_t aftertime = time(0);
+	double seconds = difftime(aftertime, beforetime);
+	std::cout << "frag.cc : frag " << frag_id << " (" << frag_map.size() << " items) written in " << seconds << " seconds." << std::endl;
+
+	frag_map.clear();
+}
+
+/*
+ * TODO : Sean to implement.
+ */
+void Frag::writeRawFrag(std::string filename) {
+}
+
+void Frag::writeJsonFrag(std::string filename) {
 	std::string tmp_filename = filename;
 	tmp_filename.append("_");
-
-	//if (std::filesystem::exists(filename)) {
-
 	rapidjson::Document d;
 	serialize_(d);
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	d.Accept(writer);
 	std::ofstream f{tmp_filename};
-//	std::cout << (std::string)buffer.GetString() << std::endl;
 	f << (std::string)buffer.GetString();
 	f.close();
+	buffer.Clear();
 
 	// finally rename the frag to it's proper name.
 	rename(tmp_filename.c_str(),filename.c_str());
-
-	time_t aftertime = time(0);
-	double seconds = difftime(aftertime, beforetime);
-	std::cout << "frag.cc : frag " << frag_id << " (" << frag_map.size() << " items) written in " << seconds << " seconds." << std::endl;
-
-	buffer.Clear();
-	frag_map.clear();
 }
 
 void Frag::serialize_(rapidjson::Document &serialized_frag) {

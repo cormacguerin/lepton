@@ -40,12 +40,16 @@ class Frag {
 
 		void serialize_(rapidjson::Document &serialized_frag);
 		void write();
+		void writeJsonFrag(std::string filename);
+		void writeRawFrag(std::string filename);
 		void writeIndex();
 		size_t size();
 		void insert(std::string s, std::map<int,Frag::Item> m);
 		void update(std::string s, std::map<int,Frag::Item> m);
 		void addWeights(int num_docs);
 		void load();
+		void loadJsonFrag(std::string filename);
+		void loadRawFrag(std::string filename);
 		//void addToIndex(phmap::parallel_flat_hash_map<std::string, phmap::flat_hash_map<int, Frag::Item>> &index);
 		void addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index);
 		std::string readFile(std::string filename);
