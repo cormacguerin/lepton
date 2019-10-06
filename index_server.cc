@@ -190,7 +190,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 		item.url = docinfo.at(0);
 		item.quality = atof(docinfo.at(1).c_str());
 		// this is some pretty shitty scoring.. It actaully seems to work well on wikipedia though.
-		item.score = 1-item.quality*item.weight;
+		item.score = item.quality*item.weight;
 
 		// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
 		// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
