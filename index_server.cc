@@ -200,7 +200,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 	// cScorer.score(&result);
 	std::sort(result.items.begin(), result.items.end(),
 		[](const Result::Item& l, const Result::Item& r) {
-		return l.score < r.score;
+		return l.score > r.score;
 	});
 	promiseObj.set_value(result.serialize());
 }
