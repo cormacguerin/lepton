@@ -3,6 +3,17 @@
 	justify-content: left;
 }
 
+.debug {
+	display: flex;
+	justify-content: left;
+	color: #efefef;
+}
+
+p span
+{
+    display: block;
+}
+
 a {
 	color: #000;
 	display: flex;

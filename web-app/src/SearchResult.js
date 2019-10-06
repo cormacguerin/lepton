@@ -10,9 +10,14 @@ class SearchResult extends React.Component {
 
 	render(){
 		return (
-			<div className="result">
-				<a href={this.props.result}>{this.props.result}</a>
-			</div>
+			<React.Fragment>
+				<div className="result">
+					<a href={this.props.url}>{this.props.url}</a>
+				</div>
+				<div className="debug">
+					<p><span>[weight : {this.props.weight}] [quality : {this.props.quality}] [score : {this.props.score}]</span></p>
+				</div>
+			</React.Fragment>
 		);
 	}
 }

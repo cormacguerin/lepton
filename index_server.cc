@@ -178,18 +178,19 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 	// indexServer->resolveQuery(query, indexServer);
 	std::vector<Frag::Item> candidates;
 	indexServer->addQueryCandidates(query, indexServer, candidates);
-	std::sort(candidates.begin(), candidates.end(),
-		[](const Frag::Item& l, const Frag::Item& r) {
-		return l.weight > r.weight;
-	});
+
 	Result result;
 	result.query = query;
 	for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
+		std::vector<std::string> docinfo = indexServer->getDocInfo(tit->url_id);
 		Result::Item item;
 		item.tf = tit->tf;
 		item.weight = tit->weight;
 		item.url_id = tit->url_id;
-		item.url = indexServer->getUrl(tit->url_id);
+		item.url = docinfo.at(0);
+		item.quality = atof(docinfo.at(1).c_str());
+		// this is some pretty shitty scoring.. It actaully seems to work well on wikipedia though.
+		item.score = 1-item.quality*item.weight;
 
 		// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
 		// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
@@ -197,16 +198,24 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 		result.items.push_back(item);
 	}
 	// cScorer.score(&result);
+	std::sort(result.items.begin(), result.items.end(),
+		[](const Result::Item& l, const Result::Item& r) {
+		return l.score < r.score;
+	});
 	promiseObj.set_value(result.serialize());
 }
 
-std::string IndexServer::getUrl(int url_id) {
+std::vector<std::string> IndexServer::getDocInfo(int url_id) {
 	pqxx::work txn(*C);
-	C->prepare("get_url","SELECT url FROM docs_en WHERE id = $1");
+	C->prepare("get_url","SELECT url,quality FROM docs_en WHERE id = $1");
 	pqxx::result r = txn.prepared("get_url")(url_id).exec();
 	txn.commit();
-	const pqxx::field c = r.back()[0];
-	return pqxx::to_string(c);
+	const pqxx::field u = r.back()[0];
+	const pqxx::field q = r.back()[1];
+	std::vector<std::string> docinfo;
+	docinfo.push_back(pqxx::to_string(u));
+	docinfo.push_back(pqxx::to_string(q));
+	return docinfo;
 }
 
 /*

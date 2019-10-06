@@ -76,7 +76,14 @@ class SearchBox extends React.Component {
 				{this.state.hasResults ?
 					<div className="hasResults">
 						{this.state.results.map(function(result) {
-							return (<SearchResult result={result.url}></SearchResult>)
+							return (<SearchResult 
+									url={result.url}
+									weight={result.weight}
+									idf={result.idf}
+									tf={result.tf}
+									quality={result.quality}
+									score={result.score}
+								></SearchResult>)
 						})}
 					</div> : 
 					<div className="noResults">

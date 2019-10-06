@@ -251,7 +251,9 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	prepare_insert_trigram(*C, lang);
 	*/
 	// prepare_known_insert(*C);
+	//
 	
+	std::vector<int> term_incidence;
 	for (std::map<std::vector<std::string>, int>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
 		// only include grams where there is at least one occurrence.
 		// If you include all you get a balooned index.
@@ -299,7 +301,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 						doc_bigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
 						isAdd = true;
 					}
-					// - For trigrams(ngrams) there need to be three or more occurrences.
+					// - Same for tri grams we need more occurrences to count them.
 					if ((git->first).size() > 2 && git->second > 2) {
 						// same as above.
 						double tf = (double)git->second/sqrt((gramcount));
@@ -311,6 +313,18 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 					}
 					if (isAdd == false) {
 						continue;
+					}
+					// store incidence of words. The quality calculate is based on language.
+					// crawling wikipedia for example show up lots of numbers which are not really relevant in terms of NLP
+					// we need to work to reduce the number of odd chars/ints etc.
+					bool isWord = true;
+					for (auto const& s : git->first) {
+						if (s.find_first_of("0123456789") != std::string::npos) {
+							isWord=false;
+						}
+					} 
+					if (isWord==true) {
+						term_incidence.push_back(git->second);
 					}
 				} else {
 					continue;
@@ -343,14 +357,35 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 			}
 //		}
 	}
+	// function to measure simple quality.
+	// zipfs law stats that the most frequent term should occur twice as many times as the second most frequent,
+	// Three times as much as the third and so on. Lets assume zipf's law represents a perfect document.
+	// We try to calculate our deviation from zip's law and use this as an error margin. eg.
+	// 1 - (deviation from perfect distribution).
+	std::sort(term_incidence.rbegin(), term_incidence.rend());
+	// hack
+	// term_incidence.erase(std::unique(term_incidence.begin(), term_incidence.end()), term_incidence.end());
+	double z_deviation = 0.0;
+	for (std::vector<int>::iterator it = term_incidence.begin()+1; it != term_incidence.end(); it++ ) {
+	//	std::cout << "segmenter.cc : " << it - term_incidence.begin() +1 << " - incidence " << *it << std::endl;
+		double r = (double)term_incidence.at(0) / *it;
+		double zdev = abs(r-(it-term_incidence.begin()+1))/(it-term_incidence.begin()+1);
+	//	std::cout << "segmented.cc r : " << r << " zdev : " << zdev << std::endl;
+		z_deviation += abs(r-zdev);
+	}
+	z_deviation = z_deviation/term_incidence.size();
+	// std::cout << "z_deviation : " << z_deviation << std::endl;
+	double quality = 1-(1/z_deviation);
+	std::cout << "quality : " << quality << std::endl;
+	// atf = atf / (doc_unigram_map.size()+doc_bigram_map.size()+doc_trigram_map.size());
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
 
 	std::string docstable = "docs_" + lang;
-	std::string update = "UPDATE " + docstable + " SET (index_date, segmented_grams) = (NOW(), $escape$"
+	std::string update = "UPDATE " + docstable + " SET (index_date, segmented_grams, quality) = (NOW(), $escape$"
 		+ (std::string)buffer.GetString()
-		+ "$escape$) WHERE url='"
+		+ "$escape$, " + std::to_string(quality) +") WHERE url='"
 		+ url
 		+ "';";
 	txn.exec(update);

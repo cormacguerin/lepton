@@ -54,9 +54,10 @@ class Result {
 			Type type;
 			icu::UnicodeString item;
 			std::map<Modifier, AttributeValue> mods;
-			double idf;
 			double tf;
+			double quality;
 			double weight;
+			double score;
 			int url_id;
 			std::string lang;
 			std::string url;

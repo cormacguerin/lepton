@@ -25,6 +25,10 @@ const std::string Result::serialize() {
 		rapidjson::Document result;
 		result.SetObject();
 		result.AddMember("url", rapidjson::Value(const_cast<char*>(it->url.c_str()), allocator).Move(), allocator);
+		result.AddMember("weight", rapidjson::Value(const_cast<char*>(std::to_string(it->weight).c_str()), allocator).Move(), allocator);
+		result.AddMember("tf", rapidjson::Value(const_cast<char*>(std::to_string(it->tf).c_str()), allocator).Move(), allocator);
+		result.AddMember("quality", rapidjson::Value(const_cast<char*>(std::to_string(it->quality).c_str()), allocator).Move(), allocator);
+		result.AddMember("score", rapidjson::Value(const_cast<char*>(std::to_string(it->score).c_str()), allocator).Move(), allocator);
 		results.PushBack(rapidjson::Value(result, allocator).Move(), allocator);
 	}
 	serialized_result.AddMember("items", results, allocator);
