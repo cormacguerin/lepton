@@ -24,6 +24,7 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_unigrams,
 				std::map<std::string, Frag::Item> doc_trigrams) {
 
 	// add unigrams
+	std::cout << "deb B" << std::endl;
 	for (std::map<std::string, Frag::Item>::const_iterator it = doc_unigrams.begin(); it != doc_unigrams.end(); ++it) {
 		std::map<std::string, std::map<int, Frag::Item>>::iterator tit = unigram_terms.find(it->first);
 		if (tit != unigram_terms.end()) {
@@ -45,6 +46,7 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_unigrams,
 			syncFrags();
 		}
 	}
+	std::cout << "deb C" << std::endl;
 }
 
 // function to sync all index loaded terms to frags.
@@ -100,7 +102,7 @@ void FragManager::mergeFrags(int num_docs, std::string lang) {
 		int this_frag_id = 0;
 		std::unique_ptr<Frag> main_frag;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
-			//std::cout << *it << std::endl;
+			std::cout << *it << std::endl;
 
 			std::string frag_string = (*it).substr((*it).find('_')+1,(*it).length());
 			int frag_id = stoi(frag_string.substr(0, frag_string.find(".")));

@@ -35,6 +35,7 @@ class Segmenter {
 		std::vector<std::string> en_stop_words;
 		pqxx::connection* C;
 		pqxx::work* txn;
+		std::string concat_positions(std::vector<int> pos);
 
 	public:
 		Segmenter();

@@ -34,10 +34,10 @@ pool.query('SELECT NOW()', (err, res) => {
 })
 
 app.use(cookieParser());
-app.use(bodyParser.json({limit: '1mb'}));
-app.use(bodyParser.urlencoded({limit: '1mb',extended: true })); // for parsing application/x-www-form-urlencoded
+app.use(bodyParser.json({limit: '10mb'}));
+app.use(bodyParser.urlencoded({limit: '10mb',extended: true })); // for parsing application/x-www-form-urlencoded
 app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '5mb'}));
-app.use(bodyParser.raw({type:'image/jpeg',limit: '5mb'}));
+app.use(bodyParser.raw({type:'image/jpeg',limit: '50mb'}));
 
 app.all('*', function(req, res, next) {
 	res.header("Access-Control-Allow-Origin", "*");
@@ -94,6 +94,7 @@ app.post('/addDocument', function(req, res, next) {
 						} finally {
 							client.release()
 						}
+	console.log('D');
 					})().catch(
 						e => {
 							console.log(e.stack);

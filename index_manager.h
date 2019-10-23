@@ -8,6 +8,7 @@
 #include "rapidjson/stringbuffer.h"
 #include <pqxx/pqxx>
 #include "segmenter.h"
+#include <vector>
 #include "frag_manager.h"
 
 class IndexManager {
@@ -39,6 +40,7 @@ class IndexManager {
 		void prepare_max_unigram_id(pqxx::connection_base &c, std::string lang);
 		void prepare_max_bigram_id(pqxx::connection_base &c, std::string lang);
 		void prepare_max_trigram_id(pqxx::connection_base &c, std::string lang);
+		void prepare_docscore_batch(pqxx::connection_base &c, std::string lang);
 		void getMaxDocId(int &num, std::string lang);
 		void getNumDocs(int &count, std::string lang);
 		void getNumNgrams(int &count, std::string gram, std::string lang);
@@ -46,9 +48,11 @@ class IndexManager {
 		void updateNgramIdf(std::map<int, double> idfbatch, std::string gram, std::string lang);
 		void updateIdf(std::string lang);
 		void processFeeds(std::string lang);
+		void processDocInfo(std::string lang);
 		void exportVocab(std::string lang);
 		bool isSPS(char firstchar);
 		void indexDocument(std::string id, std::string key, std::string doc, std::string lang);
+		std::vector<int> GetDocscoreBatch(std::string lang);
 
 };
 

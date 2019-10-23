@@ -134,6 +134,10 @@ def buildPayload(url, soup, head):
     else:
         title = soup.find('title').text
 
+    divs = soup.find_all("div", class_="reflist")
+    for d in divs:
+        d.decompose()
+
     last_modified = ''
     content_language = ''
     content_type = ''

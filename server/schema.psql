@@ -2,12 +2,18 @@ CREATE TABLE docs_en (
 	id SERIAL PRIMARY KEY,
 	url VARCHAR(2048) NOT NULL UNIQUE,
 	feed jsonb,
-	docrank real,
-	quality real,
+	docscore real,
+	tdscore real,
 	lang VARCHAR(2),
 	crawl_date TIMESTAMP,
 	index_date TIMESTAMP,
-	segmented_text text,
+	raw_text text[],
+	unigrams text[],
+	bigrams text[],
+	trigrams text[],
+	unigram_positions text[],
+	bigram_positions text[],
+	trigram_positions text[],
 	segmented_grams jsonb
 );
 
@@ -29,49 +35,27 @@ CREATE TABLE trigrams_en (
 	idf real
 );
 
-
-CREATE TABLE docunigrams_en (
-	url_id INT4,
-	gram_id INT4,
-	tf real,
-	weight real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE docbigrams_en (
-	url_id INT4,
-	gram_id INT4,
-	tf real,
-	weight real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE doctrigrams_en (
-	url_id INT4,
-	gram_id INT4,
-	tf real,
-	weight real,
-	primary key (url_id, gram_id)
-);
-
-
 CREATE INDEX unigrams_id_idx_en ON unigrams_en(id);
 CREATE INDEX bigrams_id_idx_en ON bigrams_en(id);
 CREATE INDEX trigrams_id_idx_en ON trigrams_en(id);
-CREATE INDEX docunigram_tf_idx_en ON docunigrams_en(gram_id, tf ASC);
-CREATE INDEX docbigram_tf_idx_en ON docbigrams_en(gram_id, tf ASC);
-CREATE INDEX doctrigram_tf_idx_en ON doctrigrams_en(gram_id, tf ASC);
 
 CREATE TABLE docs_ja (
 	id SERIAL PRIMARY KEY,
 	url VARCHAR(2048) NOT NULL UNIQUE,
 	feed jsonb,
-	docrank real,
+	docscore real,
+	tdscore real,
 	atf real,
 	lang VARCHAR(2),
 	crawl_date TIMESTAMP,
 	index_date TIMESTAMP,
-	segmented_text text,
+	raw_text text[],
+	unigrams text[],
+	bigrams text[],
+	trigrams text[],
+	unigram_positions text[],
+	bigram_positions text[],
+	trigram_positions text[],
 	segmented_grams jsonb
 );
 
@@ -93,47 +77,27 @@ CREATE TABLE trigrams_ja (
 	idf real
 );
 
-CREATE TABLE docunigrams_ja (
-	url_id INT4,
-	gram_id INT4,
-	tf real,
-	weight real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE docbigrams_ja (
-	url_id INT4,
-	gram_id INT4,
-	tf real,
-	weight real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE doctrigrams_ja (
-	url_id INT4,
-	gram_id INT4,
-	tf real,
-	weight real,
-	primary key (url_id, gram_id)
-}
-
 CREATE INDEX unigrams_id_idx_ja ON unigrams_ja(id);
 CREATE INDEX bigrams_id_idx_ja ON bigrams_ja(id);
 CREATE INDEX trigrams_id_idx_ja ON trigrams_ja(id);
-CREATE INDEX docunigram_tf_idx_ja ON docunigrams_ja(gram_id, tf ASC);
-CREATE INDEX docbigram_tf_idx_ja ON docbigrams_ja(gram_id, tf ASC);
-CREATE INDEX doctrigram_tf_idx_ja ON doctrigrams_ja(gram_id, tf ASC);
 
 CREATE TABLE docs_zh (
 	id SERIAL PRIMARY KEY,
 	url VARCHAR(2048) NOT NULL UNIQUE,
 	feed jsonb,
-	docrank real,
+	docscore real,
+	tdscore real,
 	atf real,
 	lang VARCHAR(2),
 	crawl_date TIMESTAMP,
 	index_date TIMESTAMP,
-	segmented_text text,
+	raw_text text[],
+	unigrams text[],
+	bigrams text[],
+	trigrams text[],
+	unigram_positions text[],
+	bigram_positions text[],
+	trigram_positions text[],
 	segmented_grams jsonb
 );
 
@@ -156,33 +120,6 @@ CREATE TABLE trigrams_zh (
 	idf real
 );
 
-CREATE TABLE docunigrams_zh (
-	url_id INT4,
-	gram_id INT4,
-	tf real,
-	weight real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE docbigrams_zh (
-	url_id INT4,
-	gram_id INT4,
-	tf real,
-	weight real,
-	primary key (url_id, gram_id)
-);
-
-CREATE TABLE doctrigrams_zh (
-	url_id INT4,
-	gram_id INT4,
-	tf real,
-	weight real,
-	primary key (url_id, gram_id)
-}
-
 CREATE INDEX unigrams_id_idx_zh ON unigrams_zh(id);
 CREATE INDEX bigrams_id_idx_zh ON bigrams_zh(id);
 CREATE INDEX trigrams_id_idx_zh ON trigrams_zh(id);
-CREATE INDEX docunigram_tf_idx_zh ON docunigrams_zh(gram_id, tf ASC);
-CREATE INDEX docbigram_tf_idx_zh ON docbigrams_zh(gram_id, tf ASC);
-CREATE INDEX doctrigram_tf_idx_zh ON doctrigrams_zh(gram_id, tf ASC);

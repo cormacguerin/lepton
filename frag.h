@@ -13,11 +13,13 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/istreamwrapper.h>
 #include "parallel_hashmap/phmap.h"
+#include <pqxx/pqxx>
 
 // some notes
 
 class Frag {
 	private:
+		pqxx::connection* C;
 
 	public:
 		enum Type { UNIGRAM=0, BIGRAM=1, TRIGRAM=2 };

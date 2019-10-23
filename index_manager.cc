@@ -94,7 +94,6 @@ void IndexManager::processFeeds(std::string lang) {
 				std::cout << "skip : lang is null" << std::endl;;
 				continue;
 			}
-		
 			indexDocument(id.c_str(), url.c_str(), feed.c_str(), lang);
 		}
 		i = batch_position;
@@ -104,6 +103,36 @@ void IndexManager::processFeeds(std::string lang) {
 	fragManager.syncFrags();
 	// merge frag fragments into frag.
 	fragManager.mergeFrags(num_docs, lang);
+}
+
+/*
+ * This is our second pass, here we set the docscore.
+ * docscore = product(num_terms*term_idf)/sum(terms)
+ * We can't do this in the frst pass above as the IDF
+ * for each term is unknown. The score is based on the 
+ * corpus so we need to index the corpus first.
+ * We could do other processing here eg. ML stuff etc
+ */
+void IndexManager::processDocInfo(std::string lang) {
+
+	// this statement calculates the idf
+	std::string statement = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id=$1 GROUP BY docterms.key) SELECT d.max * t.idf AS m FROM d INNER JOIN unigrams_en AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE docs_en SET docscore = (SELECT SUM(m)/COUNT(m) FROM v) WHERE id=$1";
+
+	std::vector<int> b = GetDocscoreBatch(lang);
+
+	while (b.size() > 0) {
+		std::cout << "b.size() " << b.size()  << std::endl;
+		pqxx::work txn(*C);
+		C->prepare("process_docscore_batch", statement);
+		for (std::vector<int>::iterator it = b.begin(); it != b.end(); it++) {
+			//std::cout << "id : " << *it << std::endl;
+			pqxx::result r = txn.prepared("process_docscore_batch")(*it).exec();
+		}
+		txn.commit();
+		b.clear();
+		b = GetDocscoreBatch(lang);
+	}
+
 }
 
 /*
@@ -135,7 +164,7 @@ void IndexManager::indexDocument(string id, string dockey, string rawdoc, string
 	// base64 decode
 	string decoded_doc_body = base64_decode(doc_body);
 	// tokenize
-	vector<string> tokenized_doc_body;
+	std::vector<string> tokenized_doc_body;
 	// this is the sentencepiece tokenizer
 	// spp.tokenize(decoded_doc_body, &tokenized_doc_body);
 	// this is the cormac tokenizer
@@ -144,6 +173,7 @@ void IndexManager::indexDocument(string id, string dockey, string rawdoc, string
 	std::map<std::string, Frag::Item> doc_unigram_map;
 	std::map<std::string, Frag::Item> doc_bigram_map;
 	std::map<std::string, Frag::Item> doc_trigram_map;
+	std::cout << "deb A" << std::endl;
 	seg.parse(id, dockey, lang, decoded_doc_body, 
 		doc_unigram_map, doc_bigram_map, doc_trigram_map);
 	fragManager.addTerms(doc_unigram_map, doc_bigram_map, doc_trigram_map);
@@ -171,46 +201,6 @@ void IndexManager::exportVocab(std::string lang) {
 		std::cout << gram.c_str() << " " << incidence.c_str() << std::endl;
 	}
 
-	/*
-	cout << "export vocab for " << lang << endl;
-
-	vector<string> vocabfeeds;
-
-	//client.smembers("vocabfeeds", [&vocabfeeds](cpp_redis::reply& reply) {
-	client.smembers("doc_id_" +lang, [&vocabfeeds](cpp_redis::reply& reply) {
-		for (auto k: reply.as_array()) {
-			vocabfeeds.push_back(k.as_string());
-		}
-	});
-
-	client.sync_commit();
-
-	ofstream crawled_contents ("crawled_contents_" +lang+ ".txt");
-	for(vector<string>::iterator it = vocabfeeds.begin(); it != vocabfeeds.end(); ++it) {
-		string bodytext;
-		client.hget("doc_feed_" +lang, *it, [it, &bodytext](cpp_redis::reply& reply) {
-			rapidjson::Document vocab;
-			const char *cstr = reply.as_string().c_str();
-			try {
-				vocab.Parse(cstr);
-			} catch (const exception& e) {
-				cout << "Error : Aborting due to failed JSON parse attempt" << endl;
-				cout << "Error Message : " << e.what() << endl;
-				return;
-			}
-			string vocab_body;
-			try {
-				vocab_body = vocab["body"].GetString();
-			} catch (const exception& e) {
-				cout << "Warning : unable to parse display_url " << e.what() << endl;
-			}
-			bodytext = base64_decode(vocab_body);
-		});
-		client.sync_commit();
-		crawled_contents << bodytext;
-	}
-	crawled_contents.close();
-	*/
 }
 
 /*
@@ -268,6 +258,20 @@ void IndexManager::getMaxDocId(int &num, std::string lang) {
 	txn.commit();
 	const pqxx::field c = r.back()[0];
 	num = atoi(c.c_str());
+}
+
+std::vector<int> IndexManager::GetDocscoreBatch(std::string lang) {
+	prepare_docscore_batch(*C, lang);
+	pqxx::work txn(*C);
+	pqxx::result r = txn.prepared("docscore_batch").exec();
+	txn.commit();
+
+	std::vector<int> b;
+	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+		const pqxx::field c = (row)[0];
+		b.push_back(atoi(c.c_str()));
+	}
+	return b;
 }
 
 void IndexManager::updateNgramIdf(std::map<int, double> idfbatch, std::string gram, std::string lang) {
@@ -351,6 +355,10 @@ void IndexManager::updateIdf(std::string lang) {
 			std::cout << "Doc " << ng << "gram idf update " << complete*100 << "% complete" << std::endl;
 		}
 	}
+}
+
+void IndexManager::prepare_docscore_batch(pqxx::connection_base &c, std::string lang) {
+	c.prepare("docscore_batch", "SELECT id FROM docs_" + lang + " WHERE docscore IS NULL LIMIT 1000");
 }
 
 void IndexManager::prepare_max_doc_id(pqxx::connection_base &c, std::string lang) {

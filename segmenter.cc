@@ -80,9 +80,22 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	// postgres worker
 	pqxx::work txn(*C);
 
+	// prepared statements
+//	C->prepare("delete_doc_text", "UPDATE docs_en SET raw_text = NULL WHERE id=$1");
+//	C->prepare("delete_doc_unigrams", "UPDATE docs_en SET unigrams = NULL WHERE id=$1");
+//	C->prepare("delete_doc_unigram_p", "UPDATE docs_en SET unigram_positions = NULL WHERE id=$1");
+//	C->prepare("update_doc_text", "UPDATE docs_en SET raw_text = array_append(raw_text, $1) WHERE id=$2");
+//	C->prepare("update_doc_unigrams", "UPDATE docs_en SET unigrams = array_append(unigrams, $1) WHERE id=$2");
+//	C->prepare("update_doc_unigram_p", "UPDATE docs_en SET unigram_positions = array_append(unigram_positions, $1) WHERE id=$2");
+
+	// reset any existing content
+//	pqxx::result a_ = txn.prepared("delete_doc_text")(id).exec();
+//	pqxx::result b_ = txn.prepared("delete_doc_unigrams")(id).exec();
+//	pqxx::result c_ = txn.prepared("delete_doc_unigram_p")(id).exec();
+
 	// temp containsers we use for processing
 	std::map<std::string,std::vector<int>> gramPositions;
-	std::map<std::vector<std::string>, int> gramCandidates;
+	std::map<std::vector<std::string>, std::vector<int>> gramCandidates;
 	std::vector<std::string> gramWindow;
 	std::vector<icu::UnicodeString> grams;
 
@@ -119,6 +132,14 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	// for simplicity were going to just count every term (for caculating term frequency)
 	int gramcount=0;
 
+	rapidjson::Document docngrams;
+	docngrams.Parse("{}");
+	rapidjson::Document::AllocatorType& allocator = docngrams.GetAllocator();
+	rapidjson::Value raw_text(rapidjson::kArrayType);
+	rapidjson::Value unigrams(rapidjson::kObjectType);
+	rapidjson::Value bigrams(rapidjson::kObjectType);
+	rapidjson::Value trigrams(rapidjson::kObjectType);
+
 	while (p != icu::BreakIterator::DONE) {
 
 		gramcount++;
@@ -142,9 +163,13 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 		if (converted.empty()) {
 			continue;
 		}
-		
+
 //		UnicodeString uc = UnicodeString::fromUTF8(converted);
 //		grams.push_back(uc);
+
+//		pqxx::result r = txn.prepared("update_doc_text")(trim(converted).c_str())(id).exec();
+		rapidjson::Value k((trim(converted).c_str()), allocator);
+		raw_text.PushBack(k, allocator);
 
 		if ( std::find(ja_stop_words.begin(), ja_stop_words.end(), converted) != ja_stop_words.end() ) {
 			isStopWord = true;
@@ -163,12 +188,15 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 				stopholder[j].erase(stopholder[j].begin());
 			}
 			if (stopholder[j].back() == false && stopholder[j].at(0) == false) {
-				gramCandidates[gramholder[j]]++;
+				gramCandidates[gramholder[j]].push_back(gramcount);
 			}
 		}
 	}
+
+	std::cout << "deb e"<< std::endl;
 	
 	delete wordIterator;
+
 
 	//std::cout << "INFO : no. grams found " << gramPositions.size() << std::endl;
 	// I thought it would be better to do a double pass like this but it's about twice as slow unfortunately.
@@ -241,20 +269,10 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	//     the dark tower = dark tower
 	//     top of the morning to you = top of the morning
 	// 
-	rapidjson::Document docngrams;
-	docngrams.Parse("{}");
-	rapidjson::Document::AllocatorType& allocator = docngrams.GetAllocator();
 
-	/*
-	prepare_insert_unigram(*C, lang);
-	prepare_insert_bigram(*C, lang);
-	prepare_insert_trigram(*C, lang);
-	*/
-	// prepare_known_insert(*C);
-	//
-	
 	std::vector<int> term_incidence;
-	for (std::map<std::vector<std::string>, int>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
+	std::cout << "deb f"<< std::endl;
+	for (std::map<std::vector<std::string>, std::vector<int>>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
 		// only include grams where there is at least one occurrence.
 		// If you include all you get a balooned index.
 		// a second entity extraction pass should pick up anything missing.
@@ -273,8 +291,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 						gram += " ";
 					}
 				}
-				rapidjson::Value k((trim(gram).c_str()), allocator);
-				docngrams.AddMember(k, rapidjson::Value(git->second), allocator);
 				// Very large grams are relatively meaningless. The current database limit is 1024, but even that is big.
 				// I notices a lot of bad trigrams. 
 				// - For bigrams there need to be two or more occurrences.
@@ -283,32 +299,43 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 					bool isAdd = false;
 
 					Frag::Item frag_term;
-					if ((git->first).size() == 1 && git->second > 0) {
-						double tf = (double)git->second/sqrt(gramcount);
+					if ((git->first).size() == 1 && git->second.size() > 0) {
+						double tf = (double)git->second.size()/sqrt(gramcount);
 						frag_term.url_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
 						doc_unigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
+
+						rapidjson::Value k((trim(gram).c_str()), allocator);
+						unigrams.AddMember(k, rapidjson::Value(concat_positions(git->second).c_str(), allocator).Move(), allocator);
+//						pqxx::result d_ = txn.prepared("update_doc_unigrams")(trim(gram).c_str())(id).exec();
+//						pqxx::result e_ = txn.prepared("update_doc_unigram_p")(concat_positions(git->second).c_str())(id).exec();
 						isAdd = true;
 					}
-					if ((git->first).size() == 2 && git->second > 2) {
+					if ((git->first).size() == 2 && git->second.size() > 2) {
 						// unsure about this, should we compensate for fequency with ngrams..
 						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
-						double tf = (double)git->second/sqrt((gramcount));
+						double tf = (double)git->second.size()/sqrt((gramcount));
 						frag_term.url_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
 						doc_bigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
+
+						rapidjson::Value k((trim(gram).c_str()), allocator);
+						bigrams.AddMember(k, rapidjson::Value(concat_positions(git->second).c_str(), allocator).Move(), allocator);
 						isAdd = true;
 					}
 					// - Same for tri grams we need more occurrences to count them.
-					if ((git->first).size() > 2 && git->second > 2) {
+					if ((git->first).size() > 2 && git->second.size() > 2) {
 						// same as above.
-						double tf = (double)git->second/sqrt((gramcount));
+						double tf = (double)git->second.size()/sqrt((gramcount));
 						frag_term.url_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
 						doc_trigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
+
+						rapidjson::Value k((trim(gram).c_str()), allocator);
+						trigrams.AddMember(k, rapidjson::Value(concat_positions(git->second).c_str(), allocator).Move(), allocator);
 						isAdd = true;
 					}
 					if (isAdd == false) {
@@ -324,7 +351,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 						}
 					} 
 					if (isWord==true) {
-						term_incidence.push_back(git->second);
+						term_incidence.push_back(git->second.size());
 					}
 				} else {
 					continue;
@@ -357,35 +384,121 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 			}
 //		}
 	}
-	// function to measure simple quality.
+	std::cout << "deb g"<< std::endl;
+
+	// Function to measure simple quality.
+	// I need some kind of quality score, so we can differentiate noisy documents from good text.
+	// I'll say good text is prose, but of course we will want this to be customizable depending on the corpus.
+	// 
+	// I'm looking for a good default.. I figure if we can use term frequencies to determine what represents a 
+	// good document, that might be a good start. Say we try to find a good term frequency distribution that matches
+	// high quality prose, we could use that as a bases.
+	//
 	// zipfs law stats that the most frequent term should occur twice as many times as the second most frequent,
 	// Three times as much as the third and so on. Lets assume zipf's law represents a perfect document.
+	//
+	// And then lets not. I did some testing and on wikipedia it deviates A LOT from zipfs law.
+	// I thought it might be something with my indexing, so I got the complete works of shakespere
+	// Indexed it, and noticed that it also deviates hevily from zipfs law. What gives.
+	//
+	// I found another guy who did the same thing.. look at his graph
+	// https://fermibot.com/analysis-of-shakespeares-work-using-python-3/
+	// It's also deviating a lot.
+	//
+	// My understanding is that zipfs law is supposed to be log2, but it seems to be closer to ln.
+	//
 	// We try to calculate our deviation from zip's law and use this as an error margin. eg.
-	// 1 - (deviation from perfect distribution).
+	// We don't need to do the whole document, first 100 or 1000 terms or so should be enough.
+	// 
+	// I've made some additional modifications described below.
+	//
+	//
 	std::sort(term_incidence.rbegin(), term_incidence.rend());
-	// hack
-	// term_incidence.erase(std::unique(term_incidence.begin(), term_incidence.end()), term_incidence.end());
-	double z_deviation = 0.0;
+	
+	// METHOD 1
+	// using standard deviation method with natural log.
+	/*
+	double z_variance = 0.0;
 	for (std::vector<int>::iterator it = term_incidence.begin()+1; it != term_incidence.end(); it++ ) {
-	//	std::cout << "segmenter.cc : " << it - term_incidence.begin() +1 << " - incidence " << *it << std::endl;
+		std::cout << "*it " << *it << std::endl;
 		double r = (double)term_incidence.at(0) / *it;
-		double zdev = abs(r-(it-term_incidence.begin()+1))/(it-term_incidence.begin()+1);
-	//	std::cout << "segmented.cc r : " << r << " zdev : " << zdev << std::endl;
-		z_deviation += abs(r-zdev);
+		double ln = log(it-term_incidence.begin()+1);
+
+		double zdevsq = pow(abs(r-ln),2);
+		std::cout << "segmented.cc : r - " << r << std::endl;
+		std::cout << "segmented.cc : ln - " << ln << std::endl;
+		std::cout << "segmented.cc : zdevsq - " << zdevsq << std::endl;
+		z_variance += zdevsq;
+		if ((it-term_incidence.begin()+1) > 1000) {
+			z_variance = z_variance/1000;
+			break;
+		}
+		if (std::next(it) == term_incidence.end()) {
+			z_variance = z_variance/(it-term_incidence.begin()+1);
+			break;
+		}
 	}
-	z_deviation = z_deviation/term_incidence.size();
-	// std::cout << "z_deviation : " << z_deviation << std::endl;
-	double quality = 1-(1/z_deviation);
-	std::cout << "quality : " << quality << std::endl;
-	// atf = atf / (doc_unigram_map.size()+doc_bigram_map.size()+doc_trigram_map.size());
+	std::cout << "z_variance : " << z_variance << std::endl;
+	double quality;
+	if (z_variance>0) {
+		quality = 1/sqrt(z_variance);
+	} else {
+		quality = 0;
+	}
+	*/
+
+	// METHOD 2
+	// This seems to be kinda working, at least it's generally giving a higer score to more contextual documents.
+	// There are very few 'bad' mistakes and it's actually very similar to the zipf logic/
+	double z_variance = 0.0;
+	for (std::vector<int>::iterator it = term_incidence.begin()+1; it != term_incidence.end(); it++ ) {
+		std::cout << "*it " << *it << std::endl;
+		double r = (double)term_incidence.at(0) / *it;
+		double ln = log(it-term_incidence.begin()+1);
+		//double ln = it-term_incidence.begin()+1;
+
+		// for high quality documents it seems that the sqrt of the ratio r is quite close to
+		// the natural log.. actually surprisingly consistant.
+		double zdevsq = pow(r-ln,2);
+		// double zdevsq = pow(r-ln,2);
+		std::cout << "segmented.cc : r - " << r << std::endl;
+		std::cout << "segmented.cc : ln - " << ln << std::endl;
+		std::cout << "segmented.cc : zdevsq - " << zdevsq << std::endl;
+		z_variance += zdevsq;
+		if ((it-term_incidence.begin()+1) > 100) {
+			z_variance = z_variance/100;
+			break;
+		}
+		if (std::next(it) == term_incidence.end()) {
+			z_variance = z_variance/(it-term_incidence.begin()+1);
+			break;
+		}
+	}
+	std::cout << "z_variance : " << z_variance << std::endl;
+	double tdscore;
+	if (z_variance>0) {
+		// were not doing standard deviation this time.
+		// just normalize to sane values
+		tdscore = 1-(1/(sqrt(z_variance)));
+	} else {
+		tdscore = 0;
+	}
+
+	std::cout << "tdscore : " << tdscore << std::endl;
+	docngrams.AddMember("raw_text", raw_text, allocator);
+	docngrams.AddMember("unigrams", unigrams, allocator);
+	docngrams.AddMember("bigrams", bigrams, allocator);
+	docngrams.AddMember("trigrams", trigrams, allocator);
+
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
+	std::cout << "deb h"<< std::endl;
 
 	std::string docstable = "docs_" + lang;
-	std::string update = "UPDATE " + docstable + " SET (index_date, segmented_grams, quality) = (NOW(), $escape$"
+	std::string update = "UPDATE " + docstable + " SET (index_date, segmented_grams, tdscore) = (NOW(), $escape$"
 		+ (std::string)buffer.GetString()
-		+ "$escape$, " + std::to_string(quality) +") WHERE url='"
+		+ "$escape$, " + std::to_string(tdscore) +") WHERE url='"
 		+ url
 		+ "';";
 	txn.exec(update);
@@ -393,6 +506,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	txn.commit();
 	//std::cout << r.size() << std::endl;
 	std::cout << "INFO : indexed " << std::endl;
+	std::cout << "deb i"<< std::endl;
 
 }
 
@@ -450,5 +564,18 @@ void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {
 }
 
 void Segmenter::detokenize(std::vector<std::string> pieces, std::string text) {
+}
+
+std::string Segmenter::concat_positions(std::vector<int> pos) {
+	int x = 0;
+	std::string s;
+	for (const auto &p : pos) {
+		if (x > 0) {
+			s += ",";
+		}
+		s += std::to_string(p);
+		x++;
+	}
+	return s;
 }
 
