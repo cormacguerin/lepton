@@ -181,17 +181,18 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 
 	Result result;
 	result.query = query;
+	std::vector terms = query.getTerms();
 	for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
 		std::vector<std::string> docinfo = indexServer->getDocInfo(tit->url_id);
 		Result::Item item;
+		item.terms = indexServer->getTermPositions(tit->url_id, terms);
 		item.tf = tit->tf;
 		item.weight = tit->weight;
 		item.url_id = tit->url_id;
 		item.url = docinfo.at(0);
-		item.quality = atof(docinfo.at(1).c_str());
-		// this is some pretty shitty scoring.. It actaully seems to work well on wikipedia though.
-		item.score = item.quality*item.weight;
-		item.score = item.weight;
+		item.tdscore = atof(docinfo.at(1).c_str());
+		item.docscore = atof(docinfo.at(2).c_str());
+		item.score = item.docscore*item.weight;
 
 		// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
 		// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
@@ -203,20 +204,54 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 		[](const Result::Item& l, const Result::Item& r) {
 		return l.score > r.score;
 	});
+	result.items.resize(50);
 	promiseObj.set_value(result.serialize());
 }
 
 std::vector<std::string> IndexServer::getDocInfo(int url_id) {
 	pqxx::work txn(*C);
-	C->prepare("get_url","SELECT url,quality FROM docs_en WHERE id = $1");
+	C->prepare("get_url","SELECT url,tdscore,docscore FROM docs_en WHERE id = $1");
 	pqxx::result r = txn.prepared("get_url")(url_id).exec();
 	txn.commit();
 	const pqxx::field u = r.back()[0];
 	const pqxx::field q = r.back()[1];
+	const pqxx::field s = r.back()[2];
 	std::vector<std::string> docinfo;
 	docinfo.push_back(pqxx::to_string(u));
 	docinfo.push_back(pqxx::to_string(q));
+	docinfo.push_back(pqxx::to_string(s));
 	return docinfo;
+}
+
+std::map<std::string,std::vector<int>> IndexServer::getTermPositions(int url_id, std::vector<std::string> terms) {
+	std::string termstr;
+	pqxx::work txn(*C);
+	for (std::vector<std::string>::const_iterator it = terms.begin(); it != terms.end(); ++it) {
+		termstr += txn.quote(*it);
+		if (std::next(it) != terms.end()) {
+			termstr += ",";
+		}
+	}
+	C->prepare("get_positions","SELECT key, value FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id=$1 AND docterms.key IN ($2)");
+	pqxx::result r = txn.prepared("get_positions")(url_id)(termstr).exec();
+	txn.commit();
+	std::map<std::string,std::vector<int>> term_positions;
+	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+		const pqxx::field term = (row)[0];
+		const pqxx::field position = (row)[1];
+		std::string term_(term.c_str());
+
+		std::vector<int> positions;
+		stringstream sterm(position.c_str());
+
+		std::string p;
+		while (getline(sterm, p, ','))
+		{
+			positions.push_back(atoi(p.c_str()));
+		}
+		term_positions[term_] = positions;
+	}
+	return term_positions;
 }
 
 /*
@@ -237,14 +272,14 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 			// std::cout << "index_server.cc Found " << converted << std::endl;
 			// std::cout << "index_server.cc Debug " << urls->first << std::endl;
 
-			std::vector<Frag::Item>::const_iterator sit = urls->second.begin();
+			std::vector<Frag::Item>::const_iterator bit = urls->second.begin();
 			std::vector<Frag::Item>::const_iterator eit;
 			if (urls->second.size() > MAX_CANDIDATES_COUNT) {
 				eit = urls->second.begin() + MAX_CANDIDATES_COUNT;
 			} else {
 				eit = urls->second.end();
 			}
-			candidates=std::vector(sit,eit);
+			candidates=std::vector(bit,eit);
 		}
 	} else {
 		std::vector<Frag::Item> node_candidates;

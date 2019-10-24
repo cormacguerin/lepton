@@ -55,12 +55,15 @@ class Result {
 			icu::UnicodeString item;
 			std::map<Modifier, AttributeValue> mods;
 			double tf;
-			double quality;
 			double weight;
+			double tdscore;
+			double docscore;
 			double score;
 			int url_id;
 			std::string lang;
 			std::string url;
+			//std::vector<std::string> terms;
+			std::map<std::string,std::vector<int>> terms;
 			void updateResult();
 		};
 

@@ -29,6 +29,7 @@ class IndexServer {
 		std::unordered_map<std::string, std::map<int, Frag::Item>> bigramurls_map;
 		std::unordered_map<std::string, std::map<int, Frag::Item>> trigramurls_map;
 		std::vector<std::string> getDocInfo(int url_id);
+		std::map<std::string,std::vector<int>> getTermPositions(int url_id, std::vector<std::string> terms);
 		void loadIndex(std::string gram, std::string lang);
 		QueryBuilder queryBuilder;
 		const int MAX_CANDIDATES_COUNT = 1000;

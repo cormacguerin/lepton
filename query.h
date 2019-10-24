@@ -63,9 +63,12 @@ class Query {
 			std::string lang;
 
 			std::string serialize();
-			// internal worker function of the above.
 			void serialize_(rapidjson::Document &serialized_query);
 			void deserialize();
+
+			std::vector<std::string> getTerms();
+			void getTerms_(std::vector<std::string> &terms);
+
 			void updateQuery();
 			std::vector<Node> leafNodes;
 		};

@@ -116,7 +116,7 @@ void IndexManager::processFeeds(std::string lang) {
 void IndexManager::processDocInfo(std::string lang) {
 
 	// this statement calculates the idf
-	std::string statement = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id=$1 GROUP BY docterms.key) SELECT d.max * t.idf AS m FROM d INNER JOIN unigrams_en AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE docs_en SET docscore = (SELECT SUM(m)/COUNT(m) FROM v) WHERE id=$1";
+	std::string statement = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN unigrams_en AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE docs_en SET docscore = (SELECT score/freq FROM v) WHERE id = $1";
 
 	std::vector<int> b = GetDocscoreBatch(lang);
 

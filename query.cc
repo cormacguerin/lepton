@@ -82,6 +82,26 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 
 }
 
+std::vector<std::string> Query::Node::getTerms() {
+	std::vector<std::string> terms;
+	this->getTerms_(terms);
+	return terms;
+}
+
+void Query::Node::getTerms_(std::vector<std::string> &terms) {
+	std::cout << this->leafNodes.size() << std::endl;
+	std::cout << OperatorList[this->op] << std::endl;
+	if (this->op==Query::Operator::TERM) {
+		std::string converted;
+		this->term.term.toUTF8String(converted);
+		terms.push_back(converted);
+		// TODO also do non original terms.
+	}
+	for (std::vector<Query::Node>::iterator it = this->leafNodes.begin() ; it != this->leafNodes.end(); ++it) {
+		(*it).getTerms_(terms);
+	}
+}
+
 /*
  * Function to populate the query with the best candidate urls.
  * TODO: this just returns urls in order of the incidence of the term.
