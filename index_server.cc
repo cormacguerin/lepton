@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <ctime>
 #include "query.h"
-#include "result.h"
 #include "texttools.h"
 #include "dirent.h"
 
@@ -17,6 +16,7 @@ using namespace pqxx;
 
 IndexServer::IndexServer()
 {
+	q = 0;
 	init();
 }
 
@@ -179,34 +179,116 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 	std::vector<Frag::Item> candidates;
 	indexServer->addQueryCandidates(query, indexServer, candidates);
 
-	Result result;
+	std::vector<std::string> terms = query.getTerms();
+
+	Result result = indexServer->getResult(terms, candidates);
 	result.query = query;
-	std::vector terms = query.getTerms();
-	for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
-		std::vector<std::string> docinfo = indexServer->getDocInfo(tit->url_id);
-		Result::Item item;
-		item.terms = indexServer->getTermPositions(tit->url_id, terms);
-		item.tf = tit->tf;
-		item.weight = tit->weight;
-		item.url_id = tit->url_id;
-		item.url = docinfo.at(0);
-		item.tdscore = atof(docinfo.at(1).c_str());
-		item.docscore = atof(docinfo.at(2).c_str());
-		item.score = item.docscore*item.weight;
-
-		// std::cout << "index_server.cc : debug url id - " << it->url_id << std::endl;
-		// std::cout << "index_server.cc : debug c - " << pqxx::to_string(c) << std::endl;
-
-		result.items.push_back(item);
-	}
+	
 	// cScorer.score(&result);
 	std::sort(result.items.begin(), result.items.end(),
 		[](const Result::Item& l, const Result::Item& r) {
 		return l.score > r.score;
 	});
-	result.items.resize(50);
+	if (result.items.size() > 50) {
+		result.items.resize(50);
+	}
 	promiseObj.set_value(result.serialize());
 }
+
+Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates) {
+
+	Result result;
+
+	q++;
+	int p = 1;
+	std::string prepstr="(";
+	pqxx::work txn(*C);
+	for (std::vector<std::string>::const_iterator it = terms.begin(); it != terms.end(); ++it) {
+		p++;
+		prepstr += "$" + std::to_string(p);
+		if (std::next(it) != terms.end()) {
+			prepstr += ",";
+		}
+	}
+	prepstr += ")";
+	C->prepare("get_docinfo"+q,"SELECT url, tdscore, docscore, key, value FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id=$1 AND docterms.key IN " + prepstr);
+
+	std::map<std::string,std::vector<int>> term_positions;
+	std::vector<pqxx::result> pqxx_results;
+	for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
+		Result::Item item;
+		// item.terms = indexServer->getTermPositions(tit->url_id, terms);
+		item.tf = tit->tf;
+		item.weight = tit->weight;
+		item.url_id = tit->url_id;
+		result.items.push_back(item);
+
+		// pqxx::result r = txn.prepared("get_docinfo")(tit->url_id)(termstr).exec();
+		pqxx::prepare::invocation w_invocation = txn.prepared("get_docinfo"+q)(tit->url_id);
+		prep_dynamic(terms, w_invocation);
+		pqxx::result r = w_invocation.exec();
+
+		// C->prepare("get_docinfo","SELECT url,tdscore,docscore FROM docs_en WHERE id = $1");
+		// pqxx::result r = txn.prepared("get_docinfo")(tit->url_id).exec();
+
+		// pqxx_results.push_back(txn.prepared("get_docinfo")(tit->url_id).exec());
+
+		for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+			const pqxx::field u = (row)[0];
+			const pqxx::field q = (row)[1];
+			const pqxx::field s = (row)[2];
+
+			const pqxx::field term = (row)[3];
+			const pqxx::field position = (row)[4];
+
+			result.items.back().url = pqxx::to_string(u);
+			result.items.back().tdscore = atof(q.c_str());
+			result.items.back().docscore = atof(s.c_str());
+			result.items.back().score = atof(s.c_str()) * atof(q.c_str());
+
+			/*
+			std::string term_(term.c_str());
+
+			std::vector<int> positions;
+			stringstream sterm(position.c_str());
+
+			std::string p;
+			while (getline(sterm, p, ','))
+			{
+				positions.push_back(atoi(p.c_str()));
+			}
+			result.items.back().terms[term_] = positions;
+			*/
+		}
+	}
+	txn.commit();
+	/*
+	 * code if we were to buffer responses before processing.
+	int r = 0;
+	for (std::vector<pqxx::result>::const_iterator i = pqxx_results.begin(); i != pqxx_results.end(); ++i) {
+		for (pqxx::result::const_iterator row = i->begin(); row != i->end(); ++row) {
+			const pqxx::field u = (row)[0];
+			const pqxx::field q = (row)[1];
+			const pqxx::field s = (row)[2];
+			result.items.at(r).url = pqxx::to_string(u);
+			result.items.at(r).tdscore = atof(q.c_str());
+			result.items.at(r).docscore = atof(s.c_str());
+			result.items.at(r).score = atof(s.c_str()) * atof(q.c_str());
+			r++;
+		}
+	}
+	*/
+	return result;
+}
+
+
+pqxx::prepare::invocation& IndexServer::prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv)
+{
+    for(auto data_val : data)
+        inv(data_val);
+    return inv;
+}
+
 
 std::vector<std::string> IndexServer::getDocInfo(int url_id) {
 	pqxx::work txn(*C);

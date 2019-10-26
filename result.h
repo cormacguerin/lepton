@@ -62,7 +62,6 @@ class Result {
 			int url_id;
 			std::string lang;
 			std::string url;
-			//std::vector<std::string> terms;
 			std::map<std::string,std::vector<int>> terms;
 			void updateResult();
 		};
