@@ -54,6 +54,13 @@ void Frag::load() {
 		loadJsonFrag(filename);
 		// loadRawFrag(filename);
 
+		// get the size
+		frag_size = 0;
+		std::map<std::string, std::map<int, Frag::Item>>::iterator it;
+		for (it = frag_map.begin(); it != frag_map.end(); it++) {
+			frag_size+=it->second.size();
+		}
+
 		time_t aftertime = time(0);
 		double seconds = difftime(aftertime, beforetime);
 		if (fragment_id==0) {
@@ -217,16 +224,23 @@ void Frag::writeRawFrag(std::string filename) {
 }
 
 void Frag::writeJsonFrag(std::string filename) {
+	std::cout << "writeJsonFrag start" << std::endl;
 	std::string tmp_filename = filename;
 	tmp_filename.append("_");
 	rapidjson::Document d;
+	std::cout << "writeJsonFrag serialize_" << std::endl;
 	serialize_(d);
 	rapidjson::StringBuffer buffer;
+	std::cout << "writeJsonFrag writter(buffer)" << std::endl;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	std::cout << "writeJsonFrag ofstream d.Accept" << std::endl;
 	d.Accept(writer);
+	std::cout << "writeJsonFrag ofstream f tmp_filename" << std::endl;
 	std::ofstream f{tmp_filename};
+	std::cout << "writeJsonFrag buffer.GetString" << std::endl;
 	f << (std::string)buffer.GetString();
 	f.close();
+	std::cout << "writeJsonFrag clear" << std::endl;
 	buffer.Clear();
 
 	// finally rename the frag to it's proper name.
@@ -234,13 +248,15 @@ void Frag::writeJsonFrag(std::string filename) {
 }
 
 void Frag::serialize_(rapidjson::Document &serialized_frag) {
-	rapidjson::Document::AllocatorType& allocator = serialized_frag.GetAllocator();
 	serialized_frag.Parse("{}");
 
 	std::ostringstream strs;
 
 	std::map<std::string, std::map<int, Frag::Item>>::iterator it;
+	std::cout << "frag_map.size() " << frag_map.size() << std::endl;
 	for (it = frag_map.begin(); it != frag_map.end(); it++) {
+		rapidjson::Document::AllocatorType& allocator = serialized_frag.GetAllocator();
+		std::cout << " build json - " << it->first << " " << it->second.size() << std::endl;
 		rapidjson::Value fragItem_;
 		fragItem_.SetObject();
 		std::map<int, Frag::Item>::iterator tit;
@@ -253,11 +269,12 @@ void Frag::serialize_(rapidjson::Document &serialized_frag) {
 			fragItem_.AddMember(rapidjson::Value(const_cast<char*>(std::to_string(tit->first).c_str()), allocator).Move(), item_, allocator);
 		}
 		serialized_frag.AddMember(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), fragItem_, allocator);
+		// allocator.Clear();
 	}
 }
 
 size_t Frag::size() {
-	return frag_map.size();
+	return frag_size;
 }
 
 std::vector<std::string> Frag::getItemKeys() {
@@ -303,35 +320,21 @@ void Frag::addWeights(int num_docs) {
 			// std::cout << "frag.cc : weight value for item " << it->first << " in url id " << tit->first << " : " << tit->second.weight << std::endl;
 		}
 	}
+	txn.commit();
 
 	C->disconnect();
 	delete C;
-
-	txn.commit();
 }
 
 void Frag::insert(std::string s, std::map<int,Frag::Item> m) {
 	frag_map.insert(std::pair<std::string,std::map<int,Frag::Item>>(s,m));
+	frag_size += m.size();
 }
 
 void Frag::update(std::string s, std::map<int,Frag::Item> m) {
-	/*
-	std::cout << "frag.cc  - - - -   - - - -   - - - -  UPDATE SHARD " << id << " : WITH ["<< s << "]  - - - -   - - - -  - - - -  " << std::endl;
-	std::cout << "frag.cc before : " << std::endl;
-	std::map<int, Frag::Item>::iterator it;
-	for (it = frag_map.at(s).begin(); it != frag_map.at(s).end(); it++) {
-		std::cout << "frag.cc b - " << it->first << std::endl;
-	}
-	*/
-	// frag_map.at(s).insert(m.begin(), m.end());
+	frag_size -= frag_map[s].size();
 	frag_map[s].insert(m.begin(), m.end());
-	/*
-	std::cout << "frag.cc after : " << std::endl;
-	std::map<int, Frag::Item>::iterator it_;
-	for (it_ = frag_map.at(s).begin(); it_ != frag_map.at(s).end(); it_++) {
-		std::cout << "frag.cc a - " << it_->first << std::endl;
-	}
-	*/
+	frag_size += m.size();
 }
 
 std::string Frag::readFile(std::string filename) {

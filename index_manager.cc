@@ -102,6 +102,7 @@ void IndexManager::processFeeds(std::string lang) {
 	std::cout << "indexManager.cc : batch finished - sync remaining terms." << std::endl;
 	fragManager.syncFrags();
 	// merge frag fragments into frag.
+	
 	fragManager.mergeFrags(num_docs, lang);
 }
 
@@ -358,7 +359,7 @@ void IndexManager::updateIdf(std::string lang) {
 }
 
 void IndexManager::prepare_docscore_batch(pqxx::connection_base &c, std::string lang) {
-	c.prepare("docscore_batch", "SELECT id FROM docs_" + lang + " WHERE docscore IS NULL LIMIT 1000");
+	c.prepare("docscore_batch", "SELECT id FROM docs_" + lang + " WHERE docscore IS NULL AND segmented_grams IS NOT NULL LIMIT 1000");
 }
 
 void IndexManager::prepare_max_doc_id(pqxx::connection_base &c, std::string lang) {

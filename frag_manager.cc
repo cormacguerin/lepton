@@ -109,7 +109,9 @@ void FragManager::mergeFrags(int num_docs, std::string lang) {
 
 			if (this_frag_id!=frag_id) {
 				if (this_frag_id != 0) {
+					std::cout << " - - - addWeight - - - " << std::endl;
 					main_frag.get()->addWeights(num_docs);
+					std::cout << " - - - write - - - " << std::endl;
 					main_frag.get()->write();
 					std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
 				}

@@ -28,6 +28,7 @@ class Frag {
 
 		int frag_id;
 		int fragment_id;
+		int frag_size;
 
 		struct Item {
 			int url_id;
