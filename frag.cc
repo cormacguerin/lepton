@@ -4,24 +4,13 @@
 //#include <filesystem>
 #include "frag.h"
 #include "texttools.h"
+#include <pqxx/pqxx>
 #include <pqxx/strconv.hxx>
 
 rapidjson::Document serialized_frag;
 
 Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id) : prefix_type(), frag_id(), fragment_id()
 {
-	try {
-		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
-		if (C->is_open()) {
-			std::cout << "Opened database successfully: " << C->dbname() << std::endl;
-		} else {
-			std::cout << "Can't open database" << std::endl;
-		}
-	} catch (const std::exception &e) {
-		std::cerr << e.what() << std::endl;
-		exit;
-	}
-
 	prefix_type=type;
 	frag_id=_frag_id;
 	fragment_id = _fragment_id;
@@ -30,9 +19,6 @@ Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id) : prefix_type(), fra
 
 Frag::~Frag()
 {
-	std::cout << "cleanup" << std::endl;
-	C->disconnect();
-	delete C;
 }
 
 void Frag::load() {
@@ -288,6 +274,20 @@ std::vector<std::string> Frag::getItemKeys() {
  * idf is usually calculated as log(no. docs in corpus/no. of documents that contain the item)
  */
 void Frag::addWeights(int num_docs) {
+	pqxx::connection* C;
+
+	try {
+		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		if (C->is_open()) {
+			std::cout << "Opened database successfully: " << C->dbname() << std::endl;
+		} else {
+			std::cout << "Can't open database" << std::endl;
+		}
+	} catch (const std::exception &e) {
+		std::cerr << e.what() << std::endl;
+		exit;
+	}
+
 	pqxx::work txn(*C);
 	C->prepare("update_unigram_idf", "INSERT INTO unigrams_en (idf,gram) VALUES ($1,$2) ON CONFLICT "
 		       "ON CONSTRAINT unigrams_en_gram_key DO UPDATE SET idf = $1 WHERE unigrams_en.gram = $2");
@@ -303,6 +303,10 @@ void Frag::addWeights(int num_docs) {
 			// std::cout << "frag.cc : weight value for item " << it->first << " in url id " << tit->first << " : " << tit->second.weight << std::endl;
 		}
 	}
+
+	C->disconnect();
+	delete C;
+
 	txn.commit();
 }
 

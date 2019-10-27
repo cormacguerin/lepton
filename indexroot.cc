@@ -18,7 +18,7 @@ int main(int argc, char** argv)
 	indexManager.init();
 
 	for (vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); ++lit) {
-	//	indexManager.processFeeds(*lit);
+		indexManager.processFeeds(*lit);
 		indexManager.processDocInfo(*lit);
 	}
 

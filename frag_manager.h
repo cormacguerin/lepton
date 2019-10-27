@@ -33,7 +33,7 @@ class FragManager {
 		std::map<std::string, std::map<int, Frag::Item>> bigram_terms;
 		std::map<std::string, std::map<int, Frag::Item>> trigram_terms;
 		int FRAG_SIZE=10000;
-		int BATCH_SIZE=1000000;
+		int BATCH_SIZE=100000;
 		void loadLastFrag();
 		void loadFrags();
 		void saveFrags();
