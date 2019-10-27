@@ -192,8 +192,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 			}
 		}
 	}
-
-	std::cout << "deb e"<< std::endl;
 	
 	delete wordIterator;
 
@@ -271,16 +269,12 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	// 
 
 	std::vector<int> term_incidence;
-	std::cout << "deb f"<< std::endl;
 	for (std::map<std::vector<std::string>, std::vector<int>>::iterator git = gramCandidates.begin(); git != gramCandidates.end(); git++ ) {
 		// only include grams where there is at least one occurrence.
 		// If you include all you get a balooned index.
 		// a second entity extraction pass should pick up anything missing.
 //		if (git->second > 1) {
 			if (std::next(git) != gramCandidates.end()) {
-				// std::cout << " - - - - " << std::endl;
-				// std::cout << "current " << git->first << " " << git->second << std::endl;
-				// std::cout << "next " << std::next(git)->first << " " << std::next(git)->second << std::endl;
 				int nextlen = (std::next(git)->first).size();
 				int currentlen = (git->first).size();
 				// if the next match is longer maybe we should use that instead.
@@ -384,7 +378,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 			}
 //		}
 	}
-	std::cout << "deb g"<< std::endl;
 
 	// Function to measure simple quality.
 	// I need some kind of quality score, so we can differentiate noisy documents from good text.
@@ -452,7 +445,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	// There are very few 'bad' mistakes and it's actually very similar to the zipf logic/
 	double z_variance = 0.0;
 	for (std::vector<int>::iterator it = term_incidence.begin()+1; it != term_incidence.end(); it++ ) {
-		std::cout << "*it " << *it << std::endl;
 		double r = (double)term_incidence.at(0) / *it;
 		double ln = log(it-term_incidence.begin()+1);
 		//double ln = it-term_incidence.begin()+1;
@@ -461,9 +453,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 		// the natural log.. actually surprisingly consistant.
 		double zdevsq = pow(r-ln,2);
 		// double zdevsq = pow(r-ln,2);
-		std::cout << "segmented.cc : r - " << r << std::endl;
-		std::cout << "segmented.cc : ln - " << ln << std::endl;
-		std::cout << "segmented.cc : zdevsq - " << zdevsq << std::endl;
 		z_variance += zdevsq;
 		if ((it-term_incidence.begin()+1) > 100) {
 			z_variance = z_variance/100;
@@ -474,7 +463,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 			break;
 		}
 	}
-	std::cout << "z_variance : " << z_variance << std::endl;
 	double tdscore;
 	if (z_variance>0) {
 		// were not doing standard deviation this time.
@@ -484,7 +472,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 		tdscore = 0;
 	}
 
-	std::cout << "tdscore : " << tdscore << std::endl;
 	docngrams.AddMember("raw_text", raw_text, allocator);
 	docngrams.AddMember("unigrams", unigrams, allocator);
 	docngrams.AddMember("bigrams", bigrams, allocator);
@@ -493,7 +480,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
-	std::cout << "deb h"<< std::endl;
 
 	std::string docstable = "docs_" + lang;
 	std::string update = "UPDATE " + docstable + " SET (index_date, segmented_grams, tdscore) = (NOW(), $escape$"
@@ -504,9 +490,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	txn.exec(update);
 
 	txn.commit();
-	//std::cout << r.size() << std::endl;
-	std::cout << "INFO : indexed " << std::endl;
-	std::cout << "deb i"<< std::endl;
 
 }
 
