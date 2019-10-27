@@ -244,7 +244,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 			result.items.back().url = pqxx::to_string(u);
 			result.items.back().tdscore = atof(q.c_str());
 			result.items.back().docscore = atof(s.c_str());
-			result.items.back().score = atof(s.c_str()) * atof(q.c_str());
+			result.items.back().score = atof(s.c_str()) * result.items.back().weight;
 
 			/*
 			std::string term_(term.c_str());

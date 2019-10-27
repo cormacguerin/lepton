@@ -63,7 +63,7 @@ void FragManager::syncFrags() {
 			unigram_terms.erase(unigram_terms.begin());
 		} else {
 			unigram_frag_term_index.insert(std::pair<std::string,int>(unigram_terms.begin()->first, last_frag_id));
-			if (frags[last_frag_id].get()->size() == FRAG_SIZE) {
+			if (frags[last_frag_id].get()->size() == last_frag_id*500) {
 				// this frag is now full so write it's permanent index.
 				frags[last_frag_id].get()->writeIndex();
 				// increment the last/latest frag id and create a new frag for it.
