@@ -157,8 +157,15 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 }
 
 void IndexServer::execute(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj) {
+
+	time_t beforeload = time(0) * 1000;
+
 	std::thread th(search, lang, parsed_query, std::move(promiseObj), this, queryBuilder);
 	th.join();
+
+	time_t afterload = time(0) * 1000;
+	double seconds = difftime(afterload, beforeload);
+	std::cout << "index_server.cc search " << parsed_query << " executed in " << seconds << " seconds." << std::endl;
 }
 
 /*
@@ -200,7 +207,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 	Result result;
 
 	q++;
-	int p = 1;
+	int p = 0;
 	std::string prepstr="(";
 	pqxx::work txn(*C);
 	for (std::vector<std::string>::const_iterator it = terms.begin(); it != terms.end(); ++it) {
@@ -211,73 +218,91 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		}
 	}
 	prepstr += ")";
-	C->prepare("get_docinfo"+q,"SELECT url, tdscore, docscore, key, value FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id=$1 AND docterms.key IN " + prepstr);
 
-	std::map<std::string,std::vector<int>> term_positions;
-	std::vector<pqxx::result> pqxx_results;
+	std::map<int,int> c_map;
+	int x = 0;
+	std::string prepstr_="(";
 	for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
 		Result::Item item;
-		// item.terms = indexServer->getTermPositions(tit->url_id, terms);
 		item.tf = tit->tf;
 		item.weight = tit->weight;
 		item.url_id = tit->url_id;
 		result.items.push_back(item);
-
-		// pqxx::result r = txn.prepared("get_docinfo")(tit->url_id)(termstr).exec();
-		pqxx::prepare::invocation w_invocation = txn.prepared("get_docinfo"+q)(tit->url_id);
-		prep_dynamic(terms, w_invocation);
-		pqxx::result r = w_invocation.exec();
-
-		// C->prepare("get_docinfo","SELECT url,tdscore,docscore FROM docs_en WHERE id = $1");
-		// pqxx::result r = txn.prepared("get_docinfo")(tit->url_id).exec();
-
-		// pqxx_results.push_back(txn.prepared("get_docinfo")(tit->url_id).exec());
-
-		for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-			const pqxx::field u = (row)[0];
-			const pqxx::field q = (row)[1];
-			const pqxx::field s = (row)[2];
-
-			const pqxx::field term = (row)[3];
-			const pqxx::field position = (row)[4];
-
-			result.items.back().url = pqxx::to_string(u);
-			result.items.back().tdscore = atof(q.c_str());
-			result.items.back().docscore = atof(s.c_str());
-			result.items.back().score = atof(s.c_str()) * result.items.back().weight;
-
-			/*
-			std::string term_(term.c_str());
-
-			std::vector<int> positions;
-			stringstream sterm(position.c_str());
-
-			std::string p;
-			while (getline(sterm, p, ','))
-			{
-				positions.push_back(atoi(p.c_str()));
-			}
-			result.items.back().terms[term_] = positions;
-			*/
+		prepstr_ += std::to_string(tit->url_id);
+		if (std::next(tit) != candidates.end()) {
+			prepstr_ += ",";
 		}
+		c_map[item.url_id]=x;
+		x++;
+	}
+	prepstr_ += ")";
+
+	C->prepare("get_docinfo"+q,"SELECT id, url, tdscore, docscore, key, value FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN " + prepstr_ + " AND docterms.key IN " + prepstr);
+
+	std::map<std::string,std::vector<int>> term_positions;
+	std::vector<pqxx::result> pqxx_results;
+
+	pqxx::prepare::invocation w_invocation = txn.prepared("get_docinfo"+q);
+	prep_dynamic(terms, w_invocation);
+	pqxx::result r = w_invocation.exec();
+
+	int k = 0;
+	int m = 0;
+	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+		const pqxx::field i = (row)[0];
+		const pqxx::field u = (row)[1];
+		const pqxx::field q = (row)[2];
+		const pqxx::field s = (row)[3];
+		const pqxx::field term = (row)[4];
+		const pqxx::field position = (row)[5];
+
+		int id = c_map.at(atoi(i.c_str()));
+
+
+		result.items.at(id).url = pqxx::to_string(u);
+		result.items.at(id).tdscore = atof(q.c_str());
+		result.items.at(id).docscore = atof(s.c_str());
+		result.items.at(id).score = atof(s.c_str()) * result.items.at(id).weight;
+
+		std::string term_(term.c_str());
+
+		std::vector<int> positions;
+		stringstream sterm(position.c_str());
+
+		std::string p;
+		while (getline(sterm, p, ',')) {
+			positions.push_back(atoi(p.c_str()));
+		}
+		result.items.at(id).terms[term_] = positions;
 	}
 	txn.commit();
-	/*
-	 * code if we were to buffer responses before processing.
-	int r = 0;
-	for (std::vector<pqxx::result>::const_iterator i = pqxx_results.begin(); i != pqxx_results.end(); ++i) {
-		for (pqxx::result::const_iterator row = i->begin(); row != i->end(); ++row) {
-			const pqxx::field u = (row)[0];
-			const pqxx::field q = (row)[1];
-			const pqxx::field s = (row)[2];
-			result.items.at(r).url = pqxx::to_string(u);
-			result.items.at(r).tdscore = atof(q.c_str());
-			result.items.at(r).docscore = atof(s.c_str());
-			result.items.at(r).score = atof(s.c_str()) * atof(q.c_str());
-			r++;
+
+	// if this is the next url, the process the previous one testing for
+	// adjecent terms in multi terms queries and prioritize if necessary
+	for (std::vector<Result::Item>::iterator it = result.items.begin(); it != result.items.end(); ++it) {
+		std::cout << " - - - - - " << std::endl;
+		if (it->terms.size() > 1) {
+			for (std::vector<std::string>::const_iterator s = terms.begin(); s != terms.end(); ++s) {
+				if (std::next(s) == terms.end()) {
+					break;
+				}
+				std::map<std::string,std::vector<int>>::iterator xit = it->terms.find(*s);
+				std::map<std::string,std::vector<int>>::iterator yit = it->terms.find(*(std::next(s)));
+				if (xit!=it->terms.end() && yit!=it->terms.end()) {
+					for (std::vector<int>::iterator zit = it->terms.at(*s).begin(); zit != it->terms.at(*s).end(); zit++) {
+						std::cout << "next " << *zit << std::endl;
+						int w = std::count(it->terms.at(*(std::next(s))).begin(), it->terms.at(*(std::next(s))).end(), (*zit)+1);
+						w++;
+						it->score = it->score*w;
+					}
+					for (std::vector<int>::iterator rit = it->terms.at(*std::next(s)).begin(); rit != it->terms.at(*std::next(s)).end(); rit++) {
+						std::cout << "next " << *rit << std::endl;
+					}
+				}
+			}
 		}
 	}
-	*/
+
 	return result;
 }
 
@@ -422,3 +447,4 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 	}
 }
 
+bool isAdjacent (int i) { return ((i%2)==1); }
