@@ -15,7 +15,7 @@ class SearchResult extends React.Component {
 					<a href={this.props.url}>{this.props.url}</a>
 				</div>
 				<div className="debug">
-					<p><span>[weight : {this.props.weight}] [quality : {this.props.quality}] [score : {this.props.score}]</span></p>
+					<p><span>[weight : {this.props.weight}] [tdscore : {this.props.tdscore}] [docscore : {this.props.docscore}] [score : {this.props.score}]</span></p>
 				</div>
 			</React.Fragment>
 		);

@@ -40,7 +40,7 @@ class SearchBox extends React.Component {
 	execute(q) {
 		console.log(q);
 	//	$.get("https://35.239.29.200/search",
-		$.get("http://127.0.0.1:3000/search",
+		$.get("https://35.239.29.200/search",
 			{
 				"query": q
 			}, (data) => {
@@ -81,7 +81,8 @@ class SearchBox extends React.Component {
 									weight={result.weight}
 									idf={result.idf}
 									tf={result.tf}
-									quality={result.quality}
+									tdscore={result.tdscore}
+									docscore={result.docscore}
 									score={result.score}
 								></SearchResult>)
 						})}
