@@ -206,6 +206,10 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 
 	Result result;
 
+	if (candidates.empty()) {
+		return result;
+	}
+
 	q++;
 	int p = 0;
 	std::string prepstr="(";
@@ -246,8 +250,8 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 	prep_dynamic(terms, w_invocation);
 	pqxx::result r = w_invocation.exec();
 
-	int k = 0;
-	int m = 0;
+	int id = 0;
+	int last_id = 0;
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
 		const pqxx::field i = (row)[0];
 		const pqxx::field u = (row)[1];
@@ -256,8 +260,27 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		const pqxx::field term = (row)[4];
 		const pqxx::field position = (row)[5];
 
-		int id = c_map.at(atoi(i.c_str()));
+		id = c_map.at(atoi(i.c_str()));
 
+		//
+		if (id != last_id && result.items.at(last_id).terms.size() > 1) {
+			for (std::vector<std::string>::const_iterator s = terms.begin(); s != terms.end(); ++s) {
+				if (std::next(s) == terms.end()) {
+					break;
+				}
+				std::map<std::string,std::vector<int>>::iterator xit = result.items.at(last_id).terms.find(*s);
+				std::map<std::string,std::vector<int>>::iterator yit = result.items.at(last_id).terms.find(*(std::next(s)));
+				if (xit!=result.items.at(last_id).terms.end() && yit!=result.items.at(last_id).terms.end()) {
+					int w=1;
+					for (std::vector<int>::iterator zit = result.items.at(last_id).terms.at(*s).begin(); zit != result.items.at(last_id).terms.at(*s).end(); zit++) {
+						w += std::count(result.items.at(last_id).terms.at(*(std::next(s))).begin(), result.items.at(last_id).terms.at(*(std::next(s))).end(), (*zit)+1);
+					}
+					result.items.at(last_id).score += log(w);
+				}
+			}
+		}
+		last_id = id;
+		//
 
 		result.items.at(id).url = pqxx::to_string(u);
 		result.items.at(id).tdscore = atof(q.c_str());
@@ -279,8 +302,8 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 
 	// if this is the next url, the process the previous one testing for
 	// adjecent terms in multi terms queries and prioritize if necessary
+	/*
 	for (std::vector<Result::Item>::iterator it = result.items.begin(); it != result.items.end(); ++it) {
-	//	std::cout << " - - - - - " << std::endl;
 		if (it->terms.size() > 1) {
 			for (std::vector<std::string>::const_iterator s = terms.begin(); s != terms.end(); ++s) {
 				if (std::next(s) == terms.end()) {
@@ -291,17 +314,14 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 				if (xit!=it->terms.end() && yit!=it->terms.end()) {
 					int w=1;
 					for (std::vector<int>::iterator zit = it->terms.at(*s).begin(); zit != it->terms.at(*s).end(); zit++) {
-	//					std::cout << *s << " " << *zit << std::endl;
 						w += std::count(it->terms.at(*(std::next(s))).begin(), it->terms.at(*(std::next(s))).end(), (*zit)+1);
 					}
 					it->score += log(w);
-	//				for (std::vector<int>::iterator rit = it->terms.at(*std::next(s)).begin(); rit != it->terms.at(*std::next(s)).end(); rit++) {
-	//					std::cout << (*std::next(s)) << " " << *rit << std::endl;
-	//				}
 				}
 			}
 		}
 	}
+	*/
 
 	return result;
 }
