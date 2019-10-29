@@ -142,7 +142,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 
 	while (p != icu::BreakIterator::DONE) {
 
-		gramcount++;
 		bool isStopWord = false;
 		p = wordIterator->next();
 		std::string converted;
@@ -150,17 +149,19 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 		tmp.toUTF8String(converted);
 		l=p;
 		
+		// insert the vector occurrence position.
+		trimInPlace(converted);
+		if (converted.empty()) {
+			continue;
+		} else {
+			gramcount++;
+		}
+		
 		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
 		if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
 			continue;
 		}
 		if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
-			continue;
-		}
-		
-		// insert the vector occurrence position.
-		trimInPlace(converted);
-		if (converted.empty()) {
 			continue;
 		}
 
