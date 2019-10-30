@@ -140,9 +140,9 @@ void Frag::writeIndex() {
 	std::string filename;
 	if (prefix_type==Frag::Type::UNIGRAM){
 		filename = "index/unigram_";
-	} else if (prefix_type==Frag::Type::UNIGRAM){
+	} else if (prefix_type==Frag::Type::BIGRAM){
 		filename = "index/bigram_";
-	} else if (prefix_type==Frag::Type::UNIGRAM){
+	} else if (prefix_type==Frag::Type::TRIGRAM){
 		filename = "index/trigram_";
 	} else {
 		return;
@@ -182,9 +182,9 @@ void Frag::write() {
 	std::string filename;
 	if (prefix_type==Frag::Type::UNIGRAM){
 		filename = "index/unigram_";
-	} else if (prefix_type==Frag::Type::UNIGRAM){
+	} else if (prefix_type==Frag::Type::BIGRAM){
 		filename = "index/bigram_";
-	} else if (prefix_type==Frag::Type::UNIGRAM){
+	} else if (prefix_type==Frag::Type::TRIGRAM){
 		filename = "index/trigram_";
 	} else {
 		return;
@@ -301,10 +301,10 @@ void Frag::addWeights(int num_docs) {
 		gram = "unigrams";
 	} else if (prefix_type==Frag::Type::BIGRAM){
 		update_gram_idf = "update_bigram_idf";
-		gram = "unigrams";
+		gram = "bigrams";
 	} else if (prefix_type==Frag::Type::TRIGRAM){
 		update_gram_idf = "update_trigram_idf";
-		gram = "unigrams";
+		gram = "trigrams";
 	} else {
 		return;
 	}
