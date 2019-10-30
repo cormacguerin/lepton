@@ -1,11 +1,10 @@
-#include <sstream>
-#include <fstream>
 #include <iomanip>
 //#include <filesystem>
 #include "frag.h"
 #include "texttools.h"
 #include <pqxx/pqxx>
 #include <pqxx/strconv.hxx>
+#include "c_plus_plus_serializer.h"
 
 rapidjson::Document serialized_frag;
 
@@ -51,8 +50,8 @@ void Frag::load() {
 	std::ifstream ifs(filename);
 
 	if (ifs.good()) {
-		loadJsonFrag(filename);
-		// loadRawFrag(filename);
+		// loadJsonFrag(filename);
+		loadRawFrag(filename);
 
 		time_t aftertime = time(0);
 		double seconds = difftime(aftertime, beforetime);
@@ -75,6 +74,9 @@ void Frag::load() {
  * TODO : Sean to implement.
  */
 void Frag::loadRawFrag(std::string filename) {
+	std::ifstream in (filename);
+	in >> bits(frag_map);
+	in.close();
 }
 
 void Frag::loadJsonFrag(std::string filename) {
@@ -200,8 +202,8 @@ void Frag::write() {
 		fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
 		filename.append(fragment_id_string.str());
 	}
-	writeJsonFrag(filename);
-	// writeRawFrag(filename);
+	// writeJsonFrag(filename);
+	writeRawFrag(filename);
 
 	time_t aftertime = time(0);
 	double seconds = difftime(aftertime, beforetime);
@@ -210,17 +212,23 @@ void Frag::write() {
 	frag_map.clear();
 }
 
-/*
- * TODO : Sean to implement.
- */
 void Frag::writeRawFrag(std::string filename) {
+	std::string tmp_filename = filename;
+	tmp_filename.append("_");
+
+	std::ofstream f(tmp_filename,std::ios::out | std::ios::binary);
+	f << bits(frag_map) << "\n";
+	f.close();
+
+	rename(tmp_filename.c_str(),filename.c_str());
 }
 
 void Frag::writeJsonFrag(std::string filename) {
 	std::string tmp_filename = filename;
 	tmp_filename.append("_");
+
 	rapidjson::Document d;
-	serialize_(d);
+	serializeJSON(d);
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	d.Accept(writer);
@@ -229,14 +237,11 @@ void Frag::writeJsonFrag(std::string filename) {
 	f.close();
 	buffer.Clear();
 
-	// finally rename the frag to it's proper name.
 	rename(tmp_filename.c_str(),filename.c_str());
 }
 
-void Frag::serialize_(rapidjson::Document &serialized_frag) {
+void Frag::serializeJSON(rapidjson::Document &serialized_frag) {
 	serialized_frag.Parse("{}");
-
-	std::ostringstream strs;
 
 	std::map<std::string, std::map<int, Frag::Item>>::iterator it;
 	std::cout << "serialize_ frag_map.size() " << frag_map.size() << std::endl;
@@ -254,7 +259,6 @@ void Frag::serialize_(rapidjson::Document &serialized_frag) {
 			fragItem_.AddMember(rapidjson::Value(const_cast<char*>(std::to_string(tit->first).c_str()), allocator).Move(), item_, allocator);
 		}
 		serialized_frag.AddMember(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), fragItem_, allocator);
-		// allocator.Clear();
 	}
 }
 

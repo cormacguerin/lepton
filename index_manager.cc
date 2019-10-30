@@ -174,7 +174,6 @@ void IndexManager::indexDocument(string id, string dockey, string rawdoc, string
 	std::map<std::string, Frag::Item> doc_unigram_map;
 	std::map<std::string, Frag::Item> doc_bigram_map;
 	std::map<std::string, Frag::Item> doc_trigram_map;
-	std::cout << "deb A" << std::endl;
 	seg.parse(id, dockey, lang, decoded_doc_body, 
 		doc_unigram_map, doc_bigram_map, doc_trigram_map);
 	fragManager.addTerms(doc_unigram_map, doc_bigram_map, doc_trigram_map);

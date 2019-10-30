@@ -24,7 +24,6 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_unigrams,
 				std::map<std::string, Frag::Item> doc_trigrams) {
 
 	// add unigrams
-	std::cout << "deb B" << std::endl;
 	for (std::map<std::string, Frag::Item>::const_iterator it = doc_unigrams.begin(); it != doc_unigrams.end(); ++it) {
 		std::map<std::string, std::map<int, Frag::Item>>::iterator tit = unigram_terms.find(it->first);
 		if (tit != unigram_terms.end()) {
@@ -46,7 +45,6 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_unigrams,
 			syncFrags();
 		}
 	}
-	std::cout << "deb C" << std::endl;
 }
 
 // function to sync all index loaded terms to frags.
@@ -63,7 +61,7 @@ void FragManager::syncFrags() {
 			unigram_terms.erase(unigram_terms.begin());
 		} else {
 			unigram_frag_term_index.insert(std::pair<std::string,int>(unigram_terms.begin()->first, last_frag_id));
-			if (frags[last_frag_id].get()->size() == last_frag_id*500) {
+			if (frags[last_frag_id].get()->size() == last_frag_id*1000) {
 				// this frag is now full so write it's permanent index.
 				frags[last_frag_id].get()->writeIndex();
 				// increment the last/latest frag id and create a new frag for it.

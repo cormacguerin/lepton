@@ -8,6 +8,8 @@
 #include <vector>
 #include <memory>
 #include <iostream>
+#include <sstream>
+#include <fstream>
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
@@ -17,7 +19,6 @@
 // some notes
 
 class Frag {
-	private:
 
 	public:
 		enum Type { UNIGRAM=0, BIGRAM=1, TRIGRAM=2 };
@@ -38,7 +39,7 @@ class Frag {
 		std::map<std::string, std::map<int, Frag::Item>> frag_map;
 		std::vector<std::string> getItemKeys();
 
-		void serialize_(rapidjson::Document &serialized_frag);
+		void serializeJSON(rapidjson::Document &serialized_frag);
 		void write();
 		void writeJsonFrag(std::string filename);
 		void writeRawFrag(std::string filename);
@@ -53,6 +54,8 @@ class Frag {
 		//void addToIndex(phmap::parallel_flat_hash_map<std::string, phmap::flat_hash_map<int, Frag::Item>> &index);
 		void addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index);
 		std::string readFile(std::string filename);
+
+	private:
 
 };
 
