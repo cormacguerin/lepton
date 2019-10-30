@@ -1,11 +1,12 @@
 #include <iostream>
 #include "index_manager.h"
+#include "frag.h"
 
 using namespace std;
 
 std::string port = "3333";
 
-IndexManager indexManager;
+IndexManager indexManager(Frag::Type::UNIGRAM, Frag::Type::BIGRAM, Frag::Type::TRIGRAM);
 
 int main(int argc, char** argv)
 {

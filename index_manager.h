@@ -15,13 +15,15 @@ class IndexManager {
 	private:
 		// SentencePieceProcessor spp;
 		Segmenter seg;
-		FragManager fragManager;
 		pqxx::connection* C;
 		char SPS[4];
 		std::string SPC;
+		FragManager unigramFragManager;
+		FragManager bigramFragManager;
+		FragManager trigramFragManager;
 
 	public:
-		IndexManager();
+		IndexManager(Frag::Type u, Frag::Type b, Frag::Type t);
 		~IndexManager();
 		void quit( int code );
 		void init();

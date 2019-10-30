@@ -10,8 +10,8 @@ rapidjson::Document serialized_frag;
 
 Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id) : prefix_type(), frag_id(), fragment_id()
 {
-	prefix_type=type;
-	frag_id=_frag_id;
+	prefix_type = type;
+	frag_id = _frag_id;
 	fragment_id = _fragment_id;
 	load();
 }
@@ -24,9 +24,9 @@ void Frag::load() {
 	std::string filename;
 	if (prefix_type==Frag::Type::UNIGRAM){
 		filename = "index/unigram_";
-	} else if (prefix_type==Frag::Type::UNIGRAM){
+	} else if (prefix_type==Frag::Type::BIGRAM){
 		filename = "index/bigram_";
-	} else if (prefix_type==Frag::Type::UNIGRAM){
+	} else if (prefix_type==Frag::Type::TRIGRAM){
 		filename = "index/trigram_";
 	} else {
 		return;
@@ -294,13 +294,28 @@ void Frag::addWeights(int num_docs) {
 		exit;
 	}
 
+	std::string update_gram_idf;
+	std::string gram;
+	if (prefix_type==Frag::Type::UNIGRAM){
+		update_gram_idf = "update_unigram_idf";
+		gram = "unigrams";
+	} else if (prefix_type==Frag::Type::BIGRAM){
+		update_gram_idf = "update_bigram_idf";
+		gram = "unigrams";
+	} else if (prefix_type==Frag::Type::TRIGRAM){
+		update_gram_idf = "update_trigram_idf";
+		gram = "unigrams";
+	} else {
+		return;
+	}
+
 	pqxx::work txn(*C);
-	C->prepare("update_unigram_idf", "INSERT INTO unigrams_en (idf,gram) VALUES ($1,$2) ON CONFLICT "
-		       "ON CONSTRAINT unigrams_en_gram_key DO UPDATE SET idf = $1 WHERE unigrams_en.gram = $2");
+	C->prepare(update_gram_idf, "INSERT INTO " + gram + "_en (idf,gram) VALUES ($1,$2) ON CONFLICT "
+		       "ON CONSTRAINT " + gram + "_en_gram_key DO UPDATE SET idf = $1 WHERE "+ gram +"_en.gram = $2");
 	for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
 		// TODO store the idf somewhere also.
 		double idf = log((double)num_docs/(double)it->second.size());
-		pqxx::result r = txn.prepared("update_unigram_idf")(std::to_string(idf))(it->first.c_str()).exec();
+		pqxx::result r = txn.prepared(update_gram_idf)(std::to_string(idf))(it->first.c_str()).exec();
 		// each word item in the index has an idf value.
 		// std::cout << "frag.cc : idf value for item " << it->first << " : " << idf << std::endl;
 		// each item for each url has a weight value.

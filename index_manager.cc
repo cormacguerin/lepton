@@ -6,14 +6,14 @@
 #include <algorithm>
 #include <math.h>
 #include <pqxx/strconv.hxx>
+#include "frag.h"
 
 
 using namespace std;
 using namespace pqxx;
 
 
-IndexManager::IndexManager()
-{
+IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t) : unigramFragManager(u), bigramFragManager(b), trigramFragManager(t) {
 }
 
 IndexManager::~IndexManager()
@@ -21,6 +21,8 @@ IndexManager::~IndexManager()
 }
 
 void IndexManager::init() {
+
+
 	strcpy(SPS, "\xe2\x96\x81");
 	SPC = "~`!@#$%^&*()_-+=|\\}]{[\"':;?/>.<, ";
 	//char SPC = {'~', '`', '!', '@', '#' , '$', '%', '^', '&', '*', '(', ')', '_', '+', '|', '\\', '{', '}', ':', '"', '|', '<', '>', '?', '/', '.', ',', '\'', ';', ']', '[', '-', '='};
@@ -100,10 +102,14 @@ void IndexManager::processFeeds(std::string lang) {
 	}
 	// sync the remainder.
 	std::cout << "indexManager.cc : batch finished - sync remaining terms." << std::endl;
-	fragManager.syncFrags();
+	unigramFragManager.syncFrags();
+	bigramFragManager.syncFrags();
+	trigramFragManager.syncFrags();
 	// merge frag fragments into frag.
 	
-	fragManager.mergeFrags(num_docs, lang);
+	unigramFragManager.mergeFrags(num_docs, lang);
+	bigramFragManager.mergeFrags(num_docs, lang);
+	trigramFragManager.mergeFrags(num_docs, lang);
 }
 
 /*
@@ -117,21 +123,26 @@ void IndexManager::processFeeds(std::string lang) {
 void IndexManager::processDocInfo(std::string lang) {
 
 	// this statement calculates the idf
-	std::string statement = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN unigrams_en AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE docs_en SET docscore = (SELECT score/freq FROM v) WHERE id = $1";
+	
+	std::vector<std::string> grams = {"unigrams","bigrams","trigrams"};
+	for (std::vector<std::string>::const_iterator it = grams.begin(); it != grams.end(); it++) {
 
-	std::vector<int> b = GetDocscoreBatch(lang);
+		std::string statement = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM docs_en d, jsonb_each_text(d.segmented_grams->'" + *it + "') docterms WHERE d.id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN " + *it + "_en AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE docs_en SET docscore = (SELECT score/freq FROM v) WHERE id = $1";
 
-	while (b.size() > 0) {
-		std::cout << "b.size() " << b.size()  << std::endl;
-		pqxx::work txn(*C);
-		C->prepare("process_docscore_batch", statement);
-		for (std::vector<int>::iterator it = b.begin(); it != b.end(); it++) {
-			//std::cout << "id : " << *it << std::endl;
-			pqxx::result r = txn.prepared("process_docscore_batch")(*it).exec();
+		std::vector<int> b = GetDocscoreBatch(lang);
+
+		while (b.size() > 0) {
+			std::cout << "b.size() " << b.size()  << std::endl;
+			pqxx::work txn(*C);
+			C->prepare("process_docscore_batch", statement);
+			for (std::vector<int>::iterator it = b.begin(); it != b.end(); it++) {
+				//std::cout << "id : " << *it << std::endl;
+				pqxx::result r = txn.prepared("process_docscore_batch")(*it).exec();
+			}
+			txn.commit();
+			b.clear();
+			b = GetDocscoreBatch(lang);
 		}
-		txn.commit();
-		b.clear();
-		b = GetDocscoreBatch(lang);
 	}
 
 }
@@ -176,7 +187,9 @@ void IndexManager::indexDocument(string id, string dockey, string rawdoc, string
 	std::map<std::string, Frag::Item> doc_trigram_map;
 	seg.parse(id, dockey, lang, decoded_doc_body, 
 		doc_unigram_map, doc_bigram_map, doc_trigram_map);
-	fragManager.addTerms(doc_unigram_map, doc_bigram_map, doc_trigram_map);
+	unigramFragManager.addTerms(doc_unigram_map);
+	bigramFragManager.addTerms(doc_bigram_map);
+	trigramFragManager.addTerms(doc_trigram_map);
 }
 
 bool IndexManager::isSPS(char firstchar) {

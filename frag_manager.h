@@ -23,15 +23,12 @@
 
 class FragManager {
 	private:
+		Frag::Type frag_type;
 		// hash map of term strings to frag ids
-		// std::map<std::string, int> unigram_frag_term_index;
-		phmap::parallel_flat_hash_map<std::string, int> unigram_frag_term_index;
-		phmap::parallel_flat_hash_map<std::string, int> bigram_frag_term_index;
-		phmap::parallel_flat_hash_map<std::string, int> trigram_frag_term_index;
+		// std::map<std::string, int> gram_frag_term_index;
+		phmap::parallel_flat_hash_map<std::string, int> gram_frag_term_index;
 		// hash map of term strings to a map of doc ids term data
-		std::map<std::string, std::map<int, Frag::Item>> unigram_terms;
-		std::map<std::string, std::map<int, Frag::Item>> bigram_terms;
-		std::map<std::string, std::map<int, Frag::Item>> trigram_terms;
+		std::map<std::string, std::map<int, Frag::Item>> grams_terms;
 		int FRAG_SIZE=10000;
 		int BATCH_SIZE=100000;
 		void loadLastFrag();
@@ -44,13 +41,11 @@ class FragManager {
 
 	public:
 
-		FragManager();
+		FragManager(Frag::Type type);
 		~FragManager();
 
 		std::map<int,std::unique_ptr<Frag>> frags;
-		void addTerms(std::map<std::string, Frag::Item> doc_unigrams,
-			std::map<std::string, Frag::Item> doc_bigrams, 
-			std::map<std::string, Frag::Item> doc_trigrams);
+		void addTerms(std::map<std::string, Frag::Item> doc_grams);
 		void syncFrags();
 		void mergeFrags(int num_docs, std::string lang);
 

@@ -10,8 +10,9 @@
 #include <unordered_set>
 #include "dirent.h"
 
-FragManager::FragManager()
+FragManager::FragManager(Frag::Type type) : frag_type()
 {
+	frag_type = type;
 	loadFragIndex();
 }
 
@@ -19,14 +20,11 @@ FragManager::~FragManager()
 {
 }
 
-void FragManager::addTerms(std::map<std::string, Frag::Item> doc_unigrams,
-				std::map<std::string, Frag::Item> doc_bigrams,
-				std::map<std::string, Frag::Item> doc_trigrams) {
+void FragManager::addTerms(std::map<std::string, Frag::Item> doc_grams) {
 
-	// add unigrams
-	for (std::map<std::string, Frag::Item>::const_iterator it = doc_unigrams.begin(); it != doc_unigrams.end(); ++it) {
-		std::map<std::string, std::map<int, Frag::Item>>::iterator tit = unigram_terms.find(it->first);
-		if (tit != unigram_terms.end()) {
+	for (std::map<std::string, Frag::Item>::const_iterator it = doc_grams.begin(); it != doc_grams.end(); ++it) {
+		std::map<std::string, std::map<int, Frag::Item>>::iterator tit = grams_terms.find(it->first);
+		if (tit != grams_terms.end()) {
 			std::map<int, Frag::Item>::iterator iit = (tit->second).find((it->second).url_id);
 			if (iit != (tit->second).end()) {
 				(tit->second).at((it->second).url_id) = it->second;
@@ -36,12 +34,11 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_unigrams,
 		} else {
 			std::map<int,Frag::Item> termap;
 			termap.insert(std::pair<int,Frag::Item>((it->second).url_id,it->second));
-			unigram_terms.insert(std::pair<std::string,std::map<int,Frag::Item>>(it->first,termap));
+			grams_terms.insert(std::pair<std::string,std::map<int,Frag::Item>>(it->first,termap));
 		}
-		//std::cout << "unigram_terms.size(): " << unigram_terms.size() << std::endl;
-		if ((unigram_terms.size()+1)%BATCH_SIZE==0) {
-			std::cout << "frag_manager.cc : batch size reached unigram_terms.size() " << std::endl;
-			std::cout << "frag_manager.cc : unigram_terms.size() " << unigram_terms.size()+1 << std::endl;
+		//std::cout << "grams_terms.size(): " << grams_terms.size() << std::endl;
+		if ((grams_terms.size()+1)%BATCH_SIZE==0) {
+			std::cout << "frag_manager.cc : batch size reached grams_terms.size() " << grams_terms.size()+1 << std::endl;
 			syncFrags();
 		}
 	}
@@ -49,27 +46,27 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_unigrams,
 
 // function to sync all index loaded terms to frags.
 void FragManager::syncFrags() {
-	int syncsize = unigram_terms.size();
+	int syncsize = grams_terms.size();
 	time_t beforetime = time(0);
 	std::cout << "frag_manager.cc : begin syncFrags " << beforetime << std::endl;
 	// load / create frags for new insertions
 	loadFrags();
-	while (unigram_terms.size()>0) {
-		phmap::parallel_flat_hash_map<std::string, int>::iterator it = unigram_frag_term_index.find(unigram_terms.begin()->first);
-		if (it != unigram_frag_term_index.end()) {
-			frags[it->second].get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
-			unigram_terms.erase(unigram_terms.begin());
+	while (grams_terms.size()>0) {
+		phmap::parallel_flat_hash_map<std::string, int>::iterator it = gram_frag_term_index.find(grams_terms.begin()->first);
+		if (it != gram_frag_term_index.end()) {
+			frags[it->second].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
+			grams_terms.erase(grams_terms.begin());
 		} else {
-			unigram_frag_term_index.insert(std::pair<std::string,int>(unigram_terms.begin()->first, last_frag_id));
+			gram_frag_term_index.insert(std::pair<std::string,int>(grams_terms.begin()->first, last_frag_id));
 			if (frags[last_frag_id].get()->size() == last_frag_id*1000) {
 				// this frag is now full so write it's permanent index.
 				frags[last_frag_id].get()->writeIndex();
 				// increment the last/latest frag id and create a new frag for it.
 				last_frag_id = last_frag_id+1;
-				frags[last_frag_id] = std::make_unique<Frag>(Frag::Type::UNIGRAM, last_frag_id, 1);
+				frags[last_frag_id] = std::make_unique<Frag>(frag_type, last_frag_id, 1);
 			}
-			frags[last_frag_id].get()->insert(unigram_terms.begin()->first, unigram_terms.begin()->second);
-			unigram_terms.erase(unigram_terms.begin());
+			frags[last_frag_id].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
+			grams_terms.erase(grams_terms.begin());
 		}
 	}
 	frags[last_frag_id].get()->writeIndex();
@@ -77,7 +74,7 @@ void FragManager::syncFrags() {
 	time_t aftertime = time(0);
 	double seconds = difftime(aftertime, beforetime);
 	std::cout << "frag_manager.cc : syncFrags of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
-	std::cout << "frag_manager.cc : Index Term Size : "  << unigram_frag_term_index.size() << std::endl;
+	std::cout << "frag_manager.cc : Index Term Size : "  << gram_frag_term_index.size() << std::endl;
 }
 
 /*
@@ -87,7 +84,7 @@ void FragManager::syncFrags() {
  */
 void FragManager::mergeFrags(int num_docs, std::string lang) {
 
-	int syncsize = unigram_terms.size();
+	int syncsize = grams_terms.size();
 	time_t beforetime = time(0);
 
 	std::cout << "frag_manager.cc : begin mergeFrags " << beforetime << std::endl;
@@ -107,18 +104,16 @@ void FragManager::mergeFrags(int num_docs, std::string lang) {
 
 			if (this_frag_id!=frag_id) {
 				if (this_frag_id != 0) {
-					std::cout << " - - - addWeight - - - " << std::endl;
 					main_frag.get()->addWeights(num_docs);
-					std::cout << " - - - write - - - " << std::endl;
 					main_frag.get()->write();
 					std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
 				}
-				main_frag = std::make_unique<Frag>(Frag::Type::UNIGRAM,frag_id);
+				main_frag = std::make_unique<Frag>(frag_type,frag_id);
 			}
 			if (frag_string.find(".frag.")!=std::string::npos) {
 				int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
 				std::cout << "frag_manager.cc : frag " << frag_id << " : " << frag_part_id << " : " << *it << std::endl;
-				std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(Frag::Type::UNIGRAM,frag_id,frag_part_id);
+				std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type,frag_id,frag_part_id);
 				for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
 					main_frag.get()->update(it->first, it->second);
 				}
@@ -129,7 +124,7 @@ void FragManager::mergeFrags(int num_docs, std::string lang) {
 
 	/*
 	std::unordered_set<std::string> unigram_term_index;
-	for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=unigram_terms.begin(); it!=unigram_terms.end(); it++) {
+	for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=grams_terms.begin(); it!=grams_terms.end(); it++) {
 
 		if (unigram_term_index.find(it->first) != unigram_term_index.end()) {
 //			std::cout << "frag_manager.cc " << it->first  << " indexed" << std::endl;
@@ -137,57 +132,57 @@ void FragManager::mergeFrags(int num_docs, std::string lang) {
 		} else {
 //			std::cout << "frag_manager.cc " << it->first  << " not indexed" << std::endl;
 		}
-		phmap::parallel_flat_hash_map<std::string, int>::iterator iit = unigram_frag_term_index.find(it->first);
+		phmap::parallel_flat_hash_map<std::string, int>::iterator iit = gram_frag_term_index.find(it->first);
 
-		if (iit != unigram_frag_term_index.end()) {
+		if (iit != gram_frag_term_index.end()) {
 			
 			// std::cout << "Existing term " << it->first << " found in frag " << it->second << std::endl;
 			// load frag
-			Frag frag(Frag::Type::UNIGRAM, iit->second);
+			Frag frag(frag_type, iit->second);
 
 			// find and move / merge all terms into the frag.
 			std::vector<std::string> frag_keys = frag.getTermKeys();
 			int counter=0;
 			for (std::vector<std::string>::iterator kit=frag_keys.begin(); kit!=frag_keys.end(); kit++) {
-				std::map<std::string, std::map<int, Frag::Item>>::iterator tit = unigram_terms.find(*kit);
-				if (tit != unigram_terms.end()) {
+				std::map<std::string, std::map<int, Frag::Item>>::iterator tit = grams_terms.find(*kit);
+				if (tit != grams_terms.end()) {
 					// insert the term and data into the last frag.
 					frag.update(tit->first, tit->second);
 					// insert the frag number for the term to the index.
 					unigram_term_index.insert(tit->first);
 					// erase the completed terms
-					// unigram_terms.erase(tit++);
+					// grams_terms.erase(tit++);
 					counter++;
 				}
 			}
 			std::cout << "frag_manager.cc : " << counter << " url terms synced into frag " << frag.frag_id << std::endl;
 			// were should be finished with this frag, so write it.
 			frag.write();
-			std::cout << "frag_manager.cc : " << unigram_terms.size() << " terms left to sync." << std::endl;
+			std::cout << "frag_manager.cc : " << grams_terms.size() << " terms left to sync." << std::endl;
 		} else {
 			// this is a new term. find the next available frag.
 			if (last_frag.get()->size() == FRAG_SIZE) {
 			//	std::cout << "frag_manager.cc : max frag size reached, write this frag and create new." << std::endl;
 				last_frag.get()->write();
-				last_frag = std::make_unique<Frag>(Frag::Type::UNIGRAM, last_frag_id+1);
+				last_frag = std::make_unique<Frag>(frag_type, last_frag_id+1);
 			}
 			// insert the term and data into the last frag.
 			// std::cout << "frag_manager.cc : insert to last frag (" << last_frag.get()->id <<  ")" << it->first << " " << std::endl;
 
 			last_frag.get()->insert(it->first, it->second);
 			// insert the frag number for the term to the index.
-			unigram_frag_term_index.insert(std::pair<std::string,int>(it->first, last_frag.get()->frag_id));
+			gram_frag_term_index.insert(std::pair<std::string,int>(it->first, last_frag.get()->frag_id));
 			// remove the term from the current map
-			// unigram_terms.erase(unigram_terms.begin());
+			// grams_terms.erase(grams_terms.begin());
 		}
 	}
-	unigram_terms.clear();
+	grams_terms.clear();
 	// finially write our last (probably not full) frag.
 	last_frag.get()->write();
 	time_t aftertime = time(0);
 	double seconds = difftime(aftertime, beforetime);
 	std::cout << "frag_manager.cc : syncFrags of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
-	std::cout << "frag_manager.cc : Index Term Size : "  << unigram_frag_term_index.size() << std::endl;
+	std::cout << "frag_manager.cc : Index Term Size : "  << gram_frag_term_index.size() << std::endl;
 	*/
 }
 
@@ -197,7 +192,7 @@ void FragManager::loadFrags() {
 
 	if (index_files.empty()) {
 		std::cout << "no index files create new frag" << std::endl;
-		frags[1] = std::make_unique<Frag>(Frag::Type::UNIGRAM,1,1);
+		frags[1] = std::make_unique<Frag>(frag_type,1,1);
 		last_frag_id = 1;
 	} else {
 		// frag is .frag, frag_part is .0000* file
@@ -215,13 +210,13 @@ void FragManager::loadFrags() {
 			std::cout << "frag_id " << frag_id << std::endl;
 			std::cout << "frag_part_id " << frag_part_id << std::endl;
 			if (this_frag_id!=frag_id) {
-				frags[this_frag_id] = std::make_unique<Frag>(Frag::Type::UNIGRAM,this_frag_id,this_frag_part_id+1);
+				frags[this_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1);
 			}
 			this_frag_id=frag_id;
 			this_frag_part_id=frag_part_id;
 		}
 		last_frag_id=this_frag_id;
-		frags[last_frag_id] = std::make_unique<Frag>(Frag::Type::UNIGRAM,this_frag_id+1,this_frag_part_id+1);
+		frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id+1,this_frag_part_id+1);
 	}
 }
 
@@ -267,35 +262,24 @@ void FragManager::loadFragIndex() {
 					}
 				}
 
-				if (filename.find("unigram") != std::string::npos) {
+				std::string gram_type;
+				if (frag_type == Frag::Type::UNIGRAM) {
+					gram_type = "unigram";
+				} else if (frag_type == Frag::Type::BIGRAM) {
+					gram_type = "bigram";
+				} else if (frag_type == Frag::Type::TRIGRAM) {
+					gram_type = "trigram";
+				} else {return;}
+
+				if (filename.find(gram_type) != std::string::npos) {
 					for (rapidjson::Value::ConstMemberIterator jit = d.MemberBegin(); jit != d.MemberEnd(); ++jit) {
 						std::cout << "frag.cc term : " << jit->name.GetString() << std::endl;
 						for(const auto& field : d[jit->name.GetString()].GetArray()) {
-							unigram_frag_term_index.insert(std::pair<std::string,int>(field.GetString(), atoi(jit->name.GetString())));
-							// std::cout << "frag_manager.cc " << jit->name.GetString() <<  " : " << field.GetString() << std::endl;
+							gram_frag_term_index.insert(std::pair<std::string,int>(field.GetString(), atoi(jit->name.GetString())));
 						}
 					}
 				}
 
-				if (filename.find("bigram") != std::string::npos) {
-					for (rapidjson::Value::ConstMemberIterator jit = d.MemberBegin(); jit != d.MemberEnd(); ++jit) {
-						std::cout << "frag.cc term : " << jit->name.GetString() << std::endl;
-						for(const auto& field : d[jit->name.GetString()].GetArray()) {
-							bigram_frag_term_index.insert(std::pair<std::string,int>(field.GetString(), atoi(jit->name.GetString())));
-							// std::cout << "frag_manager.cc " << jit->name.GetString() <<  " : " << field.GetString() << std::endl;
-						}
-					}
-				}
-
-				if (filename.find("trigram") != std::string::npos) {
-					for (rapidjson::Value::ConstMemberIterator jit = d.MemberBegin(); jit != d.MemberEnd(); ++jit) {
-						std::cout << "frag.cc term : " << jit->name.GetString() << std::endl;
-						for(const auto& field : d[jit->name.GetString()].GetArray()) {
-							trigram_frag_term_index.insert(std::pair<std::string,int>(field.GetString(), atoi(jit->name.GetString())));
-							// std::cout << "frag_manager.cc " << jit->name.GetString() <<  " : " << field.GetString() << std::endl;
-						}
-					}
-				}
 			}
 		}
 		std::cout << "frag_manager.cc : index frag mapping loaded." << std::endl;
