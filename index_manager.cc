@@ -67,6 +67,7 @@ void IndexManager::processFeeds(std::string lang) {
 
 	int batch_position = 0;
 
+	/*
 	for (int i = 0; i <= max_doc_id; ) {
 		batch_position += batch_size;
 
@@ -106,10 +107,12 @@ void IndexManager::processFeeds(std::string lang) {
 	bigramFragManager.syncFrags();
 	trigramFragManager.syncFrags();
 	// merge frag fragments into frag.
+	*/
 	
+	// atually just running one merges all, todo, split it up.
 	unigramFragManager.mergeFrags(num_docs, lang);
-	bigramFragManager.mergeFrags(num_docs, lang);
-	trigramFragManager.mergeFrags(num_docs, lang);
+//	bigramFragManager.mergeFrags(num_docs, lang);
+//	trigramFragManager.mergeFrags(num_docs, lang);
 }
 
 /*
@@ -123,28 +126,79 @@ void IndexManager::processFeeds(std::string lang) {
 void IndexManager::processDocInfo(std::string lang) {
 
 	// this statement calculates the idf
+	std::cout << "index_manager.cc processDocInfo" << std::endl;
 	
-	std::vector<std::string> grams = {"unigrams","bigrams","trigrams"};
-	for (std::vector<std::string>::const_iterator it = grams.begin(); it != grams.end(); it++) {
+	std::vector<std::string> unibitri{"trigrams","bigrams","unigrams"};
 
-		std::string statement = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM docs_en d, jsonb_each_text(d.segmented_grams->'" + *it + "') docterms WHERE d.id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN " + *it + "_en AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE docs_en SET docscore = (SELECT score/freq FROM v) WHERE id = $1";
+	std::string update_doc_idf = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN unigrams_en AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE docs_en SET docscore = (SELECT score/freq FROM v) WHERE id = $1";
 
-		std::vector<int> b = GetDocscoreBatch(lang);
+	std::string update_doc_topics = "UPDATE docs_en SET topics = $1 WHERE id = $2";
 
-		while (b.size() > 0) {
-			std::cout << "b.size() " << b.size()  << std::endl;
-			pqxx::work txn(*C);
-			C->prepare("process_docscore_batch", statement);
-			for (std::vector<int>::iterator it = b.begin(); it != b.end(); it++) {
-				//std::cout << "id : " << *it << std::endl;
-				pqxx::result r = txn.prepared("process_docscore_batch")(*it).exec();
+	std::vector<int> b = GetDocscoreBatch(lang);
+
+	while (b.size() > 0) {
+		std::cout << "b.size() " << b.size()  << std::endl;
+		pqxx::work txn(*C);
+		for (std::vector<int>::iterator it_ = b.begin(); it_ != b.end(); it_++) {
+			C->prepare("process_docscore_batch", update_doc_idf);
+			C->prepare("process_topics_batch", update_doc_topics);
+			pqxx::result rds = txn.prepared("process_docscore_batch")(*it_).exec();
+
+			std::vector<std::pair<std::string,float>> grams;
+			std::map<std::string,std::vector<std::pair<std::string,float>>> unigrams;
+			float multiplier = 3.0;
+			for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
+				std::string gram_terms = "SELECT d.id, key, (CHAR_LENGTH(value)- CHAR_LENGTH(REPLACE(value, ',', '')))*" + *it + "_en.idf AS i FROM docs_en d, jsonb_each_text(d.segmented_grams->'"+*it+"') docterms INNER JOIN "+*it+"_en ON docterms.key="+*it+"_en.gram WHERE d.id = $1 ORDER BY i DESC LIMIT 30";
+				C->prepare("process_"+*it+"_batch", gram_terms);
+				pqxx::result rgt = txn.prepared("process_"+*it+"_batch")(*it_).exec();
+				for (pqxx::result::const_iterator row = rgt.begin(); row != rgt.end(); ++row) {
+					const pqxx::field gram = (row)[1];
+					const pqxx::field weight = (row)[2];
+					std::string t = std::string(gram.c_str());
+					float w = atof(weight.c_str())*multiplier;
+					bool add = true;
+					if (hasDigit(t)==false) {
+						std::cout << t << " - " << w << std::endl;
+						if (grams.empty()) {
+							grams.push_back(std::pair<std::string,float>(t,w));
+						}
+						for (std::vector<std::pair<std::string,float>>::iterator git = grams.begin(); git != grams.end(); git++) {
+							if (git->first.find(t) != std::string::npos) {
+								if (w < git->second) {
+									add=false;
+									std::cout << " - keep " << git->first << "(" << git->second << ") over " << t << "(" << w << ")" << std::endl;
+									break;
+								} else {
+									std::cout << " - swap " << git->first << "(" << git->second << ") for " << t << "(" << w << ")" << std::endl;
+									grams.erase(git--);
+								}
+							}
+						}
+						if (add==true) {
+							grams.push_back(std::pair<std::string,float>(t,w));
+						}
+					}
+				}
+				multiplier=multiplier-1.0;
 			}
-			txn.commit();
-			b.clear();
-			b = GetDocscoreBatch(lang);
+			std::sort(grams.begin(), grams.end(), [](auto &left, auto &right) {
+				return left.second < right.second;
+			});
+			std::string strarray = "";
+			for (std::vector<std::pair<std::string,float>>::iterator pit_ = grams.begin(); pit_ != grams.end(); pit_++) {
+				//std::cout << pit_->first << "  -  " << pit_->second << std::endl;
+				strarray += pit_->first;
+				if (std::next(pit_) != grams.end()) {
+					strarray += ",";
+				}
+			}
+			std::cout << *it_ <<  " : " << strarray << std::endl;
+			pqxx::result rgt = txn.prepared("process_topics_batch")(strarray)(*it_).exec();
 		}
+		txn.commit();
+		b.clear();
+		b = GetDocscoreBatch(lang);
 	}
-
 }
 
 /*
@@ -287,91 +341,8 @@ std::vector<int> IndexManager::GetDocscoreBatch(std::string lang) {
 	return b;
 }
 
-void IndexManager::updateNgramIdf(std::map<int, double> idfbatch, std::string gram, std::string lang) {
-	if (gram=="uni") {
-		prepare_update_unigram_idf(*C, lang);
-	} else if (gram=="bi") {
-		prepare_update_bigram_idf(*C, lang);
-	} else if (gram=="tri") {
-		prepare_update_trigram_idf(*C, lang);
-	} else {
-		return;
-	}
-	pqxx::work txn(*C);
-	for (std::map<int, double>::iterator it = idfbatch.begin(); it != idfbatch.end(); it++) {
-		pqxx::result r = txn.prepared("update_"+gram+"gram_idf")(it->second)(it->first).exec();
-	}
-	txn.commit();
-}
-
-/*
- * Run over all terms and populare the IDF(inverse document frequency) 
- * idf=log()
- */
-void IndexManager::updateIdf(std::string lang) {
-	//std::string ngrams[] = {"uni","bi","tri"};
-	std::string ngrams[] = {"uni","bi","tri"};
-	int num_docs;
-	int num_ngrams;
-	int max_ngram_id;
-	for (const string &ng : ngrams) {
-		int batch_position = 0;
-
-		if (ng=="uni") {
-			prepare_unigram_document_frequency(*C, lang);
-		} else if (ng=="bi") {
-			prepare_bigram_document_frequency(*C, lang);
-		} else if (ng=="tri") {
-			prepare_trigram_document_frequency(*C, lang);
-		}
-		std::cout << "indexManager.cc updateIdf processing for " << ng << "grams" << endl;;
-
-		getNumDocs(num_docs, lang);
-		getNumNgrams(num_ngrams, ng, lang);
-		getMaxNgramId(max_ngram_id, ng, lang);
-		std::cout << "num docs " << num_docs << std::endl;
-		std::cout << num_ngrams << " " << ng << "grams " << " with max id of " << max_ngram_id << std::endl;
-		if (num_ngrams == 0 || num_ngrams > max_ngram_id) {
-			std::cout << "Aborting update idf, not enough " << ng << "grams." << std::endl;
-			continue;
-		}
-		int batch_size = (max_ngram_id/num_ngrams)*1000;
-
-		for (int i = 0; i < max_ngram_id; ) {
-			batch_position += batch_size;
-			pqxx::work txn(*C);
-			std::cout << "db batch request started for between " << i << " and " << batch_position << std::endl;
-			pqxx::result r = txn.prepared(ng+"gram_document_frequency")(i)(batch_position).exec();
-			std::cout << "db batch request complete processing..";
-			pqxx::result::const_iterator last_iter = r.end();
-			last_iter--;
-			std::string insert_value;
-			std::map<int,double> idfbatch;
-			for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-				const pqxx::field gram_id = (row)[0];
-				const pqxx::field incidence = (row)[1];
-				double idf = log((double)num_docs/incidence.as<double>());
-				idfbatch.insert(std::pair<int,double>(gram_id.as<int>(),idf));
-				std::string this_value = "{" + gram_id.as<std::string>() + "," + to_string(idf) + "}";
-				insert_value += this_value;
-				if (row != last_iter) {
-					insert_value += ',';
-				}
-			}
-			txn.commit();
-			i = batch_position;
-			// pqxx::result r_ = txn.prepared(ng+"gram_document_frequency")(i)(batch_position).exec();
-			updateNgramIdf(idfbatch, ng, lang);
-			int complete = (int)((double)batch_position/(double)max_ngram_id);
-			if (complete > 1)
-				complete = 1;
-			std::cout << "Doc " << ng << "gram idf update " << complete*100 << "% complete" << std::endl;
-		}
-	}
-}
-
 void IndexManager::prepare_docscore_batch(pqxx::connection_base &c, std::string lang) {
-	c.prepare("docscore_batch", "SELECT id FROM docs_" + lang + " WHERE docscore IS NULL AND segmented_grams IS NOT NULL LIMIT 1000");
+	c.prepare("docscore_batch", "SELECT id FROM docs_" + lang + " WHERE segmented_grams IS NOT NULL AND topics IS NULL LIMIT 1000");
 }
 
 void IndexManager::prepare_max_doc_id(pqxx::connection_base &c, std::string lang) {
@@ -390,39 +361,6 @@ void IndexManager::prepare_max_trigram_id(pqxx::connection_base &c, std::string 
 	c.prepare("max_trigram_id", "SELECT MAX(id) FROM trigrams_" + lang);
 }
 
-void IndexManager::prepare_unigram_document_frequency(pqxx::connection_base &c, std::string lang) {
-	c.prepare("unigram_document_frequency",
-			"SELECT gram_id,count(url_id) FROM docunigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
-}
-
-void IndexManager::prepare_bigram_document_frequency(pqxx::connection_base &c, std::string lang) {
-	c.prepare("bigram_document_frequency",
-			"SELECT gram_id,count(url_id) FROM docbigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
-}
-
-void IndexManager::prepare_trigram_document_frequency(pqxx::connection_base &c, std::string lang) {
-	c.prepare("trigram_document_frequency",
-			"SELECT gram_id,count(url_id) FROM doctrigrams_" + lang + " WHERE (SELECT gram_id BETWEEN $1 AND $2) GROUP BY gram_id");
-}
-
-void IndexManager::prepare_update_unigram_idf(pqxx::connection_base &c, std::string lang) {
-	c.prepare("update_unigram_idf",
-		"WITH t as (UPDATE docunigrams_" + lang + " SET weight = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
-		"UPDATE unigrams_" + lang + " SET idf = $1 WHERE id = $2");
-}
-
-void IndexManager::prepare_update_bigram_idf(pqxx::connection_base &c, std::string lang) {
-	c.prepare("update_bigram_idf",
-		"WITH t as (UPDATE docbigrams_" + lang + " SET weight = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
-		"UPDATE bigrams_" + lang + " SET idf = $1 WHERE id = $2");
-}
-
-void IndexManager::prepare_update_trigram_idf(pqxx::connection_base &c, std::string lang) {
-	c.prepare("update_trigram_idf",
-		"WITH t as (UPDATE doctrigrams_" + lang + " SET weight = ($1 * tf) WHERE gram_id = $2 RETURNING gram_id) "
-		"UPDATE trigrams_" + lang + " SET idf = $1 WHERE id = $2");
-}
-
 void IndexManager::prepare_doc_count(pqxx::connection_base &c, std::string lang) {
 	c.prepare("doc_count", "SELECT COUNT(*) FROM docs_" + lang);
 }
@@ -437,5 +375,10 @@ void IndexManager::prepare_bigram_count(pqxx::connection_base &c, std::string la
 
 void IndexManager::prepare_trigram_count(pqxx::connection_base &c, std::string lang) {
 	c.prepare("trigram_count", "SELECT COUNT(*) FROM trigrams_" + lang);
+}
+
+bool IndexManager::hasDigit(const std::string& s)
+{
+	return std::any_of(s.begin(), s.end(), ::isdigit);
 }
 

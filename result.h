@@ -59,9 +59,12 @@ class Result {
 			double tdscore;
 			double docscore;
 			double score;
+			double wscore;
 			int url_id;
 			std::string lang;
 			std::string url;
+			std::string snippet;
+			std::string topics;
 			std::map<std::string,std::vector<int>> terms;
 			void updateResult();
 		};

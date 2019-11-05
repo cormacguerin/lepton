@@ -32,9 +32,6 @@ class IndexManager {
 		void prepare_unigram_count(pqxx::connection_base &c, std::string lang);
 		void prepare_bigram_count(pqxx::connection_base &c, std::string lang);
 		void prepare_trigram_count(pqxx::connection_base &c, std::string lang);
-		void prepare_update_unigram_idf(pqxx::connection_base &c, std::string lang);
-		void prepare_update_bigram_idf(pqxx::connection_base &c, std::string lang);
-		void prepare_update_trigram_idf(pqxx::connection_base &c, std::string lang);
 		void prepare_unigram_document_frequency(pqxx::connection_base &c, std::string lang);
 		void prepare_bigram_document_frequency(pqxx::connection_base &c, std::string lang);
 		void prepare_trigram_document_frequency(pqxx::connection_base &c, std::string lang);
@@ -47,12 +44,12 @@ class IndexManager {
 		void getNumDocs(int &count, std::string lang);
 		void getNumNgrams(int &count, std::string gram, std::string lang);
 		void getMaxNgramId(int &numm, std::string gram, std::string lang);
-		void updateNgramIdf(std::map<int, double> idfbatch, std::string gram, std::string lang);
 		void updateIdf(std::string lang);
 		void processFeeds(std::string lang);
 		void processDocInfo(std::string lang);
 		void exportVocab(std::string lang);
 		bool isSPS(char firstchar);
+		bool hasDigit(const std::string& s);
 		void indexDocument(std::string id, std::string key, std::string doc, std::string lang);
 		std::vector<int> GetDocscoreBatch(std::string lang);
 

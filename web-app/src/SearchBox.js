@@ -81,9 +81,11 @@ class SearchBox extends React.Component {
 									weight={result.weight}
 									idf={result.idf}
 									tf={result.tf}
-									tdscore={result.tdscore}
+									wscore={result.wscore}
 									docscore={result.docscore}
 									score={result.score}
+									topics={result.topics}
+									snippet={result.snippet}
 								></SearchResult>)
 						})}
 					</div> : 

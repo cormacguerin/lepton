@@ -25,14 +25,16 @@ class IndexServer {
 
 	private:
 		int q;
+		int x;
 		pqxx::connection* C;
 		pqxx::work* txn;
 		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> unigramurls_map;
-		std::unordered_map<std::string, std::map<int, Frag::Item>> bigramurls_map;
-		std::unordered_map<std::string, std::map<int, Frag::Item>> trigramurls_map;
+		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> bigramurls_map;
+		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> trigramurls_map;
 		std::vector<std::string> getDocInfo(int url_id);
 		std::map<std::string,std::vector<int>> getTermPositions(int url_id, std::vector<std::string> terms);
 		Result getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates);
+		void getResultInfo(Result& result);
 		pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
 		void loadIndex(std::string gram, std::string lang);
 		QueryBuilder queryBuilder;

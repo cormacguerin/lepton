@@ -1,6 +1,32 @@
 .result {
+	background-color: #e5edf5;
 	display: flex;
+	flex-direction: column;
 	justify-content: left;
+}
+
+.snippet {
+	background-color: #e5edf5;
+	justify-content: left;
+	text-align: left;
+	color: #333333;
+	padding: 10px;
+	border-radius: 3px;
+}
+
+.topics {
+	display: flex;
+	flex-wrap: wrap;
+	text-align: left;
+	justify-content: left;
+	padding: 10px;
+	color: #efefef;
+	background-color: #1d465d;
+}
+
+.topic {
+	margin-right: 10px;
+	font-weight: bold;
 }
 
 .debug {

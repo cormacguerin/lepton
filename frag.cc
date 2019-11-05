@@ -51,6 +51,7 @@ void Frag::load() {
 
 	if (ifs.good()) {
 		// loadJsonFrag(filename);
+		std::cout << "DEBUG load frag " << filename << std::endl;
 		loadRawFrag(filename);
 
 		time_t aftertime = time(0);
@@ -77,6 +78,13 @@ void Frag::loadRawFrag(std::string filename) {
 	std::ifstream in (filename);
 	in >> bits(frag_map);
 	in.close();
+	/*
+	for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
+		for (std::map<int, Frag::Item>::const_iterator vit = (it->second).begin() ; vit != (it->second).end(); ++vit) {
+			std::cout << filename << " : " << it->first << " : " << vit->first << " : " << (vit->second).url_id << std::endl;
+		}
+	}
+	*/
 }
 
 void Frag::loadJsonFrag(std::string filename) {

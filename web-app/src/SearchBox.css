@@ -7,6 +7,7 @@
 	-ms-flex-positive: 1;
 	flex-grow: 1;
 	max-width: 100%;
+	margin-bottom: 20px;
 }
 
 input.searchBox {
@@ -31,7 +32,8 @@ input.searchBox {
 }
 
 .searchButton {
-	width:40px;
+	width: 40px;
+	height: 40px;
 	margin-left: 20px;
 	background-image: url('lsearch.png');
 	cursor: pointer;

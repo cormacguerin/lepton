@@ -97,7 +97,7 @@ void FragManager::mergeFrags(int num_docs, std::string lang) {
 		int this_frag_id = 0;
 		std::unique_ptr<Frag> main_frag;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
-			std::cout << *it << std::endl;
+			std::cout << "fram_manager.cc merge " << *it << std::endl;
 
 			std::string frag_string = (*it).substr((*it).find('_')+1,(*it).length());
 			int frag_id = stoi(frag_string.substr(0, frag_string.find(".")));

@@ -164,6 +164,10 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 		if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
 			continue;
 		}
+		char specchars[] = "()-,'\"";
+		for (unsigned int i = 0; i < strlen(specchars); ++i) {
+			converted.erase (std::remove(converted.begin(), converted.end(), specchars[i]), converted.end());
+		}
 
 //		UnicodeString uc = UnicodeString::fromUTF8(converted);
 //		grams.push_back(uc);
@@ -193,7 +197,6 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 			}
 		}
 	}
-	
 	delete wordIterator;
 
 
@@ -444,6 +447,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	// METHOD 2
 	// This seems to be kinda working, at least it's generally giving a higer score to more contextual documents.
 	// There are very few 'bad' mistakes and it's actually very similar to the zipf logic/
+	/*
 	double z_variance = 0.0;
 	for (std::vector<int>::iterator it = term_incidence.begin()+1; it != term_incidence.end(); it++ ) {
 		double r = (double)term_incidence.at(0) / *it;
@@ -472,6 +476,8 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	} else {
 		tdscore = 0;
 	}
+	*/
+	double tdscore = 0;
 
 	docngrams.AddMember("raw_text", raw_text, allocator);
 	docngrams.AddMember("unigrams", unigrams, allocator);
@@ -483,10 +489,9 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	docngrams.Accept(writer);
 
 	std::string docstable = "docs_" + lang;
-	std::string update = "UPDATE " + docstable + " SET (index_date, segmented_grams, tdscore) = (NOW(), $escape$"
-		+ (std::string)buffer.GetString()
-		+ "$escape$, " + std::to_string(tdscore) +") WHERE url='"
-		+ url
+	std::string update = "UPDATE " + docstable + " SET (index_date, segmented_grams, tdscore) = (NOW(), "
+		+ "$escape$" + (std::string)buffer.GetString() + "$escape$, " 
+		+ std::to_string(tdscore) +") WHERE url='" + url 
 		+ "';";
 	txn.exec(update);
 
