@@ -346,23 +346,30 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		if (id != last_id && row!=r.begin()) {
 			double wscore = 1.0;
 			if (result.items.at(last_id).terms.size() > 1) {
+				// a distance variable that increases per stopword(as we don't store stopword posisions)
+				int d = 1;
+				std::string term;
 				for (std::vector<std::string>::const_iterator s = terms.begin(); s != terms.end(); ++s) {
 					if (std::next(s) == terms.end()) {
 						break;
 					}
-					std::map<std::string,std::vector<int>>::iterator xit = result.items.at(last_id).terms.find(*s);
+					if (*s  != "__SW__") {
+						term = *s;
+					}
+					if (*std::next(s)  == "__SW__") {
+						d++;
+						continue;
+					}
+					std::map<std::string,std::vector<int>>::iterator xit = result.items.at(last_id).terms.find(term);
 					std::map<std::string,std::vector<int>>::iterator yit = result.items.at(last_id).terms.find(*(std::next(s)));
 					if (xit!=result.items.at(last_id).terms.end() && yit!=result.items.at(last_id).terms.end()) {
-						for (std::vector<int>::iterator zit = result.items.at(last_id).terms.at(*s).begin(); zit != result.items.at(last_id).terms.at(*s).end(); zit++) {
-							wscore += std::count(result.items.at(last_id).terms.at(*(std::next(s))).begin(), result.items.at(last_id).terms.at(*(std::next(s))).end(), (*zit)+1);
+						for (std::vector<int>::iterator zit = result.items.at(last_id).terms.at(term).begin(); zit != result.items.at(last_id).terms.at(term).end(); zit++) {
+							wscore += std::count(result.items.at(last_id).terms.at(*(std::next(s))).begin(), result.items.at(last_id).terms.at(*(std::next(s))).end(), (*zit)+d);
 						}
 					}
+					d = 1;
 				}
-				wscore = wscore / terms.size();
-				wscore = log(wscore);
-			}
-			if (wscore <= 1.0) {
-				wscore = wscore / terms.size();
+				wscore = sqrt(wscore) / terms.size();
 			}
 			result.items.at(last_id).wscore = wscore;
 			result.items.at(last_id).score = result.items.at(last_id).score * wscore;

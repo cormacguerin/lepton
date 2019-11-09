@@ -95,6 +95,14 @@ void Query::Node::getTerms_(std::vector<std::string> &terms) {
 		std::string converted;
 		this->term.term.toUTF8String(converted);
 		terms.push_back(converted);
+		for (std::vector<std::pair<Modifier, AttributeValue>>::iterator it = this->term.mods.begin() ; it != this->term.mods.end(); ++it) {
+			if (it->first == Query::Modifier::STOPWORD) {
+				if (it->second.b == true) {
+					terms.pop_back();
+					terms.push_back("__SW__");
+				}
+			}
+		}
 		// TODO also do non original terms.
 	}
 	for (std::vector<Query::Node>::iterator it = this->leafNodes.begin() ; it != this->leafNodes.end(); ++it) {
