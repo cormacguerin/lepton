@@ -11,7 +11,6 @@ from io import BytesIO
 from io import StringIO
 from bs4 import BeautifulSoup
 from bs4.element import Comment
-from urlmatch import urlmatch
 from multiprocessing.dummy import Pool as ThreadPool
 
 #from urllib.parse import urlparse
@@ -97,10 +96,9 @@ def runCrawl(url):
 
 def urlMatch(url):
     for pattern in urlpatterns:
-        if urlmatch(pattern, url):
+        if re.match(r"%s" % pattern, url):
             return True;
-        else:
-            return False;
+    return False;
 
 
 def getDomain(url):

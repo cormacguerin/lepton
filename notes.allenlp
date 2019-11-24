@@ -1,0 +1,8 @@
+ - train a model
+~/.local/bin/allennlp train tutorials/getting_started/walk_through_allennlp/simple_tagger.json --serialization-dir /tmp/tutorials/getting_started
+ - test predict on command line
+~/.local/bin/allennlp predict model.tar.gz  input.txt
+ - run a server
+python3 -m allennlp.service.server_simple --archive-path model.tar.gz --predictor sentence-tagger --title "AllenNLP Tutorial" --field-name sentence --include-package tutorials.tagger.config_allennlp --port 8234
+ - send a request request , data request.json looks like this {"sentence": "I am reading a tutorial."}
+curl -H "Content-Type: application/json" -X POST --data "@request.json" '127.0.0.1:8234/predict'

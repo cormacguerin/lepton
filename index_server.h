@@ -39,6 +39,7 @@ class IndexServer {
 		void loadIndex(std::string gram, std::string lang);
 		QueryBuilder queryBuilder;
 		const int MAX_CANDIDATES_COUNT = 1000;
+		int getTime();
 
 };
 

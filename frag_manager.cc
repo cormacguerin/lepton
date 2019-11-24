@@ -108,6 +108,7 @@ void FragManager::mergeFrags(int num_docs, std::string lang) {
 					main_frag.get()->write();
 					std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
 				}
+				std::cout << "frag_manager.cc : main frag id : " << frag_id << std::endl;
 				main_frag = std::make_unique<Frag>(frag_type,frag_id);
 			}
 			if (frag_string.find(".frag.")!=std::string::npos) {
@@ -262,21 +263,10 @@ void FragManager::loadFragIndex() {
 					}
 				}
 
-				std::string gram_type;
-				if (frag_type == Frag::Type::UNIGRAM) {
-					gram_type = "unigram";
-				} else if (frag_type == Frag::Type::BIGRAM) {
-					gram_type = "bigram";
-				} else if (frag_type == Frag::Type::TRIGRAM) {
-					gram_type = "trigram";
-				} else {return;}
-
-				if (filename.find(gram_type) != std::string::npos) {
-					for (rapidjson::Value::ConstMemberIterator jit = d.MemberBegin(); jit != d.MemberEnd(); ++jit) {
-						std::cout << "frag.cc term : " << jit->name.GetString() << std::endl;
-						for(const auto& field : d[jit->name.GetString()].GetArray()) {
-							gram_frag_term_index.insert(std::pair<std::string,int>(field.GetString(), atoi(jit->name.GetString())));
-						}
+				for (rapidjson::Value::ConstMemberIterator jit = d.MemberBegin(); jit != d.MemberEnd(); ++jit) {
+					std::cout << "frag.cc term : " << jit->name.GetString() << std::endl;
+					for(const auto& field : d[jit->name.GetString()].GetArray()) {
+						gram_frag_term_index.insert(std::pair<std::string,int>(field.GetString(), atoi(jit->name.GetString())));
 					}
 				}
 
@@ -301,6 +291,15 @@ std::string FragManager::readFile(std::string filename) {
 
 std::vector<std::string> FragManager::getFiles(std::string path, std::string ext) {
 
+	std::string gram_type;
+	if (frag_type == Frag::Type::UNIGRAM) {
+		gram_type = "unigram";
+	} else if (frag_type == Frag::Type::BIGRAM) {
+		gram_type = "bigram";
+	} else if (frag_type == Frag::Type::TRIGRAM) {
+		gram_type = "trigram";
+	}
+
 	struct dirent *entry;
 	DIR *dp;
 
@@ -314,7 +313,7 @@ std::vector<std::string> FragManager::getFiles(std::string path, std::string ext
 	std::vector<std::string> index_files;
 	while (entry = readdir(dp)) {
 		std::string e_(entry->d_name);
-		if ((e_.find(ext) != std::string::npos)) {
+		if ((e_.find(ext) != std::string::npos) && (e_.find(gram_type) != std::string::npos)) {
 			index_files.push_back(entry->d_name);
 		}
 	}

@@ -8,6 +8,7 @@
 #include "query.h"
 #include "texttools.h"
 #include "dirent.h"
+#include <chrono>
 
 
 using namespace std;
@@ -49,7 +50,7 @@ void IndexServer::init() {
 
 void IndexServer::loadIndex(std::string ng, std::string lang) {
 
-	time_t beforeload = time(0);
+	time_t beforeload = getTime();
 	std::cout << "loading index... (this might take a while)." << std::endl;
 
 
@@ -147,7 +148,7 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	}
 	txn.commit();
 	*/
-	time_t afterload = time(0);
+	time_t afterload = getTime();
 	double seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc finished loading " << ng << "gram " << lang << " index in " << seconds << " seconds." << std::endl;
 	/*
@@ -159,12 +160,12 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 
 void IndexServer::execute(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj) {
 
-	time_t beforeload = time(0) * 1000;
+	time_t beforeload = getTime();
 
 	std::thread th(search, lang, parsed_query, std::move(promiseObj), this, queryBuilder);
 	th.join();
 
-	time_t afterload = time(0) * 1000;
+	time_t afterload = getTime();
 	double seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc search " << parsed_query << " executed in " << seconds << " miliseconds." << std::endl;
 }
@@ -186,25 +187,25 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 	// queueRewrite->otherServlet.addOther();
 	// indexServer->retrieveResults();
 	// indexServer->resolveQuery(query, indexServer);
-	time_t beforeload = time(0) * 1000;
+	time_t beforeload = indexServer->getTime();
 	std::vector<Frag::Item> candidates;
 	indexServer->addQueryCandidates(query, indexServer, candidates);
-	time_t afterload = time(0) * 1000;
+	time_t afterload = indexServer->getTime();
 	double seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc gatherd " << candidates.size() << " candidates for " << parsed_query << " in " << seconds << " miliseconds." << std::endl;
 
 	std::vector<std::string> terms = query.getTerms();
 
-	beforeload = time(0) * 1000;
+	beforeload = indexServer->getTime();
 	Result result = indexServer->getResult(terms, candidates);
 	result.query = query;
-	afterload = time(0) * 1000;
+	afterload =indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc getResult " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
 	std::cout << "result size " << result.items.size() << std::endl;
 	
 	// cScorer.score(&result);
-	beforeload = time(0) * 1000;
+	beforeload = indexServer->getTime();
 	std::sort(result.items.begin(), result.items.end(),
 		[](const Result::Item& l, const Result::Item& r) {
 		return l.score > r.score;
@@ -212,13 +213,13 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 	if (result.items.size() > 50) {
 		result.items.resize(50);
 	}
-	afterload = time(0) * 1000;
+	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc sort and resize " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
 
-	beforeload = time(0) * 1000;
+	beforeload = indexServer->getTime();
 	indexServer->getResultInfo(result);
-	afterload = time(0) * 1000;
+	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc getResultInfo " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
 
@@ -229,6 +230,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
  * Get the snippet, metadata, topics etc.
  */
 void IndexServer::getResultInfo(Result& result) {
+	/*
 	if (result.items.empty()) {
 		return;
 	}
@@ -261,13 +263,31 @@ void IndexServer::getResultInfo(Result& result) {
 
 		result.items.at(id).topics = topics;
 		result.items.at(id).snippet = snippet;
-		/*
-		std::cout << result.items.at(id).url << std::endl;
-		std::cout << result.items.at(id).topics << std::endl;
-		std::cout << result.items.at(id).snippet << std::endl;
-		*/
 	}
+*/
+	if (result.items.empty()) {
+		return;
+	}
+
+
+	pqxx::work txn(*C);
+	C->prepare("get_docinfo_deep", "SELECT id, topics, (WITH S AS (SELECT jsonb_array_elements_text(segmented_grams->'raw_text') AS snippet FROM docs_en WHERE id=D.id OFFSET 50 ROWS LIMIT 100) SELECT string_agg(snippet, ' ') FROM S) FROM docs_en AS D WHERE id = $1");
+	for (std::vector<Result::Item>::iterator tit = result.items.begin(); tit != result.items.end(); ++tit) {
+		pqxx::result r = txn.prepared("get_docinfo_deep")(tit->url_id).exec();
+		const pqxx::field i = r.back()[0];
+		const pqxx::field t = r.back()[1];
+		const pqxx::field s = r.back()[2];
+
+		std::string topics = std::string(t.c_str());
+		std::string snippet = std::string(s.c_str());
+		tit->topics = topics;
+		tit->snippet = snippet;
+	}
+
+	txn.commit();
+
 }
+
 
 Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates) {
 
@@ -326,9 +346,15 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 	prep_dynamic(terms, w_invocation);
 	pqxx::result r = w_invocation.exec();
 
+	time_t beforeload = getTime();
+	time_t getResultTime = 0;
+
 	int id = 0;
 	int last_id = 0;
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+
+		time_t beforeload_ = getTime();
+
 		const pqxx::field i = (row)[0];
 		const pqxx::field u = (row)[1];
 		const pqxx::field q = (row)[2];
@@ -364,15 +390,30 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 					std::map<std::string,std::vector<int>>::iterator yit = result.items.at(last_id).terms.find(*(std::next(s)));
 					if (xit!=result.items.at(last_id).terms.end() && yit!=result.items.at(last_id).terms.end()) {
 						for (std::vector<int>::iterator zit = result.items.at(last_id).terms.at(term).begin(); zit != result.items.at(last_id).terms.at(term).end(); zit++) {
-							wscore += std::count(result.items.at(last_id).terms.at(*(std::next(s))).begin(), result.items.at(last_id).terms.at(*(std::next(s))).end(), (*zit)+d);
+							int c = std::count(result.items.at(last_id).terms.at(*(std::next(s))).begin(), result.items.at(last_id).terms.at(*(std::next(s))).end(), (*zit)+d);
+							// if there is no score add a demote. why?
+							// say you search for massachusetts institute of technology
+							// you will get a lot of promotions for instute of technology
+							// eg. tokyo instutute of technology. this might be unwanted.
+							if (c == 0) {
+								wscore = wscore * 0.5;
+							} else {
+								wscore += std::count(result.items.at(last_id).terms.at(*(std::next(s))).begin(), result.items.at(last_id).terms.at(*(std::next(s))).end(), (*zit)+d);
+							}
 						}
 					}
+					// wscore += wp;
 					d = 1;
 				}
-				wscore = sqrt(wscore) / terms.size();
+				wscore = sqrt(wscore);
 			}
 			result.items.at(last_id).wscore = wscore;
 			result.items.at(last_id).score = result.items.at(last_id).score * wscore;
+
+			time_t afterload_ = getTime();
+			double seconds = difftime(afterload_, beforeload_);
+			getResultTime += seconds;
+			std::cout << "index_server.cc : result  " << last_id << " processed in " << seconds << std::endl;
 		}
 		last_id = id;
 
@@ -387,7 +428,17 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		}
 		result.items.at(id).terms[term_] = positions;
 	}
+	std::cout << "index_server.cc : getResult  processed in " << getResultTime << std::endl;
 	txn.commit();
+	time_t afterload = getTime();
+	double seconds = difftime(afterload, beforeload);
+	std::cout << "index_server.cc : results time : " << seconds << std::endl;
+	
+	beforeload = getTime();
+	txn.commit();
+	afterload = getTime();
+	seconds = difftime(afterload, beforeload);
+	std::cout << "index_server.cc : commit time : " << seconds << std::endl;
 
 	// if this is the next url, the process the previous one testing for
 	// adjecent terms in multi terms queries and prioritize if necessary
@@ -492,8 +543,8 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 
 		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
 		if (urls != indexServer->unigramurls_map.end()) {
-			/*
 			std::cout << "index_server.cc Found " << urls->first << std::endl;
+			/*
 			for (std::vector<Frag::Item>::const_iterator it = (urls->second).begin() ; it != (urls->second).end(); ++it) {
 				std::cout << "index_server.cc - at " << (urls->second).begin() - it << " : " << it->url_id << std::endl;
 			}
@@ -568,3 +619,10 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 }
 
 bool isAdjacent (int i) { return ((i%2)==1); }
+
+int IndexServer::getTime() {
+	return std::chrono::duration_cast<std::chrono::milliseconds>(
+		std::chrono::system_clock::now().time_since_epoch()
+	).count();
+}
+

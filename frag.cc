@@ -10,9 +10,13 @@ rapidjson::Document serialized_frag;
 
 Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id) : prefix_type(), frag_id(), fragment_id()
 {
+	std::cout << "A fragment_id " << fragment_id << std::endl;
+	std::cout << "A _fragment_id " << _fragment_id << std::endl;
 	prefix_type = type;
 	frag_id = _frag_id;
 	fragment_id = _fragment_id;
+	std::cout << "B fragment_id " << fragment_id << std::endl;
+	std::cout << "B _fragment_id " << _fragment_id << std::endl;
 	load();
 }
 
@@ -343,7 +347,19 @@ void Frag::insert(std::string s, std::map<int,Frag::Item> m) {
 }
 
 void Frag::update(std::string s, std::map<int,Frag::Item> m) {
+	//std::cout << "frag_map.size() " << frag_map.size() << std::endl;
+	/*
+	for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
+		std::cout << " deb : " << it->second.size() << std::endl;
+	}
+	*/
+	//std::cout << "s " << s <<std::endl;
 	frag_map[s].insert(m.begin(), m.end());
+	/*
+	for (std::map<int, Frag::Item>::iterator it = m.begin(); it != m.end(); ++it) {
+		frag_map[s].insert(std::pair<int, Frag::Item>(m->first, m->second);
+	}
+	*/
 }
 
 std::string Frag::readFile(std::string filename) {

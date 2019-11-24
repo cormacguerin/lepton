@@ -67,7 +67,6 @@ void IndexManager::processFeeds(std::string lang) {
 
 	int batch_position = 0;
 
-	/*
 	for (int i = 0; i <= max_doc_id; ) {
 		batch_position += batch_size;
 
@@ -107,12 +106,10 @@ void IndexManager::processFeeds(std::string lang) {
 	bigramFragManager.syncFrags();
 	trigramFragManager.syncFrags();
 	// merge frag fragments into frag.
-	*/
-	
 	// atually just running one merges all, todo, split it up.
 	unigramFragManager.mergeFrags(num_docs, lang);
-//	bigramFragManager.mergeFrags(num_docs, lang);
-//	trigramFragManager.mergeFrags(num_docs, lang);
+	bigramFragManager.mergeFrags(num_docs, lang);
+	trigramFragManager.mergeFrags(num_docs, lang);
 }
 
 /*
