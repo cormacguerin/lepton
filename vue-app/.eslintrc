@@ -1,0 +1,8 @@
+{
+	"parser": "babel-eslint",
+	"rules": {
+		"parser": "babel-eslint",
+		"no-console": "off",
+		"vue/max-attributes-per-line": "warn"
+	}
+}

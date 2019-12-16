@@ -13,6 +13,7 @@
   "dependencies": {
     "@polymer/iron-ajax": "^3.0.1",
     "@polymer/lit-element": "^0.7.1",
+    "@vue/cli": "^4.1.1",
     "async": "^2.6.0",
     "body-parser": "^1.18.2",
     "cookie-parser": "^1.4.3",
@@ -23,6 +24,8 @@
     "pg": "^7.4.3",
     "polymer-cli": "^1.9.11",
     "redis": "^2.8.0",
+    "vue": "^2.6.10",
+    "vue-flex": "^2.1.2",
     "webcomponentsjs": "^1.0.2"
   },
   "repository": {
