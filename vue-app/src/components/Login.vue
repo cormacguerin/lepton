@@ -1,10 +1,13 @@
 <template>
-  <flex-row class="loginBox">
+  <flex-col
+    justify="center"
+    class="loginBox"
+  >
     <input
-      v-model="input.username"
+      v-model="input.email"
       class="inputBox"
       type="text"
-      name="username"
+      name="email"
       placeholder="Username"
     >
     <input
@@ -15,12 +18,20 @@
       placeholder="Password"
     >
     <button
+      class="buttonBox"
       type="button"
       @click="login()"
     >
       Login
     </button>
-  </flex-row>
+    <button
+      class="buttonBox"
+      type="button"
+      @click="register()"
+    >
+      Register
+    </button>
+  </flex-col>
 </template>
 
 <script>
@@ -37,22 +48,56 @@ export default {
   data () {
     return {
       input: {
-        username: '',
+        email: '',
         password: ''
       }
     }
   },
   methods: {
     login () {
-      if (this.input.username != '' && this.input.password != '') {
-        if (this.input.username == this.$parent.account.username && this.input.password == this.$parent.account.password) {
-          this.$emit('authenticated', true)
-          this.$router.replace({ name: 'secure' })
-        } else {
-          console.log('Incorrect username and / or password.')
-        }
+      var vm = this
+      if (vm.input.email !== '' && vm.input.password !== '') {
+        vm.$axios.post('https://35.239.29.200/login/', {
+          email: vm.input.email,
+          password: vm.input.password
+        })
+          .then(function (response) {
+            if (vm.input.email && vm.input.password) {
+              vm.$emit('authenticated', true)
+              vm.reload()
+            //  this.$router.replace({ name: 'secure' })
+            } else {
+              console.log('Incorrect email and / or password.')
+            }
+          })
+          .catch(function (error) {
+            console.log(error)
+          })
       } else {
-        console.log('Please enter a username and password.')
+        console.log('Please enter a email and password.')
+      }
+    },
+    register () {
+      var vm = this
+      console.log(this.input)
+      if (this.input.email !== '' && this.input.password !== '') {
+        this.$axios.post('https://35.239.29.200/register/', {
+          email: this.input.email,
+          password: this.input.password
+        })
+          .then(function (response) {
+            if (vm.input.email && vm.input.password) {
+              this.$emit('authenticated', true)
+            //  this.$router.replace({ name: 'secure' })
+            } else {
+              console.log('Incorrect email and / or password.')
+            }
+          })
+          .catch(function (error) {
+            console.log(error)
+          })
+      } else {
+        console.log('Please enter a email and password.')
       }
     }
   }
@@ -74,5 +119,27 @@ li {
 }
 a {
     color: #42b983;
+}
+input.inputBox {
+    margin: 5px;
+    height: 30px;
+    padding: 5px;
+    outline: 0;
+    border: 1px solid #efefef;
+    border-radius: 3px;
+}
+button.buttonBox {
+    margin: 5px;
+    height: 40px;
+    padding: 5px;
+    border-style: none;
+    border-radius: 3px;
+    background-color: #022548;
+    color: white;
+}
+.loginBox {
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
 }
 </style>

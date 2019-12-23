@@ -7,9 +7,13 @@ var cookieParser = require('cookie-parser');
 
 var bodyParser = require('body-parser');
 
+var langparser = require('accept-language-parser');
+
 var async = require('async');
 
-//var request = require('./api/restrequest');
+var user = require('./api/user.js');
+
+user.loadExistingSessions();
 
 const url = require('url');
 
@@ -43,6 +47,43 @@ app.all('*', function(req, res, next) {
 	res.header("Access-Control-Allow-Origin", "*");
 	res.header("Access-Control-Allow-Headers", "X-Requested-With");
 	next();
+});
+
+app.post('/login', function(req, res, next) {
+	user.login(req, res, next);
+});
+app.post('/register', function(req, res, next) {
+	user.register(req, res, next);
+});
+app.get('/api/getUserInfo', function(req,res,next) {
+	// get language and locale
+	var language;
+	var region;
+	var languages = langparser.parse(req.headers["accept-language"]);
+	console.log('req.headers["accept-language"] ' + req.headers["accept-language"]);
+	console.log('languages');
+	console.log(languages);
+	if (languages[0]) {
+		if (languages[0].code) {
+			language=languages[0].code;
+		}
+		if (languages[0].region) {
+			region=languages[0].region.toLowerCase();
+		}
+	}
+	if (languages[1]) {
+		if (languages[1].code && !language) {
+			language=languages[1].code;
+		}
+		if (languages[1].region && !region) {
+			region=languages[1].region.toLowerCase();
+		}
+	}
+	req.language = language;
+	req.region = region;
+	user.authorize(req, res, function() {
+		user.getUserInfo(req, res);
+	});
 });
 
 /*
