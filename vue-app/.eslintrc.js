@@ -1,6 +1,4 @@
 module.exports = {
-    rules: {
-        'no-console': 'off',
-    	'vue/max-attributes-per-line': 'warn'
-  	}
-};
+  extends: ['vue', 'standard', 'plugin:vue/recommended'],
+  plugins: ['import', 'vue']
+}

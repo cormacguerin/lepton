@@ -62,12 +62,13 @@ export default {
           password: vm.input.password
         })
           .then(function (response) {
-            if (vm.input.email && vm.input.password) {
-              vm.$emit('authenticated', true)
-              vm.reload()
-            //  this.$router.replace({ name: 'secure' })
-            } else {
-              console.log('Incorrect email and / or password.')
+            if (response.data) {
+              if (response.data.authorized === true) {
+                vm.$emit('authenticated', true)
+                location.reload()
+              } else {
+                console.log('Incorrect email and / password.')
+              }
             }
           })
           .catch(function (error) {

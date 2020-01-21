@@ -12,6 +12,7 @@ var langparser = require('accept-language-parser');
 var async = require('async');
 
 var user = require('./api/user.js');
+var data = require('./api/data.js');
 
 user.loadExistingSessions();
 
@@ -55,14 +56,29 @@ app.post('/login', function(req, res, next) {
 app.post('/register', function(req, res, next) {
 	user.register(req, res, next);
 });
+app.get('/api/getDatabases', function(req,res,next) {
+	data.getDatabases(function(d) {
+    res.json(d);
+  });
+});
+app.get('/api/getTables', function(req,res,next) {
+  var queryData = url.parse(req.url, true).query;
+	data.getTables(queryData.database, function(d) {
+    res.json({d});
+  });
+});
+app.get('/api/getTableSchema', function(req,res,next) {
+  var queryData = url.parse(req.url, true).query;
+	data.getTableSchema(queryData.database, queryData.table, function(d) {
+    res.json({d});
+  });
+});
 app.get('/api/getUserInfo', function(req,res,next) {
 	// get language and locale
 	var language;
 	var region;
 	var languages = langparser.parse(req.headers["accept-language"]);
 	console.log('req.headers["accept-language"] ' + req.headers["accept-language"]);
-	console.log('languages');
-	console.log(languages);
 	if (languages[0]) {
 		if (languages[0].code) {
 			language=languages[0].code;
@@ -386,8 +402,10 @@ app.get('/', function(req, res, next) {
 });
 */
 
+app.use('/data/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/visualize/', express.static(__dirname + '/vue-app/dist/'));
+
 // web root
-//app.use('/', express.static(__dirname + '/web-app/build/'));
 app.use('/', express.static(__dirname + '/vue-app/dist/'));
 
 // start the server.

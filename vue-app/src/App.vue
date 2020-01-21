@@ -1,36 +1,51 @@
 <template>
   <div id="app">
-    <img
-      alt="Vue logo"
-      src="./assets/logo.png"
-    >
     <div v-if="userinfo.authorized === false">
+      <img
+        alt="logo"
+        src="./assets/bblogo_color_small.png"
+      >
       <Login msg="Login" />
     </div>
     <div v-else>
-      <div>logged in</div>
+      <ControlPanel msg="ControlPanel" />
+      <router-view />
     </div>
   </div>
 </template>
 
 <script>
 import Login from './components/Login.vue'
+import ControlPanel from './components/ControlPanel.vue'
 
 export default {
   name: 'App',
   components: {
-    Login
+    Login,
+    ControlPanel
   },
   data () {
     return {
       userinfo: {
-        authorized: false,
+        authorized: '',
         language: '',
         region: ''
       }
     }
   },
-  beforeMount () {
+  watch: {
+    $route (to, from) {
+      this.show = false
+      console.log('to')
+      console.log(to)
+      console.log('from')
+      console.log(from)
+      console.log('this.$route')
+      console.log(this.$route)
+      console.log(' - - - ')
+    }
+  },
+  created () {
     this.getUserInfo()
   },
   methods: {
@@ -62,6 +77,6 @@ export default {
     -moz-osx-font-smoothing: grayscale;
     text-align: center;
     color: #2c3e50;
-    margin-top: 60px;
+    background-color: white;
 }
 </style>

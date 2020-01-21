@@ -1,0 +1,40 @@
+DROP TABLE IF EXISTS users CASCADE;
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(1024) UNIQUE,
+    default_view VARCHAR(8),
+    account_status VARCHAR(16),
+    role VARCHAR(16),
+    lang VARCHAR(16),
+    confirm_code VARCHAR(16),
+    color_code VARCHAR(16),
+    password VARCHAR(1024),
+    username VARCHAR(1024),
+    realname VARCHAR(1024),
+    account_type VARCHAR(32),
+    facebook_user_id VARCHAR(64),
+    facebook_info VARCHAR(2048),
+    organization_code INTEGER,
+    created_date BIGINT
+);
+
+DROP TABLE IF EXISTS user_clients CASCADE;
+CREATE TABLE user_clients (
+    user_id INT4 NOT NULL REFERENCES users (id),
+    client_id VARCHAR(16),
+    success VARCHAR(16),
+    created_date BIGINT,
+    active_date BIGINT,
+    token VARCHAR(128),
+    message VARCHAR(128),
+    PRIMARY KEY (user_id, client_id)
+);
+
+DROP TABLE IF EXISTS mail_queue CASCADE;
+CREATE TABLE mail_queue (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(1024),
+    mail_content jsonb,
+    status VARCHAR(64)
+);
+

@@ -32,7 +32,18 @@ make
  sudo make install
 
 
-# install postgres and add the schema in the server directory
+# install postgres create databases and add the schema in the server directory
+# in psql
+CREATE DATABASE admin;
+CREATE DATABASE index;
+# or as postgres user
+create db admin
+create db index
+
+# then run the schemas in server/ for each
+# connect with psql -d admin
+# you need to update the password in ./password with whatever is the psql postgres password
+
 # install nodejs and run node lepton.js
 
  - testing indexing api.
