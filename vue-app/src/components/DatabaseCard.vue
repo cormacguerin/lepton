@@ -58,28 +58,26 @@
               variant="outline"
               square
               size="sm"
-              @click="addColumnModal = true"
+              @click="editColumn(item)"
             >
               edit
             </CButton>
             <CModal
-              title="Add Data"
+              title="Edit Column"
               color="info"
-              :show.sync="addColumnModal"
+              :show.sync="editColumnModal"
             >
               <EditColumn
                 :key="index"
-                :column="item"
-              >
-                index
-              </EditColumn>
+                :column="editColumnData"
+              />
             </CModal>
           </td>
         </template>
         <nav aria-label="pagination">
           <ul class="pagination" />
         </nav>
-        <template #under-table="addCoumn">
+        <template #under-table="addColumn">
           <div class="addColumn">
             <CButton
               class="btn active"
@@ -142,12 +140,18 @@ export default {
       ],
       selected: '',
       collapse: false,
-      addColumnModal: false
+      addColumnModal: false,
+      editColumnModal: false,
+      editColumnData: null
     }
   },
   created () {
   },
   methods: {
+    editColumn (item) {
+      this.editColumnModal = true
+      this.editColumnData = item
+    },
     getTableSchema (table) {
       console.log(table)
       if (this.collapse === true) {

@@ -1,6 +1,8 @@
 <template>
-  <div class="card">
-    {{ column }}
+  <div>
+    {{ columnName }}
+    {{ dataType }}
+    {{ characterMaximumLength }}
   </div>
 </template>
 <script>
@@ -13,23 +15,43 @@ export default {
     column: {
       type: Object,
       default: function () {
-        return {
-          column_name: '',
-          data_type: '',
-          character_maximum_length: ''
-        }
+        return {}
       }
     }
   },
   data () {
     return {
+      column_name: '',
+      data_type: '',
+      character_maximum_length: ''
+    }
+  },
+  computed: {
+    columnName: function () {
+      if (this.column) {
+        return this.column.column_name
+      } else {
+        return ''
+      }
+    },
+    dataType: function () {
+      if (this.column) {
+        return this.column.data_type
+      } else {
+        return ''
+      }
+    },
+    characterMaximumLength: function () {
+      if (this.column) {
+        return this.column.character_maximum_length
+      } else {
+        return ''
+      }
     }
   },
   created () {
   },
   methods: {
-    test () {
-    },
     getTableSchema (table) {
       console.log(table)
       if (this.collapse === true) {
