@@ -20,6 +20,7 @@
       </div>
       <flex-col
         justify="end"
+        class="centerflex"
       >
         <flex-row
           justify="start"
@@ -35,8 +36,53 @@
           >
             {{ t.tables }}
           </CButton>
+          <CButton
+            color="info"
+            class="tablebutton active"
+            @click="addTableModal = true"
+          >
+            <span>
+              <i
+                class="fa
+                fa-plus"
+                aria-hidden="true"
+              />
+            </span>
+          </CButton>
+          <CModal
+            title="Add Table"
+            color="info"
+            :show.sync="addTableModal"
+          >
+            <template #footer-wrapper>
+              <div class="hidden" />
+            </template>
+            <AddTable
+              :key="index"
+              :database="database"
+            />
+          </CModal>
         </flex-row>
       </flex-col>
+      <div class="edit">
+        <CDropdown
+          nav
+          placement="bottom-end"
+        >
+          <template #toggler="toggler">
+            <i
+              class="fa fa-ellipsis-v pointer"
+              aria-hidden="true"
+            />
+          </template>
+          <CDropdownItem
+            @click="deleteDB()"
+          >
+            Delete
+          </CDropdownItem>
+          <CDropdownItem>Edit</CDropdownItem>
+        </CDropdown>
+      </div>
     </flex-row>
     <CCollapse
       :show="collapse"
@@ -110,11 +156,13 @@
 <script>
 
 import EditColumn from './EditColumn.vue'
+import AddTable from './AddTable.vue'
 
 export default {
   name: 'DatabaseCard',
   components: {
-    EditColumn
+    EditColumn,
+    AddTable
   },
   props: {
     database: {
@@ -140,6 +188,7 @@ export default {
       ],
       selected: '',
       collapse: false,
+      addTableModal: false,
       addColumnModal: false,
       editColumnModal: false,
       editColumnData: null
@@ -186,6 +235,21 @@ export default {
         .catch(function (error) {
           console.log(error)
         })
+    },
+    deleteDB () {
+      var vm = this
+      this.$axios.get('https://35.239.29.200/api/deleteDatabase', {
+        params: {
+          database: vm.database
+        }
+      })
+        .then(function (response) {
+          if (response.data) {
+            if (response.data.status === 'success') {
+              vm.$parent.getDatabases()
+            }
+          }
+        })
     }
   }
 }
@@ -194,8 +258,7 @@ export default {
 <style scoped>
 h2 {
     width: 100%;
-    padding: 15px 0px 0px 0px;
-    margin: 0px;
+    padding-top: 15px;
     color: #004c65;
     text-align: center;
     font-size: 1.2em;
@@ -224,7 +287,7 @@ h2 {
   margin: 10px;
 }
 .container {
-    cursor: pointer;
+    padding: 0px;
 }
 .card {
     min-height: 125px;
@@ -241,10 +304,21 @@ h2 {
 .left {
     min-width: 100px;
 }
+.edit {
+  margin-right: 5px;
+  margin-left: 5px;
+  width: 10px;
+}
 .info {
     width: 75%;
 }
+.centerflex {
+  width: 100%;
+}
 .addColumn {
     float: right;
+}
+.pointer {
+    cursor: pointer;
 }
 </style>

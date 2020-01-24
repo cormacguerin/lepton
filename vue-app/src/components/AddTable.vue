@@ -1,9 +1,24 @@
 <template>
   <div class="input">
-    <input
-      v-model="value"
-      placeholder="new database name"
-    >
+    <flex-row>
+      <input
+        v-model="value"
+        placeholder="table name"
+      >
+      <CDropdown
+        toggler-text="Data Type"
+        nav
+        placement="bottom-end"
+      >
+        <CDropdownItem
+          v-for="dt in dataTypes"
+          :key="dt"
+          @click="selectDataType(dt)"
+        >
+          {{ dt }}
+        </CDropdownItem>
+      </CDropdown>
+    </flex-row>
     <CButton
       class="btn active"
       color="info"
@@ -16,13 +31,25 @@
 <script>
 
 export default {
-  name: 'EditDatabase',
+  name: 'AddTable',
   components: {
   },
   props: {
+    database: {
+      type: String,
+      default: ''
+    },
     value: {
       type: String,
       default: ''
+    }
+  },
+  data () {
+    return {
+      dataTypes: [
+        'serial', 'bigserial', 'int', 'bigint', 'real', 'date', 'varchar_64', 'varchar_2048', 'text'
+      ],
+      addDataModal: false
     }
   },
   created () {
@@ -33,6 +60,9 @@ export default {
     },
     hideModal () {
       this.$refs.myModalRef.hide()
+    },
+    selectDataType (dt) {
+      console.log(dt)
     },
     save () {
       var vm = this
@@ -78,7 +108,7 @@ h2 {
 }
 input {
   margin: 10px;
-  width: 300px;
+  min-width: 100px;
   border: none;
   border-bottom: 2px solid #cfcfcf;
   outline: 0;

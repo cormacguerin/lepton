@@ -15,7 +15,11 @@
           @click="addDataModal = true"
         >
           <span>
-            Add <i class="fa fa-plus" aria-hidden="true" />
+            Add
+            <i
+              class="fa fa-plus"
+              aria-hidden="true"
+            />
           </span>
         </CButton>
         <CModal
@@ -23,8 +27,10 @@
           color="info"
           :show.sync="addDataModal"
         >
-          <EditDatabase>
-          </EditDatabase>
+          <template #footer-wrapper>
+            <div class="hidden" />
+          </template>
+          <EditDatabase />
         </CModal>
       </div>
     </flex-row>
@@ -107,5 +113,7 @@ h2 {
     margin: 0px;
     text-align: center;
     font-size: 24px;
+}
+.hidden {
 }
 </style>
