@@ -39,7 +39,7 @@
           <CButton
             color="info"
             class="tablebutton active"
-            @click="addTableModal = true"
+            @click="createTableModal = true"
           >
             <span>
               <i
@@ -52,12 +52,12 @@
           <CModal
             title="Add Table"
             color="info"
-            :show.sync="addTableModal"
+            :show.sync="createTableModal"
           >
             <template #footer-wrapper>
               <div class="hidden" />
             </template>
-            <AddTable
+            <CreateTable
               :key="index"
               :database="database"
             />
@@ -104,18 +104,22 @@
               variant="outline"
               square
               size="sm"
-              @click="editColumn(item)"
+              @click="editTable(item)"
             >
-              edit
+              Edit
             </CButton>
             <CModal
-              title="Edit Column"
+              title="Edit Table"
               color="info"
-              :show.sync="editColumnModal"
+              :show.sync="editTableModal"
             >
-              <EditColumn
+              <template #footer-wrapper>
+                <div class="hidden" />
+              </template>
+              <EditTable
                 :key="index"
-                :column="editColumnData"
+                :database="database"
+                :table-name="item"
               />
             </CModal>
           </td>
@@ -123,12 +127,12 @@
         <nav aria-label="pagination">
           <ul class="pagination" />
         </nav>
-        <template #under-table="addColumn">
-          <div class="addColumn">
+        <template #under-table="addTable">
+          <div class="addTable">
             <CButton
               class="btn active"
               color="info"
-              @click="addColumnModal = true"
+              @click="addTableModal = true"
             >
               <span>
                 Add Column
@@ -139,13 +143,20 @@
               </span>
             </CButton>
             <CModal
-              title="Add Data"
+              title="Add Table"
               color="info"
-              :show.sync="addColumnModal"
+              :show.sync="addTableModal"
             >
-              <EditColumn>
+              <template #footer-wrapper>
+                <div class="hidden" />
+              </template>
+              <EditTable
+                :key="index"
+                :database="database"
+                :table-name="selected"
+              >
                 ADD COLUMN
-              </EditColumn>
+              </EditTable>
             </CModal>
           </div>
         </template>
@@ -155,14 +166,14 @@
 </template>
 <script>
 
-import EditColumn from './EditColumn.vue'
-import AddTable from './AddTable.vue'
+import CreateTable from './CreateTable.vue'
+import EditTable from './EditTable.vue'
 
 export default {
   name: 'DatabaseCard',
   components: {
-    EditColumn,
-    AddTable
+    CreateTable,
+    EditTable
   },
   props: {
     database: {
@@ -188,27 +199,22 @@ export default {
       ],
       selected: '',
       collapse: false,
+      createTableModal: false,
       addTableModal: false,
-      addColumnModal: false,
-      editColumnModal: false,
-      editColumnData: null
+      editTableModal: false
     }
   },
   created () {
   },
   methods: {
-    editColumn (item) {
-      this.editColumnModal = true
-      this.editColumnData = item
+    editTable (item) {
+      this.editTableModal = true
     },
-    getTableSchema (table) {
-      console.log(table)
-      if (this.collapse === true) {
+    getTableSchema (table, persist) {
+      if (this.selected === table && persist !== true) {
         this.collapse = false
-        if (this.selected === table) {
-          this.selected = ''
-          return
-        }
+        this.selected = ''
+        return
       }
       var vm = this
       this.$axios.get('https://35.239.29.200/api/getTableSchema', {
@@ -257,7 +263,6 @@ export default {
 
 <style scoped>
 h2 {
-    width: 100%;
     padding-top: 15px;
     color: #004c65;
     text-align: center;
@@ -299,7 +304,7 @@ h2 {
     box-shadow: 0px 1px 5px rgba(0,0,0,0.3), 0 0px 0px rgba(0,0,0,0.22);
 }
 .database {
-    width: 100px;
+    min-width: 100px;
 }
 .left {
     min-width: 100px;
@@ -315,7 +320,7 @@ h2 {
 .centerflex {
   width: 100%;
 }
-.addColumn {
+.addTable {
     float: right;
 }
 .pointer {
