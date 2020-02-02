@@ -12,7 +12,7 @@ export default {
 </script>
 <style scoped>
 .home {
-    width: 100%;
+    max-width: 1000px;
     height: 100vh;
     background: white;
 }

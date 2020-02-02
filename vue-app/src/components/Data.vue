@@ -93,7 +93,7 @@ export default {
     background: white;
 }
 .cards {
-    width: 50%;
+    max-width: 1000px;
     margin-left: auto;
     margin-right: auto;
 }

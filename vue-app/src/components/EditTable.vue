@@ -60,7 +60,7 @@ export default {
   data () {
     return {
       dataTypes: [
-        'serial', 'bigserial', 'int', 'bigint', 'real', 'date', 'varchar_64', 'varchar_2048', 'text'
+        'serial', 'bigserial', 'int', 'bigint', 'decimal', 'bigdecimal', 'real', 'date', 'varchar_64', 'varchar_2048', 'text'
       ],
       dataType: 'serial'
     }

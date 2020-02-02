@@ -40,7 +40,7 @@ pool.query('SELECT NOW()', (err, res) => {
 
 app.use(cookieParser());
 app.use(bodyParser.json({limit: '10mb'}));
-app.use(bodyParser.urlencoded({limit: '10mb',extended: true })); // for parsing application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({limit: '10mb', extended: true, parameterLimit: 1000000})); // for parsing application/x-www-form-urlencoded
 app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '5mb'}));
 app.use(bodyParser.raw({type:'image/jpeg',limit: '50mb'}));
 
@@ -101,7 +101,40 @@ app.get('/api/getUserInfo', function(req,res,next) {
 		user.getUserInfo(req, res);
 	});
 });
-
+app.get('/api/addDatabase', function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+	data.addDatabase(queryData.database, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/deleteDatabase', function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+	data.deleteDatabase(queryData.database, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/createTable', function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.column && queryData.datatype)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.createTable(queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
+    console.log('r');
+    console.log(r);
+    res.json(r);
+  });
+});
+app.get('/api/addTable', function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.column && queryData.datatype)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.addTable(queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
+    res.json(r);
+  });
+});
 /*
  *	A table definition. example data
  * 	{
@@ -138,46 +171,48 @@ app.get('/api/getUserInfo', function(req,res,next) {
  *	i.e KEY_VALUE is a non nestible field type.
  *
  */
-app.post('/addTable', function(req, res, next) {
-	var field_types = ['text','integer','real','datetime'];
+app.post('/addTableData', function(req, res, next) {
+  var field_types = [
+    'serial',
+    'bigserial',
+    'int',
+    'bigint',
+    'decimal',
+    'bigdecimal',
+    'real',
+    'date',
+    'varchar_64',
+    'varchar_2048',
+    'text'
+  ]
 	var table_name;
 	var fields=[];
-	var pkey;
+  var data;
+  var rows;
 	var queryData = url.parse(req.url, true).query;
-	if (queryData.type == "content") {
-		if (req.body) {
-			var body = req.body;
-			var hasError = false;
-			if (body.name.match(/^[a-z0-9]+$/)) {
-				table_name = body.name;
-			} else {
-				return res.json({
-					"status":"failed",
-					"error":"non alphanumeric table name " + body.name
-				});
-			}
-			for (var i in body.fields) {
-				var field;
-				if (body.fields[i].name.match(/^[a-z0-9]+$/)) {
-					field.name = body.fields[i].name;
-				} else {
-					return res.json({
-						"status":"failed",
-						"error":"non alphanumeric field name " + body.fields[i].name
-					});
-				}
-				if (field_types.contains(body.fields[i].type)) {
-					field.type = body.fields[i].type;
-				} else {
-					return res.json({
-						"status":"failed",
-						"error":"unknown field type " + body.fields[i].type
-					});
-				}
-				fields.push(field);
-			}
-		}
-	}
+  console.log(queryData)
+  // console.log(req.body)
+  if (req.body) {
+    if (typeof req.body === 'object') {
+      data = req.body;
+    } else {
+      try {
+        data = JSON.parse(req.body);
+      } catch(e) {
+        console.log(e);
+        return res.json({});
+      }
+    }
+    Object.keys(data).forEach(function(table) {
+      for (var row in data[table]) {
+        for (var item in data[table][row]) {
+//          console.log(item + ' ' + data[table][row][item])
+        }
+//        console.log(' - - - ');
+      }
+    });
+    return res.json({});
+  }
 });
 
 /*
@@ -259,6 +294,7 @@ app.post('/addData', function(req, res, next) {
 app.post('/addDocument', function(req, res, next) {
 	var queryData = url.parse(req.url, true).query;
 	if (queryData.type == "content") {
+    print(req)
 		if (req.body) {
 			var docs = req.body;
 			var hasError = false;
@@ -302,7 +338,6 @@ app.post('/addDocument', function(req, res, next) {
 						} finally {
 							client.release()
 						}
-	console.log('D');
 					})().catch(
 						e => {
 							console.log(e.stack);
@@ -351,7 +386,7 @@ function execute(req, res) {
 		var socket = new net.Socket();
 		socket.connect(3333, '127.0.0.1', function() {
 			var data_length = queryData.query.length;
-			var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":"; 
+			var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":";
 			socket.write(header.concat(queryData.query),'utf8', function(r) {
 				console.log(r);
 			});

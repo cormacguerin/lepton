@@ -69,7 +69,7 @@ export default {
   data () {
     return {
       dataTypes: [
-        'serial', 'bigserial', 'int', 'bigint', 'real', 'date', 'varchar_64', 'varchar_2048', 'text'
+        'serial', 'bigserial', 'int', 'bigint', 'decimal', 'bigdecimal', 'real', 'date', 'varchar_64', 'varchar_2048', 'text'
       ],
       dataType: 'serial'
     }
@@ -101,6 +101,7 @@ export default {
           if (response.data) {
             console.log(response.data)
             if (response.data.status === 'success') {
+              vm.$parent.$parent.$parent.getDatabases(vm.tableName)
               vm.$parent.$parent.getTableSchema(vm.tableName)
               vm.$parent.$parent.createTableModal = false
             } else {
