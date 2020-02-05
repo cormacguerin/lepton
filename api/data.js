@@ -152,7 +152,7 @@ exports.createTable = function(d,t,c,dt,callback) {
 
 exports.addTable = function(d,t,c,dt,callback) {
   if (!(d&&t&&c)) {
-    callback({status:'failed'})
+    return callback({status:'failed'})
   }
   initDB(d, function() {
     db_pg[d].addTable(t, c, dt, function(err,r) {
@@ -174,32 +174,45 @@ exports.addTable = function(d,t,c,dt,callback) {
   });
 }
 
-exports.addRows = function(d,t,rows,callback) {
-  if (!(d&&t&&rows)) {
-    callback({status:'failed'})
+exports.addTableData = function(d,t,data,callback) {
+  if (!(d&&data)) {
+    return callback({status:'failed'})
   }
   if (d.length > 63) {
-    callback({status:'failed'})
+    return callback({status:'failed'})
   }
   initDB(d, function() {
     console.log("d " + d);
     console.log("t " + t);
-    db_pg[d].addRows(t,rows,function(err,r) {
-      if (err){
-        console.log("unable to retrieve user_clients");
-        console.log(err);
-        callback({status:'failed',message:err})
-      } else {
-        console.log(r);
-        console.log('r.length');
-        console.log(r.length);
-        if (r.length === 0) {
-          callback({status:'success'})
-        } else {
-          callback({status:'failed'})
-        }
+    if (Array.isArray(data)) {
+      if (typeof t !== 'string') {
+        return callback('no table provided');
       }
-    });
+      db_pg[d].addTableData(t,data,function(err,r) {
+        if (err) {
+          console.log("unable to retrieve user_clients");
+          console.log(err);
+          callback({r,message:err})
+        } else {
+          callback({r})
+        }
+      });
+    } else if (typeof data === 'object') {
+      var results = [];
+      Object.keys(data).forEach(function(table) {
+        console.log("table " +table);
+        db_pg[d].addTableData(table,data[table],function(err,r) {
+          if (err){
+            console.log("unable to retrieve user_clients");
+            console.log(err);
+            results.push(err);
+          } else {
+            results.push(r);
+          }
+        });
+      });
+      callback(results)
+    }
   });
 }
 

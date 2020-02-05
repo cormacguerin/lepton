@@ -41,6 +41,7 @@ class Postgres {
           database: 'admin',
           password: password,
           port: 5432,
+          idleTimeoutMillis: 60000,
         });
       } else {
         this.pool = new Pool({
@@ -74,12 +75,67 @@ class Postgres {
       const client = await this.pool.connect()
       try {
         const reply = await client.query(statement)
-        console.log(reply.rows);
-        console.log(' - - ');
+        // console.log(reply.rows);
+        // console.log(' - - ');
         this.logger.write(statement + "\n");
         callback(null, reply.rows)
       } finally {
         client.release()
+      }
+    })().catch(
+      e => {
+        console.log(e.stack);
+        callback(e);
+      }
+    )
+  }
+
+  pexecute(statement, values, callback) {
+    console.log(statement);
+    (async () => {
+      this.logger.write(statement + "\n");
+      const client = await this.pool.connect();
+      try {
+        await client.query("BEGIN");
+        var promises = [];
+        const promisePush = async function() {
+          for (const v in values) {
+            /*
+            console.log('v');
+            console.log(v);
+            console.log('values[v]');
+            console.log(values[v]);
+            console.log('Object.values(values[v])');
+            console.log(Object.values(values[v]));
+            console.log(' - - - - ');
+            */
+            promises.push(client.query(statement, Object.values(values[v])));
+          }
+          console.log("promisies pushed");
+          await Promise.all(promises)
+          .then((r)=> {
+            console.log("primises done, commit");
+            client.query("COMMIT");
+            client.release();
+            callback(null, r);
+          })
+          .catch((e) => {
+            console.log('error pushing statements')
+            console.log(e);
+            client.query("ROLLBACK");
+             client.release();
+            callback(e);
+          });
+        }
+        promisePush();
+      } catch(e) {
+        console.log('error in rollback');
+        console.log(e);
+        await client.query("ROLLBACK");
+        client.release();
+      } finally {
+        console.log("finally");
+        // client.release();
       }
     })().catch(
       e => {
@@ -154,7 +210,7 @@ class Postgres {
     });
   }
 
-  addRows(table, data, callback) {
+  addTableData(table, data, callback) {
     var pkey = "SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS data_type"
       + " FROM   pg_index i"
       + " JOIN   pg_attribute a ON a.attrelid = i.indrelid"
@@ -167,70 +223,73 @@ class Postgres {
     this.execute(pkey, function(e,r) {
       if (e) {
         console.log(e);
+        return callback(e);
       }
-      console.log('pkey');
-      console.log(r);
-      console.log(r[0]);
-      console.log(r[1]);
       var primary_key;
       if (r[0]) {
         primary_key = r[0].attname;
       } else {
-        return callback(1);
+        return callback('unknown primary key, please provide a primary key.');
       }
-      Object.keys(data).forEach(function(table) {
-          var keys = Object.keys(data[table][0]);
-          var insert_prep = '';
-          for (var i=1; i<=keys.length; i++) {
-            insert_prep += '$' + i.toString();
-            if (i < keys.length) {
-              insert_prep += ', ';
-            }
-          }
-          var conflict_prep = '';
-          for (var i=1; i<=keys.length; i++) {
-            conflict_prep += keys[i-1];
-            conflict_prep += ' = ';
-            conflict_prep += '$' + i.toString();
-            if (i < keys.length) {
-              conflict_prep += ', ';
-            }
-          }
-          var insert = "INSERT INTO "
-            + table
-            + " ("
-            + keys
-            + ") VALUES("
-            + insert_prep
-            + ")"
-            + " ON CONFLICT "
-            + primary_key
-            + " DO UPDATE SET "
-            + conflict_prep 
-            + ";"
-          console.log(insert);
-        });
-      return callback(1);
-      this_.execute(disconnect, function(e,r) {
+      console.log('primary_key : ' + primary_key);
+      var result = {
+        status:'',
+        errors: [],
+        results: []
+      }
+
+      var keys = Object.keys(data[0]);
+      var insert_prep = '';
+      for (var i=1; i<=keys.length; i++) {
+        insert_prep += '$' + i.toString();
+        if (i < keys.length) {
+          insert_prep += ', ';
+        }
+      }
+      var conflict_prep = '';
+      for (var i=1; i<=keys.length; i++) {
+        conflict_prep += keys[i-1];
+        conflict_prep += ' = ';
+        conflict_prep += '$' + i.toString();
+        if (i < keys.length) {
+          conflict_prep += ', ';
+        }
+      }
+      var insert = "INSERT INTO "
+        + table
+        + " ("
+        + keys
+        + ") VALUES("
+        + insert_prep
+        + ")"
+        + " ON CONFLICT ("
+        + primary_key
+        + ") DO UPDATE SET "
+        + conflict_prep 
+        + ";"
+
+      console.log(insert);
+      this_.pexecute(insert, data, function(e,r) {
         var this__ = this_;
         if (e) {
           console.log(e);
+          result.errors.push(e);
+          if (result.status === 'success' || result.status === 'succeeded with errors') {
+            result.status = 'succeeded with errors';
+          } else {
+            result.status = 'failed';
+          }
+        } else {
+          result.results.push(r);
+          if (result.status === 'failed' || result.status === 'succeeded with errors') {
+            result.status = 'succeeded with errors';
+          } else {
+            result.status = 'success';
+          }
         }
-        this__.execute(drop, function(e,r) {
-          callback(e, r);
-        });
+        return callback(null, result);
       });
     });
-    /*
-    Object.keys(data).forEach(function(table) {
-      for (var row in data[table]) {
-        for (var item in data[table][row]) {
-          console.log(item + ' ' + data[table][row][item])
-        }
-        console.log(' - - - ');
-      }
-    });
-    */
   }
 
   /*

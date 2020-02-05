@@ -39,8 +39,8 @@ pool.query('SELECT NOW()', (err, res) => {
 })
 
 app.use(cookieParser());
-app.use(bodyParser.json({limit: '10mb'}));
-app.use(bodyParser.urlencoded({limit: '10mb', extended: true, parameterLimit: 1000000})); // for parsing application/x-www-form-urlencoded
+app.use(bodyParser.json({limit: '100mb'}));
+app.use(bodyParser.urlencoded({limit: '100mb', extended: true, parameterLimit: 1000000})); // for parsing application/x-www-form-urlencoded
 app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '5mb'}));
 app.use(bodyParser.raw({type:'image/jpeg',limit: '50mb'}));
 
@@ -187,31 +187,26 @@ app.post('/addTableData', function(req, res, next) {
   ]
 	var table_name;
 	var fields=[];
-  var data;
-  var rows;
+  var data_;
 	var queryData = url.parse(req.url, true).query;
   console.log(queryData)
-  // console.log(req.body)
+  if (!queryData.database) {
+    return res.json({});
+  }
   if (req.body) {
     if (typeof req.body === 'object') {
-      data = req.body;
+      data_ = req.body;
     } else {
       try {
-        data = JSON.parse(req.body);
+        data_ = JSON.parse(req.body);
       } catch(e) {
         console.log(e);
         return res.json({});
       }
     }
-    Object.keys(data).forEach(function(table) {
-      for (var row in data[table]) {
-        for (var item in data[table][row]) {
-//          console.log(item + ' ' + data[table][row][item])
-        }
-//        console.log(' - - - ');
-      }
+    data.addTableData(queryData.database, queryData.table, data_, function(d) {
+       res.json({d});
     });
-    return res.json({});
   }
 });
 
