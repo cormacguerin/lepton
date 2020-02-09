@@ -108,7 +108,7 @@ exports.getTableSchema = function(database, table, c) {
             } else {
               s_.data_type = null
             }
-          } else if (s[i].data_type === "numeric(16,2)") 
+          } else if (s[i].data_type === "numeric(16,2)") {
             s_.data_type = "decimal"
           } else if (s[i].data_type === "numeric(32,8)") {
             s_.data_type = "bigdecimal"
