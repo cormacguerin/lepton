@@ -99,6 +99,7 @@ class Postgres {
         await client.query("BEGIN");
         var promises = [];
         const promisePush = async function() {
+var it = new Date().getTime();
           for (const v in values) {
             /*
             console.log('v');
@@ -111,12 +112,18 @@ class Postgres {
             */
             promises.push(client.query(statement, Object.values(values[v])));
           }
-          console.log("promisies pushed");
+var et = new Date().getTime();
+var totaltime = et-it;
+console.log("promises pushed in " + totaltime + "ms");
+var it = new Date().getTime();
           await Promise.all(promises)
           .then((r)=> {
             console.log("primises done, commit");
             client.query("COMMIT");
             client.release();
+var et = new Date().getTime();
+var totaltime = et-it;
+console.log("promises finished in " + totaltime + "ms");
             callback(null, r);
           })
           .catch((e) => {
@@ -196,7 +203,7 @@ class Postgres {
   /*
    * Add database
    */
-  addTable(table, column, datatype, callback) {
+  addTableColumn(table, column, datatype, callback) {
 
     var query = "ALTER TABLE " 
       + table
@@ -210,7 +217,58 @@ class Postgres {
     });
   }
 
+  /*
+   * Rename
+   */
+  renameTableColumn(table, column, old_column, callback) {
+
+    var query = "ALTER TABLE "
+      + table
+      + " RENAME COLUMN "
+      + old_column
+      + " TO "
+      + column
+
+    this.execute(query, function(e,r) {
+      callback(e, r);
+    });
+  }
+
+  /*
+   * Rename
+   */
+  setTableColumnDataType(table, column, datatype, callback) {
+
+    var query = "ALTER TABLE "
+      + table
+      + " ALTER COLUMN "
+      + column
+      + " TYPE "
+      + getDataType(datatype)
+
+    this.execute(query, function(e,r) {
+      callback(e, r);
+    });
+  }
+
+  /*
+   * Add database
+   */
+  deleteTableColumn(table, column, callback) {
+
+    var query = "ALTER TABLE " 
+      + table
+      + " DROP COLUMN " 
+      + column
+
+    this.execute(query, function(e,r) {
+      callback(e, r);
+    });
+  }
+
   addTableData(table, data, callback) {
+    var it = new Date().getTime();
+    console.log("ADD TABLE DATA " + table);
     var pkey = "SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS data_type"
       + " FROM   pg_index i"
       + " JOIN   pg_attribute a ON a.attrelid = i.indrelid"
@@ -280,13 +338,17 @@ class Postgres {
             result.status = 'failed';
           }
         } else {
-          result.results.push(r);
+          // makes huge responses and becomes very slow
+          // result.results.push(r);
           if (result.status === 'failed' || result.status === 'succeeded with errors') {
             result.status = 'succeeded with errors';
           } else {
             result.status = 'success';
           }
         }
+        var et = new Date().getTime();
+        var totaltime = et-it;
+        console.log("total time taken for " + table + " is " + totaltime + "ms");
         return callback(null, result);
       });
     });

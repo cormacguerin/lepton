@@ -1,5 +1,6 @@
 import Vue from 'vue'
-import CButton from '@coreui/vue'
+// import CoreuiVue from '@coreui/vue'
+import { CButton, CSwitch, CModal, CDropdown, CDropdownItem, CCollapse, CDataTable } from '@coreui/vue'
 import VueFlex from 'vue-flex'
 import App from './App.vue'
 import Axios from 'axios'
@@ -13,7 +14,10 @@ import '@coreui/icons/css/all.css'
 import '@coreui/icons/css/free.css'
 import '@coreui/icons/css/brand.css'
 import '@coreui/icons/css/all.min.css'
-import './assets/coreui.min.css'
+// import './assets/coreui.min.css'
+// as mentioned on github styles need to be imported separately
+// https://www.npmjs.com/package/@coreui/vue
+import '@coreui/coreui/scss/coreui.scss'
 
 import '@fortawesome/fontawesome/styles.css'
 import fontawesome from '@fortawesome/fontawesome'
@@ -28,6 +32,13 @@ fontawesome.config = {
 }
 
 Vue.component('font-awesome-icon', FontAwesomeIcon)
+Vue.component('CButton', CButton)
+Vue.component('CSwitch', CSwitch)
+Vue.component('CModal', CModal)
+Vue.component('CDropdown', CDropdown)
+Vue.component('CDropdownItem', CDropdownItem)
+Vue.component('CCollapse', CCollapse)
+Vue.component('CDataTable', CDataTable)
 
 Vue.config.productionTip = false
 
@@ -37,7 +48,7 @@ Vue.use(VueFlex)
 
 Vue.use(VueRouter)
 
-Vue.use(CButton)
+// Vue.use(CoreuiVue)
 
 Vue.use(FontAwesomeIcon)
 

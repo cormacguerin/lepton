@@ -91,8 +91,34 @@ exports.getTableSchema = function(database, table, c) {
         console.log(err);
         c(e);
       } else {
-        console.log(s);
-        c(s);
+        var response = [] 
+        for (var i in s) {
+          var s_ = {};
+          s_.column_name = s[i].column_name; 
+          if (s[i].data_type === "character varying") {
+            console.log('deb 1');
+            console.log('s[i]');
+            console.log(s[i]);
+            if (s[i].character_maximum_length === 64) {
+              s_.data_type = "varchar_64"
+            } else if (s[i].character_maximum_length === 256) {
+              s_.data_type = "varchar_256"
+            } else if (s[i].character_maximum_length === 2048) {
+              s_.data_type = "varchar_2048"
+            } else {
+              s_.data_type = null
+            }
+          } else if (s[i].data_type === "numeric(16,2)") 
+            s_.data_type = "decimal"
+          } else if (s[i].data_type === "numeric(32,8)") {
+            s_.data_type = "bigdecimal"
+          } else {
+            s_.data_type = s[i].data_type;
+          }
+          response.push(s_);
+        }
+        console.log(response);
+        c(response);
       }
     });
   });
@@ -150,12 +176,91 @@ exports.createTable = function(d,t,c,dt,callback) {
   });
 }
 
-exports.addTable = function(d,t,c,dt,callback) {
+exports.addTableColumn = function(d,t,c,dt,callback) {
   if (!(d&&t&&c)) {
     return callback({status:'failed'})
   }
   initDB(d, function() {
-    db_pg[d].addTable(t, c, dt, function(err,r) {
+    db_pg[d].addTableColumn(t, c, dt, function(err,r) {
+      if (err){
+        console.log("unable to retrieve user_clients");
+        console.log(err);
+        callback({status:'failed',message:err})
+      } else {
+        if (r.length === 0) {
+          callback({status:'success'})
+        } else {
+          callback({status:'failed'})
+        }
+      }
+    });
+  });
+}
+
+exports.updateTableColumn = function(d,t,c,ec,dt,edt,callback) {
+  if (!(d&&t&&c&&ec&&dt&&edt)) {
+    return callback({status:'failed'})
+  }
+  initDB(d, function() {
+    var status;
+    var promises = [];
+    const promisePush = async function() {
+      var column;
+      if (c !== ec) {
+        db_pg[d].renameTableColumn(t, c, ec, function(err,r) {
+          promises.push(new Promise((pr, pe) => {
+            if (err) {
+              pe(err)
+            } else {
+              var promises_ = promises;
+              if (dt !== edt) {
+                db_pg[d].setTableColumnDataType(t, c, dt, function(err,r) {
+                  promises_.push(new Promise((pr, pe) => {
+                    if (err) {
+                      pe(err)
+                    } else {
+                      pr(r)
+                    }
+                  }));
+                });
+              }
+              pr(r)
+            }
+          }));
+        });
+      } else {
+        if (dt !== edt) {
+          db_pg[d].setTableColumnDataType(t, c, dt, function(err,r) {
+            promises.push(new Promise((pr, pe) => {
+              if (err) {
+                pe(err)
+              } else {
+                pr(r)
+              }
+            }));
+          });
+        }
+      }
+      await Promise.all(promises)
+      .then((r)=> {
+        console.log(r);
+        callback({status:'success',message:r})
+      })
+      .catch((e) => {
+        console.log(e);
+        callback({status:'failed',message:e})
+      });
+    }
+    promisePush();
+  });
+}
+
+exports.deleteTableColumn = function(d,t,c,callback) {
+  if (!(d&&t&&c)) {
+    return callback({status:'failed'})
+  }
+  initDB(d, function() {
+    db_pg[d].deleteTableColumn(t, c, function(err,r) {
       if (err){
         console.log("unable to retrieve user_clients");
         console.log(err);
@@ -182,8 +287,6 @@ exports.addTableData = function(d,t,data,callback) {
     return callback({status:'failed'})
   }
   initDB(d, function() {
-    console.log("d " + d);
-    console.log("t " + t);
     if (Array.isArray(data)) {
       if (typeof t !== 'string') {
         return callback('no table provided');
@@ -200,7 +303,6 @@ exports.addTableData = function(d,t,data,callback) {
     } else if (typeof data === 'object') {
       var results = [];
       Object.keys(data).forEach(function(table) {
-        console.log("table " +table);
         db_pg[d].addTableData(table,data[table],function(err,r) {
           if (err){
             console.log("unable to retrieve user_clients");

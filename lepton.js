@@ -125,13 +125,33 @@ app.get('/api/createTable', function(req, res, next) {
     res.json(r);
   });
 });
-app.get('/api/addTable', function(req, res, next) {
+app.get('/api/addTableColumn', function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   if (!(queryData.database && queryData.table && queryData.column && queryData.datatype)) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.addTable(queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
+	data.addTableColumn(queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/updateTableColumn', function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.column && queryData.editColumn && queryData.datatype && queryData.editDatatype)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.updateTableColumn(queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/deleteColumn', function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.column)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.deleteTableColumn(queryData.database, queryData.table, queryData.column, function(r) {
     res.json(r);
   });
 });

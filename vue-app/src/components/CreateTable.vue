@@ -69,7 +69,7 @@ export default {
   data () {
     return {
       dataTypes: [
-        'serial', 'bigserial', 'int', 'bigint', 'decimal', 'bigdecimal', 'real', 'date', 'varchar_64', 'varchar_2048', 'text'
+        'serial', 'bigserial', 'int', 'bigint', 'decimal', 'bigdecimal', 'real', 'date', 'varchar_64', 'varchar_2048'
       ],
       dataType: 'serial'
     }
@@ -89,7 +89,7 @@ export default {
     },
     save () {
       var vm = this
-      this.$axios.get('https://35.239.29.200/api/createTable', {
+      this.$axios.get('https://35.239.29.200/api/addTable', {
         params: {
           database: vm.database,
           table: vm.tableName,

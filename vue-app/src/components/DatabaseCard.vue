@@ -89,39 +89,47 @@
       :duration="300"
       class="mt-2"
     >
+      <CModal
+        title="Edit Table"
+        color="info"
+        :show.sync="editTableColumnModal"
+      >
+        <template #footer-wrapper>
+          <div class="hidden" />
+        </template>
+        <EditTableColumn
+          :database="database"
+          :table-name="selectedTable"
+          :column-name="itemData.column_name"
+          :edit-column-name="itemData.column_name"
+          :data-type="itemData.data_type"
+          :edit-data-type="itemData.data_type"
+          :columns="columns"
+          isEdit
+        />
+      </CModal>
       <CDataTable
-        :items="items"
+        :items="columns"
         :fields="fields"
         table-filter
-        items-per-page-select
+        columns-per-page-select
         sorter
         pagination
       >
-        <template #edit="{item, index}">
+        <template
+          #edit="{item, index}"
+          :columns="columns"
+        >
           <td class="py-2">
             <CButton
               color="primary"
               variant="outline"
               square
               size="sm"
-              @click="editTable(item)"
+              @click="editTableColumn(item)"
             >
               Edit
             </CButton>
-            <CModal
-              title="Edit Table"
-              color="info"
-              :show.sync="editTableModal"
-            >
-              <template #footer-wrapper>
-                <div class="hidden" />
-              </template>
-              <EditTable
-                :key="index"
-                :database="database"
-                :table-name="item"
-              />
-            </CModal>
           </td>
         </template>
         <nav aria-label="pagination">
@@ -132,7 +140,7 @@
             <CButton
               class="btn active"
               color="info"
-              @click="addTableModal = true"
+              @click="addTableColumnModal = true"
             >
               <span>
                 Add Column
@@ -145,18 +153,19 @@
             <CModal
               title="Add Table"
               color="info"
-              :show.sync="addTableModal"
+              :show.sync="addTableColumnModal"
             >
               <template #footer-wrapper>
                 <div class="hidden" />
               </template>
-              <EditTable
+              <EditTableColumn
                 :key="index"
                 :database="database"
-                :table-name="selected"
+                :table-name="selectedTable"
+                :columns="columns"
               >
                 ADD COLUMN
-              </EditTable>
+              </EditTableColumn>
             </CModal>
           </div>
         </template>
@@ -167,13 +176,13 @@
 <script>
 
 import CreateTable from './CreateTable.vue'
-import EditTable from './EditTable.vue'
+import EditTableColumn from './EditTableColumn.vue'
 
 export default {
   name: 'DatabaseCard',
   components: {
     CreateTable,
-    EditTable
+    EditTableColumn
   },
   props: {
     database: {
@@ -191,31 +200,35 @@ export default {
   },
   data () {
     return {
-      items: [
+      columns: [
       ],
       fields: [
       ],
       details: [
       ],
-      selected: '',
+      selectedTable: '',
       collapse: false,
       createTableModal: false,
-      addTableModal: false,
-      editTableModal: false
+      addTableColumnModal: false,
+      editTableColumnModal: false,
+      itemData: {
+        database: '',
+        table_name: '',
+        column_name: '',
+        data_type: '',
+        columns: []
+      }
     }
   },
   created () {
   },
   methods: {
-    editTable (item) {
-      this.editTableModal = true
+    editTableColumn (i) {
+      console.log(i)
+      this.editTableColumnModal = true
+      this.itemData = i
     },
-    getTableSchema (table, persist) {
-      if (this.selected === table && persist !== true) {
-        this.collapse = false
-        this.selected = ''
-        return
-      }
+    getTableSchema (table) {
       var vm = this
       this.$axios.get('https://35.239.29.200/api/getTableSchema', {
         params: {
@@ -225,8 +238,8 @@ export default {
       })
         .then(function (response) {
           if (response.data) {
-            vm.items = response.data.d
-            vm.fields = Object.keys(vm.items[0])
+            vm.columns = response.data.d
+            vm.fields = Object.keys(vm.columns[0])
             vm.fields.push({
               key: 'edit',
               label: '',
@@ -234,8 +247,9 @@ export default {
               sorter: false,
               filter: false
             })
-            vm.selected = table
+            vm.selectedTable = table
             vm.collapse = true
+            console.log('table ' + table)
           }
         })
         .catch(function (error) {

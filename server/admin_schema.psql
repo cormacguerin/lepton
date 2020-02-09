@@ -38,3 +38,11 @@ CREATE TABLE mail_queue (
     status VARCHAR(64)
 );
 
+DROP TABLE IF EXISTS text_tables_index CASCADE;
+CREATE TABLE text_tables_index (
+    id serial PRIMARY KEY,
+    database VARCHAR (64) NOT NULL,
+    tablename VARCHAR (64) NOT NULL,
+    display_url VARCHAR(2048),
+    enable BOOLEAN
+);
