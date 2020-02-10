@@ -42,7 +42,9 @@ DROP TABLE IF EXISTS text_tables_index CASCADE;
 CREATE TABLE text_tables_index (
     id serial PRIMARY KEY,
     database VARCHAR (64) NOT NULL,
-    tablename VARCHAR (64) NOT NULL,
-    display_url VARCHAR(2048),
-    enable BOOLEAN
+    _table VARCHAR (64) NOT NULL,
+    _column VARCHAR (64) NOT NULL,
+    display_field VARCHAR(64),
+    enable BOOLEAN,
+    UNIQUE (database,_table,_column)
 );

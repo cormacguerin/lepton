@@ -190,11 +190,11 @@ export default {
         database: vm.database,
         table: vm.tableName,
         column: vm.columnName,
-        datatype: vm.dataType
+        datatype: vm.dataType,
+        fts: vm.fts
       }
       if (this.fts === true) {
-        params.fts = vm.fts
-        params.displayField = vm.displayField
+        params.displayfield = vm.displayField
       }
       var saveUrl
       if (this.isEdit === false) {

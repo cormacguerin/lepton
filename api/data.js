@@ -135,7 +135,7 @@ exports.addDatabase = function(d,c) {
 		if (err){
 			console.log("unable to retrieve user_clients");
 			console.log(err);
-      c({status:'failed',message:err})
+      c({status:'failed',error:err})
 		} else {
       console.log(r);
       console.log('r.length');
@@ -161,7 +161,7 @@ exports.createTable = function(d,t,c,dt,callback) {
       if (err){
         console.log("unable to retrieve user_clients");
         console.log(err);
-        callback({status:'failed',message:err})
+        callback({status:'failed',error:err})
       } else {
         console.log(r);
         console.log('r.length');
@@ -176,8 +176,11 @@ exports.createTable = function(d,t,c,dt,callback) {
   });
 }
 
-exports.addTableColumn = function(d,t,c,dt,callback) {
+exports.addTableColumn = function(d,t,c,dt,df,fts,callback) {
   if (!(d&&t&&c)) {
+    return callback({status:'failed'})
+  }
+  if (fts==='true'&&(!df||df==='undefined'||df===null)) {
     return callback({status:'failed'})
   }
   initDB(d, function() {
@@ -185,10 +188,20 @@ exports.addTableColumn = function(d,t,c,dt,callback) {
       if (err){
         console.log("unable to retrieve user_clients");
         console.log(err);
-        callback({status:'failed',message:err})
+        callback({status:'failed',error:err})
       } else {
         if (r.length === 0) {
-          callback({status:'success'})
+          if (dt === 'text') {
+            setFTS(d,t,c,df,fts, function(e,r) {
+              if (e) {
+                callback({status:'failed', message:'column updated successfully, but unable to enable full text search', error:e});
+              } else {
+                callback({status:'success',message:r})
+              }
+            });
+          } else {
+            callback({status:'success',message:r})
+          }
         } else {
           callback({status:'failed'})
         }
@@ -197,10 +210,16 @@ exports.addTableColumn = function(d,t,c,dt,callback) {
   });
 }
 
-exports.updateTableColumn = function(d,t,c,ec,dt,edt,callback) {
+exports.updateTableColumn = function(d,t,c,ec,dt,edt,df,fts,callback) {
   if (!(d&&t&&c&&ec&&dt&&edt)) {
     return callback({status:'failed'})
   }
+  if (fts==='true'&&(!df||df==='undefined'||df===null)) {
+    return callback({status:'failed'})
+  }
+  console.log("dt " + dt)
+  console.log("df " + df)
+  console.log("fts " + fts)
   initDB(d, function() {
     var status;
     var promises = [];
@@ -244,15 +263,52 @@ exports.updateTableColumn = function(d,t,c,ec,dt,edt,callback) {
       await Promise.all(promises)
       .then((r)=> {
         console.log(r);
-        callback({status:'success',message:r})
+        if (dt === 'text') {
+          setFTS(d,t,c,df,fts, function(e,r) {
+            if (e) {
+              callback({status:'failed', message:'column updated successfully, but unable to set full text search', error:e});
+            } else {
+              callback({status:'success', message:r})
+            }
+          });
+        } else {
+          callback({status:'success', message:r})
+        }
       })
       .catch((e) => {
         console.log(e);
-        callback({status:'failed',message:e})
+        callback({status:'failed',error:e})
       });
     }
     promisePush();
   });
+}
+
+/*
+ * Updates the table where we track which table/column
+ */
+function setFTS(d,t,c,df,b,callback) {
+  if (!(d&&t&&c&&b)) {
+    return callback({status:'failed'})
+  }
+  initDB('admin', function() {
+    db_pg['admin'].setFTS(d, t, c, df, b, function(err, r) {
+      if (err) {
+        console.log("unable to retrieve user_clients")
+        console.log(err)
+        callback({status:'failed', error:err})
+      } else {
+        console.log(r)
+        console.log('r.length')
+        console.log(r.length)
+        if (r.length === 0) {
+          callback(null,r)
+        } else {
+          callback(err)
+        }
+      }
+    })
+  })
 }
 
 exports.deleteTableColumn = function(d,t,c,callback) {
@@ -264,11 +320,8 @@ exports.deleteTableColumn = function(d,t,c,callback) {
       if (err){
         console.log("unable to retrieve user_clients");
         console.log(err);
-        callback({status:'failed',message:err})
+        callback({status:'failed', error:err})
       } else {
-        console.log(r);
-        console.log('r.length');
-        console.log(r.length);
         if (r.length === 0) {
           callback({status:'success'})
         } else {
@@ -295,7 +348,7 @@ exports.addTableData = function(d,t,data,callback) {
         if (err) {
           console.log("unable to retrieve user_clients");
           console.log(err);
-          callback({r,message:err})
+          callback({r,error:err})
         } else {
           callback({r})
         }
@@ -327,7 +380,7 @@ exports.deleteDatabase = function(d,c) {
 		if (err) {
 			console.log("unable to retrieve user_clients");
 			console.log(err);
-      c({status:'failed',message:err})
+      c({status:'failed',error:err})
 		} else {
       console.log(r);
       console.log('r.length');

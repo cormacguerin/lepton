@@ -131,7 +131,7 @@ app.get('/api/addTableColumn', function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.addTableColumn(queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
+	data.addTableColumn(queryData.database, queryData.table, queryData.column, queryData.datatype, queryData.displayfield, queryData.fts, function(r) {
     res.json(r);
   });
 });
@@ -141,7 +141,7 @@ app.get('/api/updateTableColumn', function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.updateTableColumn(queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, function(r) {
+	data.updateTableColumn(queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, queryData.displayfield, queryData.fts, function(r) {
     res.json(r);
   });
 });

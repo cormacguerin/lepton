@@ -544,7 +544,28 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   getTableSchema(database, table, callback) {
-    var query = "select column_name, data_type, character_maximum_length from INFORMATION_SCHEMA.COLUMNS where udt_catalog='" + database + "' AND table_name = '" + table + "';"
+    var query = "SELECT column_name, data_type, character_maximum_length FROM INFORMATION_SCHEMA.COLUMNS WHERE udt_catalog='" + database + "' AND table_name = '" + table + "';"
+    this.execute(query, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  setFTS(d,t,c,df,b,callback) {
+    var query = "INSERT INTO text_tables_index(database,_table,_column,display_field,enable) VALUES("
+      + "\'" + d + "\',"
+      + "\'" + t + "\',"
+      + "\'" + c + "\',"
+      + "\'" + df + "\',"
+      + "\'" + b + "\')"
+      + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column_key DO UPDATE SET "
+      + " database = \'" + d + "\',"
+      + " _table = \'" + t + "\',"
+      + " _column = \'" + c + "\',"
+      + " display_field = \'" + df + "\',"
+      + " enable = \'" + b + "\';";
+
     this.execute(query, function(e,r) {
       console.log(e);
       console.log(r);

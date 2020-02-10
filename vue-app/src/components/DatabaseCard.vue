@@ -105,7 +105,7 @@
           :data-type="itemData.data_type"
           :edit-data-type="itemData.data_type"
           :columns="columns"
-          isEdit
+          is-edit
         />
       </CModal>
       <CDataTable
@@ -229,6 +229,13 @@ export default {
       this.itemData = i
     },
     getTableSchema (table) {
+      console.log(table)
+      console.log(this.selectedTable)
+      if (table === this.selectedTable && this.collapse === true) {
+        console.log('hit')
+        this.collapse = false
+        return
+      }
       var vm = this
       this.$axios.get('https://35.239.29.200/api/getTableSchema', {
         params: {
@@ -249,7 +256,6 @@ export default {
             })
             vm.selectedTable = table
             vm.collapse = true
-            console.log('table ' + table)
           }
         })
         .catch(function (error) {
