@@ -1,14 +1,13 @@
 <template>
   <div class="card">
-    <flex-row
+    <flex-col
       no-wrap
       class="container"
     >
       <div class="database">
-        <flex-col
+        <flex-row
           class="left"
         >
-          <h2>{{ database }}</h2>
           <div
             class="database-icon"
           >
@@ -16,74 +15,77 @@
             <div class="cylinder" />
             <div class="cylinder" />
           </div>
+          <div class="flexgrow">
+            <h2>{{ database }}</h2>
+          </div>
+          <div class="edit">
+            <CDropdown
+              nav
+              placement="bottom-end"
+            >
+              <template #toggler="toggler">
+                <i
+                  class="fa fa-ellipsis-v pointer"
+                  aria-hidden="true"
+                />
+              </template>
+              <CDropdownItem
+                @click="deleteDB()"
+              >
+                Delete
+              </CDropdownItem>
+              <CDropdownItem>Edit</CDropdownItem>
+            </CDropdown>
+          </div>
+        </flex-row>
+        <flex-col
+          justify="end"
+          class="centerflex"
+        >
+          <flex-row
+            justify="start"
+            class="buttons"
+          >
+            <CButton
+              v-for="t in tables"
+              :key="t.tables"
+              color="info"
+              class="tablebutton"
+              variant="outline"
+              @click="getTableSchema(t.tables)"
+            >
+              {{ t.tables }}
+            </CButton>
+            <CButton
+              color="info"
+              class="tablebutton active"
+              @click="createTableModal = true"
+            >
+              <span>
+                <i
+                  class="fa
+                  fa-plus"
+                  aria-hidden="true"
+                />
+              </span>
+            </CButton>
+            <CModal
+              title="Add Table"
+              color="info"
+              :show.sync="createTableModal"
+            >
+              <template #footer-wrapper>
+                <div class="hidden" />
+              </template>
+              <CreateTable
+                :key="index"
+                :database="database"
+              />
+            </CModal>
+          </flex-row>
         </flex-col>
       </div>
-      <flex-col
-        justify="end"
-        class="centerflex"
-      >
-        <flex-row
-          justify="start"
-          class="buttons"
-        >
-          <CButton
-            v-for="t in tables"
-            :key="t.tables"
-            color="info"
-            class="tablebutton"
-            variant="outline"
-            @click="getTableSchema(t.tables)"
-          >
-            {{ t.tables }}
-          </CButton>
-          <CButton
-            color="info"
-            class="tablebutton active"
-            @click="createTableModal = true"
-          >
-            <span>
-              <i
-                class="fa
-                fa-plus"
-                aria-hidden="true"
-              />
-            </span>
-          </CButton>
-          <CModal
-            title="Add Table"
-            color="info"
-            :show.sync="createTableModal"
-          >
-            <template #footer-wrapper>
-              <div class="hidden" />
-            </template>
-            <CreateTable
-              :key="index"
-              :database="database"
-            />
-          </CModal>
-        </flex-row>
-      </flex-col>
-      <div class="edit">
-        <CDropdown
-          nav
-          placement="bottom-end"
-        >
-          <template #toggler="toggler">
-            <i
-              class="fa fa-ellipsis-v pointer"
-              aria-hidden="true"
-            />
-          </template>
-          <CDropdownItem
-            @click="deleteDB()"
-          >
-            Delete
-          </CDropdownItem>
-          <CDropdownItem>Edit</CDropdownItem>
-        </CDropdown>
-      </div>
-    </flex-row>
+    </flex-col>
     <CCollapse
       :show="collapse"
       :duration="300"
@@ -283,14 +285,16 @@ export default {
 
 <style scoped>
 h2 {
-    padding-top: 15px;
-    color: #004c65;
-    text-align: center;
-    font-size: 1.2em;
+    padding-top: 30px;
+    color: #fff;
+    text-align: left;
+    font-size: 1.8em;
 }
 .database-icon {
+    padding:20px;
+    margin-right: 20px;
     transform: rotate(180deg);
-    width: 100%;
+    width: 120px;
 }
 .cylinder {
     margin-top: -5px;
@@ -300,15 +304,16 @@ h2 {
     border-bottom: 1px solid #efefef;
     border-radius: 50%;
     background-color: #fff;
-    -webkit-box-shadow:0 -4px 4px 0px rgba(89, 183, 187, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
-       -moz-box-shadow:0 -4px 4px 0px rgba(89, 183, 187, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
-            box-shadow:0 -4px 4px 0px rgba(89, 183, 187, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
+    -webkit-box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
+       -moz-box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
+            box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
 }
 .buttons {
   margin-left: 10px;
   margin-right: 10px;
 }
 .tablebutton {
+  color: white;
   margin: 10px;
 }
 .container {
@@ -317,14 +322,20 @@ h2 {
 .card {
     min-height: 125px;
     margin: 10px;
-    padding: 10px;
     border: 1px solid #fff;
     border-radius: 3px;
     background-color: #fff;
-    box-shadow: 0px 1px 5px rgba(0,0,0,0.3), 0 0px 0px rgba(0,0,0,0.22);
+    /*
+      box-shadow: 0px 1px 5px rgba(0,0,0,0.3), 0 0px 0px rgba(0,0,0,0.22);
+    */
 }
 .database {
     min-width: 100px;
+    width: 100%;
+    background-color: #007299;
+    border-top: #39b2d5 4px solid;
+    border-radius: 3px;
+    color: white;
 }
 .left {
     min-width: 100px;
@@ -333,6 +344,9 @@ h2 {
   margin-right: 5px;
   margin-left: 5px;
   width: 10px;
+}
+.flexgrow {
+    flex-grow: 2;
 }
 .info {
     width: 75%;

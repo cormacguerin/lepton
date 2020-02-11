@@ -1,6 +1,6 @@
 import Vue from 'vue'
 // import CoreuiVue from '@coreui/vue'
-import { CButton, CSwitch, CModal, CDropdown, CDropdownItem, CCollapse, CDataTable } from '@coreui/vue'
+import { CButton, CSwitch, CModal, CDropdown, CDropdownItem, CCollapse, CDataTable, CNav, CNavItem } from '@coreui/vue'
 import VueFlex from 'vue-flex'
 import App from './App.vue'
 import Axios from 'axios'
@@ -19,13 +19,13 @@ import '@coreui/icons/css/all.min.css'
 // https://www.npmjs.com/package/@coreui/vue
 import '@coreui/coreui/scss/coreui.scss'
 
-import '@fortawesome/fontawesome/styles.css'
+// import '@fortawesome/fontawesome/styles.css'
 import fontawesome from '@fortawesome/fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
-import { faPlus, faEllipsisV } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faBars, faEllipsisV } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
-library.add(faPlus, faEllipsisV)
+library.add(faPlus, faBars, faEllipsisV)
 
 fontawesome.config = {
   autoAddCss: false
@@ -39,6 +39,8 @@ Vue.component('CDropdown', CDropdown)
 Vue.component('CDropdownItem', CDropdownItem)
 Vue.component('CCollapse', CCollapse)
 Vue.component('CDataTable', CDataTable)
+Vue.component('CNav', CNav)
+Vue.component('CNavItem', CNavItem)
 
 Vue.config.productionTip = false
 

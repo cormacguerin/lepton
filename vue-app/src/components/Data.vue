@@ -1,50 +1,88 @@
 <template>
-  <div class="data">
-    <flex-row
-      justify="center"
-      class="cards"
+  <div class="schema">
+    <div
+      class="tabsContainer"
     >
-      <div class="headertitle">
-        <h2>Data</h2>
-      </div>
-      <div class="flexgrow" />
-      <div class="adddata">
-        <CButton
-          class="btn active"
-          color="info"
-          @click="addDataModal = true"
+      <CNav
+        variant="tabs"
+        class="tabs"
+        fade
+      >
+        <div
+          @click="showTab('databaseTab')"
         >
-          <span>
-            Add
-            <i
-              class="fa fa-plus"
-              aria-hidden="true"
-            />
-          </span>
-        </CButton>
-        <CModal
-          title="Add Data"
-          color="info"
-          :show.sync="addDataModal"
+          <CNavItem
+            active
+            class="databaseTab"
+            title="Database"
+          >
+            <h2>Database</h2>
+          </CNavItem>
+        </div>
+        <div
+          @click="showTab('searchTab')"
         >
-          <template #footer-wrapper>
-            <div class="hidden" />
-          </template>
-          <EditDatabase />
-        </CModal>
-      </div>
-    </flex-row>
-    <flex-col
-      justify="center"
-      class="cards"
+          <CNavItem
+            class="searchTab"
+            title="Search"
+          >
+            <h2>Search</h2>
+          </CNavItem>
+        </div>
+      </CNav>
+    </div>
+    <div
+      id="databaseTab"
     >
-      <DatabaseCard
-        v-for="(value, key) in dbs"
-        :key="key"
-        :database="value.key"
-        :tables="value.tables"
-      />
-    </flex-col>
+      <flex-row
+        justify="center"
+        class="cards"
+      >
+        <div class="flexgrow" />
+        <div class="adddata">
+          <CButton
+            class="btn active"
+            color="info"
+            @click="addDataModal = true"
+          >
+            <span>
+              Add
+              <i
+                class="fa fa-plus"
+                aria-hidden="true"
+              />
+            </span>
+          </CButton>
+          <CModal
+            title="Add Data"
+            color="info"
+            :show.sync="addDataModal"
+          >
+            <template #footer-wrapper>
+              <div class="hidden" />
+            </template>
+            <EditDatabase />
+          </CModal>
+        </div>
+      </flex-row>
+      <flex-col
+        justify="center"
+        class="cards"
+      >
+        <DatabaseCard
+          v-for="(value, key) in dbs"
+          :key="key"
+          :database="value.key"
+          :tables="value.tables"
+        />
+      </flex-col>
+    </div>
+    <div
+      id="searchTab"
+      hidden
+    >
+      serch contents here
+    </div>
   </div>
 </template>
 <script>
@@ -62,7 +100,8 @@ export default {
     return {
       dbs: {
       },
-      addDataModal: false
+      addDataModal: false,
+      selectedTab: 'databaseTab'
     }
   },
   created () {
@@ -81,13 +120,23 @@ export default {
         .catch(function (error) {
           console.log(error)
         })
+    },
+    showTab (t) {
+      console.log(t)
+      console.log(this.$refs[this.selectedTab])
+      console.log(document.getElementById(this.selectedTab))
+      document.getElementById(this.selectedTab).hidden = true
+      document.getElementById(t).hidden = false
+      // this.$refs[this.selectedTab].hidden = true
+      // this.$refs[t].hidden = false
+      this.selectedTab = t
     }
   }
 }
 </script>
 
 <style scoped>
-.data {
+.schema {
     width: 100%;
     height: 100vh;
     background: white;
@@ -113,6 +162,22 @@ h2 {
     margin: 0px;
     text-align: center;
     font-size: 24px;
+}
+.databaseTab {
+}
+.searchTab {
+}
+.tabs {
+    background-color: #171f24;
+    width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.nav-tabs {
+    border: 0px;
+}
+.tabsContainer {
+    background-color: #171f24;
 }
 .hidden {
 }

@@ -10,7 +10,15 @@
         class="burger-button"
         title="Menu"
       >
-        <span class="hidden">Toggle menu</span>
+        <span>
+          <i
+            class="fas
+            fa-2x
+            fa-bars
+            menuIcon"
+            aria-hidden="true"
+          />
+        </span>
       </button>
     </slot>
   </div>
@@ -59,7 +67,7 @@ button:focus {
   border-radius: 0;
   background-color: transparent;
   pointer-events: all;
-  background: url("../assets/bblogo_icon_dark_bg.png") no-repeat;
+  /* background: url("../assets/bblogo_icon_dark_bg.png") no-repeat; */
   transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
@@ -117,5 +125,8 @@ button:focus {
 
 #burger.active .burger-bar--3 {
   transform: rotate(-45deg);
+}
+.menuIcon {
+  color: white;
 }
 </style>

@@ -62,7 +62,7 @@ export default {
     margin-top: 0px;
 }
 .header {
-  background-color: #042946;
+  background-color: #171f24;
 }
 ul.sidebar-panel-nav {
   list-style-type: none;
