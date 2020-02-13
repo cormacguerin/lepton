@@ -89,7 +89,7 @@ export default {
     },
     save () {
       var vm = this
-      this.$axios.get('https://35.239.29.200/api/addTable', {
+      this.$axios.get('https://' + this_SERVER_IP + '/api/addTable', {
         params: {
           database: vm.database,
           table: vm.tableName,

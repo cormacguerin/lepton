@@ -51,7 +51,7 @@ export default {
   methods: {
     getUserInfo () {
       var vm = this
-      this.$axios.get('https://35.239.29.200/api/getUserInfo', {
+      this.$axios.get('https://' + this_SERVER_IP + '/api/getUserInfo', {
       })
         .then(function (response) {
           console.log(response)
