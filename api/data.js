@@ -396,6 +396,8 @@ exports.deleteDatabase = function(d,c) {
 
 function initDB(database, callback) {
 
+  var fs = require('fs')
+
   var password;
 
   function get_last_line(filename, callback) {
