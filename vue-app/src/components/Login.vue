@@ -57,7 +57,7 @@ export default {
     login () {
       var vm = this
       if (vm.input.email !== '' && vm.input.password !== '') {
-        vm.$axios.post('SERVER_URI + '/login/', {
+        vm.$axios.post(this.$SERVER_URI + '/login/', {
           email: vm.input.email,
           password: vm.input.password
         })
@@ -82,7 +82,7 @@ export default {
       var vm = this
       console.log(this.input)
       if (this.input.email !== '' && this.input.password !== '') {
-        this.$axios.post('SERVER_URI + '/register/', {
+        this.$axios.post(this.$SERVER_URI + '/register/', {
           email: this.input.email,
           password: this.input.password
         })

@@ -36,7 +36,7 @@ export default {
     },
     save () {
       var vm = this
-      this.$axios.get('SERVER_URI + '/api/addDatabase', {
+      this.$axios.get(this.$SERVER_URI + '/api/addDatabase', {
         params: {
           database: vm.value
         }

@@ -198,9 +198,9 @@ export default {
       }
       var saveUrl
       if (this.isEdit === false) {
-        saveUrl = 'SERVER_URI + '/api/addTableColumn'
+        saveUrl = this.$SERVER_URI + '/api/addTableColumn'
       } else {
-        saveUrl = 'SERVER_URI + '/api/updateTableColumn'
+        saveUrl = this.$SERVER_URI + '/api/updateTableColumn'
         params.editColumn = vm.editColumnName
         params.editDatatype = vm.editDataType
       }
@@ -229,7 +229,7 @@ export default {
     },
     deleteColumn () {
       var vm = this
-      this.$axios.get('SERVER_URI + '/api/deleteColumn', {
+      this.$axios.get(this.$SERVER_URI + '/api/deleteColumn', {
         params: {
           database: vm.database,
           table: vm.tableName,

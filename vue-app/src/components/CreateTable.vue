@@ -89,7 +89,7 @@ export default {
     },
     save () {
       var vm = this
-      this.$axios.get('SERVER_URI + '/api/addTable', {
+      this.$axios.get(this.$SERVER_URI + '/api/addTable', {
         params: {
           database: vm.database,
           table: vm.tableName,

@@ -264,7 +264,7 @@ export default {
         return
       }
       var vm = this
-      this.$axios.get('SERVER_URI + '/api/getTableSchema', {
+      this.$axios.get(this.$SERVER_URI + '/api/getTableSchema', {
         params: {
           database: vm.database,
           table: table
@@ -291,7 +291,7 @@ export default {
     },
     deleteDB () {
       var vm = this
-      this.$axios.get('SERVER_URI + '/api/deleteDatabase', {
+      this.$axios.get(this.$SERVER_URI + '/api/deleteDatabase', {
         params: {
           database: vm.database
         }
