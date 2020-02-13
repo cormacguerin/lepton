@@ -82,6 +82,30 @@
                 :database="database"
               />
             </CModal>
+            <CButton
+              class="tablebutton active"
+              color="warning"
+              variant="outline"
+              @click="addSearchModal = true"
+            >
+              <span>
+                Add Search Index
+                <i
+                  class="fa fa-plus"
+                  aria-hidden="true"
+                />
+              </span>
+            </CButton>
+            <CModal
+              title="Add Data"
+              color="warning"
+              :show.sync="addSearchModal"
+            >
+              <template #footer-wrapper>
+                <div class="hidden" />
+              </template>
+              <EditDatabase />
+            </CModal>
           </flex-row>
         </flex-col>
       </div>
@@ -312,6 +336,9 @@ h2 {
   margin-left: 10px;
   margin-right: 10px;
 }
+.btn {
+  color: white;
+}
 .tablebutton {
   color: white;
   margin: 10px;
@@ -332,7 +359,7 @@ h2 {
 .database {
     min-width: 100px;
     width: 100%;
-    background-color: #007299;
+    background-color: #07202f;
     border-top: #39b2d5 4px solid;
     border-radius: 3px;
     color: white;

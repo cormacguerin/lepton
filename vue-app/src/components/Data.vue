@@ -46,7 +46,7 @@
             @click="addDataModal = true"
           >
             <span>
-              Add
+              Add Database
               <i
                 class="fa fa-plus"
                 aria-hidden="true"
