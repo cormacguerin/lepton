@@ -25,8 +25,6 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import { faPlus, faBars, faEllipsisV } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
-Vue.prototype.$SERVER_IP = "127.0.0.1";
-
 library.add(faPlus, faBars, faEllipsisV)
 
 fontawesome.config = {
@@ -45,6 +43,8 @@ Vue.component('CNav', CNav)
 Vue.component('CNavItem', CNavItem)
 
 Vue.config.productionTip = false
+
+Vue.prototype.$SERVER_IP = '127.0.0.1'
 
 Vue.prototype.$axios = Axios
 

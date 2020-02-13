@@ -92,7 +92,7 @@ export default {
       this.collapse = !this.collapse
       if (this.items.length === 0 && this.fields.length === 0) {
         var vm = this
-        this.$axios.get('https://' + this_SERVER_IP + '/api/getTableSchema', {
+        this.$axios.get('https://' + this.$SERVER_IP + '/api/getTableSchema', {
           params: {
             database: vm.database,
             table: vm.table
