@@ -46,11 +46,11 @@
             @click="addDataModal = true"
           >
             <span>
-              Add Database
               <i
                 class="fa fa-plus"
                 aria-hidden="true"
               />
+              Database
             </span>
           </CButton>
           <CModal

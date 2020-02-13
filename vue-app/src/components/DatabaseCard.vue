@@ -62,12 +62,12 @@
               @click="createTableModal = true"
             >
               <span>
-                Add Table
                 <i
                   class="fa
                   fa-plus"
                   aria-hidden="true"
                 />
+                Table
               </span>
             </CButton>
             <CModal
@@ -78,7 +78,7 @@
               <template #footer-wrapper>
                 <div class="hidden" />
               </template>
-              <CreateTable
+              <AddTable
                 :key="index"
                 :database="database"
               />
@@ -90,12 +90,12 @@
               @click="addSearchModal = true"
             >
               <span>
-                Add Search Index
                 <i
                   class="fa fa-plus"
                   aria-hidden="true"
                 />
               </span>
+              Search Table
             </CButton>
             <CModal
               title="Add Search Index"
@@ -105,6 +105,10 @@
               <template #footer-wrapper>
                 <div class="hidden" />
               </template>
+              <AddSearchTable
+                :key="index"
+                :database="database"
+              />
             </CModal>
           </flex-row>
         </flex-col>
@@ -169,11 +173,11 @@
               @click="addTableColumnModal = true"
             >
               <span>
-                Add Column
                 <i
                   class="fa fa-plus"
                   aria-hidden="true"
                 />
+                Column
               </span>
             </CButton>
             <CModal
@@ -201,13 +205,15 @@
 </template>
 <script>
 
-import CreateTable from './CreateTable.vue'
+import AddTable from './AddTable.vue'
+import AddSearchTable from './AddSearchTable.vue'
 import EditTableColumn from './EditTableColumn.vue'
 
 export default {
   name: 'DatabaseCard',
   components: {
-    CreateTable,
+    AddTable,
+    AddSearchTable,
     EditTableColumn
   },
   props: {

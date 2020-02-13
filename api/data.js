@@ -395,8 +395,33 @@ exports.deleteDatabase = function(d,c) {
 }
 
 function initDB(database, callback) {
+
+  var password;
+
+  function get_last_line(filename, callback) {
+    var data = fs.readFileSync(filename, 'utf8');
+    var lines = data.split("\n");
+
+    if(lines.length===0){
+      callback('empty file');
+    }
+    callback(null, lines[lines.length-2]);
+  }
+
+  get_last_line('./dbpassword', function(err, line){
+    if (err) {
+      console.log(err);
+      console.log('no dbpassword file found? usually created when creating the database with server_files/setup_db.sh');
+      callback();
+    } else {
+      password = line;
+    }
+  });
+
+  console.log(password);
+
   if (!db_pg[database]) {
-    db_pg[database] = new pg({database,password:"kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw="})
+    db_pg[database] = new pg({database,password})
   }
   callback();
 }
