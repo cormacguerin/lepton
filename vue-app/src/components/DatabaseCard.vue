@@ -62,6 +62,7 @@
               @click="createTableModal = true"
             >
               <span>
+                Add Table
                 <i
                   class="fa
                   fa-plus"
@@ -97,14 +98,13 @@
               </span>
             </CButton>
             <CModal
-              title="Add Data"
+              title="Add Search Index"
               color="warning"
               :show.sync="addSearchModal"
             >
               <template #footer-wrapper>
                 <div class="hidden" />
               </template>
-              <EditDatabase />
             </CModal>
           </flex-row>
         </flex-col>
@@ -235,6 +235,7 @@ export default {
       selectedTable: '',
       collapse: false,
       createTableModal: false,
+      addSearchModal: false,
       addTableColumnModal: false,
       editTableColumnModal: false,
       itemData: {
