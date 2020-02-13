@@ -263,7 +263,7 @@ export default {
         return
       }
       var vm = this
-      this.$axios.get('https://35.239.29.200/api/getTableSchema', {
+      this.$axios.get('https://' + this_SERVER_IP + '/api/getTableSchema', {
         params: {
           database: vm.database,
           table: table
@@ -290,7 +290,7 @@ export default {
     },
     deleteDB () {
       var vm = this
-      this.$axios.get('https://35.239.29.200/api/deleteDatabase', {
+      this.$axios.get('https://' + this_SERVER_IP + '/api/deleteDatabase', {
         params: {
           database: vm.database
         }

@@ -110,7 +110,7 @@ export default {
   methods: {
     getDatabases () {
       var vm = this
-      this.$axios.get('https://35.239.29.200/api/getDatabases', {
+      this.$axios.get('https://' + this_SERVER_IP + '/api/getDatabases', {
       })
         .then(function (response) {
           if (response.data) {

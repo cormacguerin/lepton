@@ -25,11 +25,14 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import { faPlus, faBars, faEllipsisV } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
+Vue.prototype.$SERVER_IP = "http://127.0.0.1:3000/";
+
 library.add(faPlus, faBars, faEllipsisV)
 
 fontawesome.config = {
   autoAddCss: false
 }
+
 
 Vue.component('font-awesome-icon', FontAwesomeIcon)
 Vue.component('CButton', CButton)
