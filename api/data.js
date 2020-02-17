@@ -20,37 +20,35 @@ var userClients = {};
 
 exports.clients = userClients;
 
-exports.getDatabases = function(c) {
+exports.getDatabases = function(u,c) {
   var res = res;
-	db_pg['admin'].getDatabases(function(err,d) {
+	db_pg['admin'].getDatabases(u,function(err,d) {
 		if (err){
 			console.log("unable to retrieve user_clients");
 			console.log(err);
       c(err)
 		} else {
+      console.log('d');
+      console.log(d);
 
       var promises = [];
       const promisePush = async function() {
-
-        for (i=0; i<d.length; i++) {
-          initDB(d[i].datname, function() {
-            promises.push(new Promise((pr, pe) => {
-              var database = d[i].datname;
-              db_pg[database].getTables(function(err, s) {
-                if (err) {
-                  console.log("unable to retrieve user_clients");
-                  console.log(err);
-                  pr(err);
-                } else {
-                  pr({key:database,tables:s});
-                }
-              });
-            }));
-          });
+        for (var i=0; i<d.length; i++) {
+          promises.push(new Promise((pr, pe) => {
+            var database = d[i].database;
+            db_pg['admin'].getSearchTables(database, function(e,s) {
+              if (e) {
+                console.log(e);
+                c(e);
+              } else {
+                pr({key:database,tables:s});
+              }
+            });
+          }));
         }
-
         await Promise.all(promises)
         .then((r)=> {
+          console.log('getDatabases response');
           console.log(r);
           c(r);
         })
@@ -64,31 +62,37 @@ exports.getDatabases = function(c) {
 	});
 }
 
+/*
 exports.getTables = function(database, c) {
   console.log("database");
   console.log(database);
   initDB(database, function() {
-    db_pg[database].getTables(function(err, s) {
+    db_pg[database].getTables(function(e, t) {
       if (err){
         console.log("unable to retrieve user_clients");
         console.log(err);
         c(e);
       } else {
-        console.log(s);
+        console.log('getTables response');
+        console.log(t);
+            } else {
+            }
+          });
+        }
         c(s);
       }
     });
   });
 }
+*/
 
 exports.getTableSchema = function(database, table, c) {
-  console.log("database");
-  console.log(database);
+  console.log('getTableSchema for database ' + database + ' table ' + table);
   initDB(database, function() {
-    db_pg[database].getTableSchema(database, table, function(err, s) {
-      if (err) {
+    db_pg[database].getTableSchema(database, table, function(e, s) {
+      if (e) {
         console.log("unable to retrieve user_clients");
-        console.log(err);
+        console.log(e);
         c(e);
       } else {
         var response = [] 
@@ -96,9 +100,6 @@ exports.getTableSchema = function(database, table, c) {
           var s_ = {};
           s_.column_name = s[i].column_name; 
           if (s[i].data_type === "character varying") {
-            console.log('deb 1');
-            console.log('s[i]');
-            console.log(s[i]);
             if (s[i].character_maximum_length === 64) {
               s_.data_type = "varchar_64"
             } else if (s[i].character_maximum_length === 256) {
@@ -117,6 +118,7 @@ exports.getTableSchema = function(database, table, c) {
           }
           response.push(s_);
         }
+        console.log('response');
         console.log(response);
         c(response);
       }
@@ -124,22 +126,19 @@ exports.getTableSchema = function(database, table, c) {
   });
 }
 
-exports.addDatabase = function(d,c) {
+exports.addDatabase = function(u,d,c) {
   if (!d) {
     c({status:'failed'})
   }
   if (d.length > 63) {
     c({status:'failed'})
   }
-	db_pg['admin'].addDatabase(d, function(err,r) {
-		if (err){
+	db_pg['admin'].addDatabase(u, d, function(e,r) {
+		if (e){
 			console.log("unable to retrieve user_clients");
-			console.log(err);
-      c({status:'failed',error:err})
+			console.log(e);
+      c({status:'failed',error:e})
 		} else {
-      console.log(r);
-      console.log('r.length');
-      console.log(r.length);
       if (r.length === 0) {
         c({status:'success'})
       } else {
@@ -149,7 +148,7 @@ exports.addDatabase = function(d,c) {
 	});
 }
 
-exports.createTable = function(d,t,c,dt,callback) {
+exports.createTable = function(u,d,t,c,dt,callback) {
   if (!d) {
     callback({status:'failed'})
   }
@@ -157,9 +156,40 @@ exports.createTable = function(d,t,c,dt,callback) {
     callback({status:'failed'})
   }
   initDB(d, function() {
-    db_pg[d].createTable(t, c, dt, function(err,r) {
+    db_pg[d].createTable(u,d,t,c,dt,function(err,r) {
       if (err){
-        console.log("unable to retrieve user_clients");
+        console.log("unable to create table");
+        console.log(err);
+        callback({status:'failed',error:err})
+      } else {
+        if (r.length === 0) {
+          db_pg['admin'].registerTable(u,d,t,false, function(e,r) {
+            if (e) {
+              console.log(e);
+              callback({status:'failed'})
+            } else {
+              callback({status:'success'})
+            }
+          });
+        } else {
+          callback({status:'failed'})
+        }
+      }
+    });
+  });
+}
+
+exports.createSearchTable = function(u,d,t,callback) {
+  if (!d) {
+    callback({status:'failed'})
+  }
+  if (d.length > 63) {
+    callback({status:'failed'})
+  }
+  initDB(d, function() {
+    db_pg[d].createSearchTable(u,d,t,function(err,r) {
+      if (err){
+        console.log("unable to create search table");
         console.log(err);
         callback({status:'failed',error:err})
       } else {
@@ -167,7 +197,14 @@ exports.createTable = function(d,t,c,dt,callback) {
         console.log('r.length');
         console.log(r.length);
         if (r.length === 0) {
-          callback({status:'success'})
+          db_pg['admin'].registerTable(u,d,t,true, function(e,r) {
+            if (e) {
+              console.log(e);
+              callback({status:'failed'})
+            } else {
+              callback({status:'success'})
+            }
+          });
         } else {
           callback({status:'failed'})
         }
@@ -368,6 +405,27 @@ exports.addTableData = function(d,t,data,callback) {
       });
       callback(results)
     }
+  });
+}
+
+exports.deleteTable = function(d, t, c) {
+  initDB(d, function() {
+    db_pg[d].deleteTable(d, t, function(err,r) {
+      if (err) {
+        console.log("unable to retrieve user_clients");
+        console.log(err);
+        c({status:'failed',error:err})
+      } else {
+        console.log(r);
+        console.log('r.length');
+        console.log(r.length);
+        if (r.length === 0) {
+          c({status:'success'})
+        } else {
+          c({status:'failed'})
+        }
+      }
+    });
   });
 }
 

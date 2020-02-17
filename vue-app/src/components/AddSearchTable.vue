@@ -1,6 +1,6 @@
 <template>
   <div class="input">
-    <flex-col>
+    <flex-row>
       <div class="margin">
         <input
           v-model="tableName"
@@ -8,54 +8,16 @@
           placeholder="table name"
         >
       </div>
-      <flex-row>
-        <div class="margin">
-          <input
-            v-model="columnName"
-            placeholder="primary key"
-          >
-        </div>
-        <div class="margin">
-          <input
-            v-model="columnName"
-            placeholder="text"
-          >
-        </div>
-        <div class="margin">
-          <input
-            v-model="columnName"
-            placeholder="display field"
-          >
-        </div>
-        <div class="margin nopadding">
-          <CDropdown
-            ref="dataTypeDropDown"
-            :toggler-text="dataType"
-            color="text-white bg-dark"
-            no-caret
-            nav
-            placement="bottom-end"
-          >
-            <CDropdownItem
-              v-for="dt in dataTypes"
-              :key="dt"
-              @click="selectDataType(dt)"
-            >
-              {{ dt }}
-            </CDropdownItem>
-          </CDropdown>
-        </div>
-        <div class="margin">
-          <CButton
-            class="active"
-            color="info"
-            @click="save"
-          >
-            Save
-          </CButton>
-        </div>
-      </flex-row>
-    </flex-col>
+      <div class="margin">
+        <CButton
+          class="active left"
+          color="info"
+          @click="save"
+        >
+          Save
+        </CButton>
+      </div>
+    </flex-row>
   </div>
 </template>
 <script>
@@ -101,7 +63,7 @@ export default {
     },
     save () {
       var vm = this
-      this.$axios.get(this.$SERVER_URI + '/api/addTable', {
+      this.$axios.get(this.$SERVER_URI + '/api/createSearchTable', {
         params: {
           database: vm.database,
           table: vm.tableName,
@@ -115,7 +77,7 @@ export default {
             if (response.data.status === 'success') {
               vm.$parent.$parent.$parent.getDatabases(vm.tableName)
               vm.$parent.$parent.getTableSchema(vm.tableName)
-              vm.$parent.$parent.createTableModal = false
+              vm.$parent.$parent.addSearchTableModal = false
             } else {
               console.log(response.data.message)
             }
@@ -133,6 +95,10 @@ export default {
 .margin {
   margin: 10px;
 }
+.thinmargin {
+  margin-left: 10px;
+  margin-right: 10px;
+}
 .nopadding {
   padding: 0px;
 }
@@ -141,6 +107,7 @@ export default {
 }
 input {
   margin: 10px;
+  text-indent: 10px;
   min-width: 100px;
   border: none;
   border-bottom: 2px solid #cfcfcf;

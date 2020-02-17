@@ -16,7 +16,7 @@
             <div class="cylinder" />
           </div>
           <div class="flexgrow">
-            <h2>{{ database }}</h2>
+            <h2>{{ formatDatabaseName() }}</h2>
           </div>
           <div class="edit">
             <CDropdown
@@ -48,18 +48,18 @@
           >
             <CButton
               v-for="t in tables"
-              :key="t.tables"
-              color="info"
+              :key="t.tablename"
+              :color="getTableColor(t.search)"
               class="tablebutton"
               variant="outline"
-              @click="getTableSchema(t.tables)"
+              @click="getTableSchema(t.tablename)"
             >
-              {{ t.tables }}
+              {{ t.tablename }}
             </CButton>
             <CButton
               color="info"
               class="tablebutton active"
-              @click="createTableModal = true"
+              @click="addTableModal = true"
             >
               <span>
                 <i
@@ -73,7 +73,7 @@
             <CModal
               title="Add Table"
               color="info"
-              :show.sync="createTableModal"
+              :show.sync="addTableModal"
             >
               <template #footer-wrapper>
                 <div class="hidden" />
@@ -87,7 +87,7 @@
               class="tablebutton active"
               color="warning"
               variant="outline"
-              @click="addSearchModal = true"
+              @click="addSearchTableModal = true"
             >
               <span>
                 <i
@@ -98,9 +98,9 @@
               Search Table
             </CButton>
             <CModal
-              title="Add Search Index"
+              title="Add Search Table"
               color="warning"
-              :show.sync="addSearchModal"
+              :show.sync="addSearchTableModal"
             >
               <template #footer-wrapper>
                 <div class="hidden" />
@@ -153,6 +153,7 @@
           <td class="py-2">
             <CButton
               color="primary"
+              class="blue"
               variant="outline"
               square
               size="sm"
@@ -167,6 +168,19 @@
         </nav>
         <template #under-table="addTable">
           <div class="addTable">
+            <CButton
+              class="btn active margin-right"
+              color="info"
+              @click="deleteTable"
+            >
+              <span>
+                <i
+                  class="fa fa-minus"
+                  aria-hidden="true"
+                />
+                Delete
+              </span>
+            </CButton>
             <CButton
               class="btn active"
               color="info"
@@ -224,9 +238,9 @@ export default {
       }
     },
     tables: {
-      type: Object,
+      type: Array,
       default: function () {
-        return { }
+        return []
       }
     }
   },
@@ -240,8 +254,8 @@ export default {
       ],
       selectedTable: '',
       collapse: false,
-      createTableModal: false,
-      addSearchModal: false,
+      addTableModal: false,
+      addSearchTableModal: false,
       addTableColumnModal: false,
       editTableColumnModal: false,
       itemData: {
@@ -256,16 +270,24 @@ export default {
   created () {
   },
   methods: {
+    formatDatabaseName () {
+      const r = /^[0-9]+_/gi
+      return this.database.replace(r, '')
+    },
+    getTableColor (t) {
+      console.log(t)
+      if (t === true) {
+        return 'warning'
+      } else {
+        return 'info'
+      }
+    },
     editTableColumn (i) {
-      console.log(i)
       this.editTableColumnModal = true
       this.itemData = i
     },
     getTableSchema (table) {
-      console.log(table)
-      console.log(this.selectedTable)
       if (table === this.selectedTable && this.collapse === true) {
-        console.log('hit')
         this.collapse = false
         return
       }
@@ -278,7 +300,17 @@ export default {
       })
         .then(function (response) {
           if (response.data) {
+            vm.selectedTable = table
             vm.columns = response.data.d
+            console.log(1)
+            console.log(vm.columns)
+            console.log(vm.fields)
+            if (vm.columns.length === 0) {
+              console.log(2)
+              vm.collapse = true
+              return
+            }
+            console.log(3)
             vm.fields = Object.keys(vm.columns[0])
             vm.fields.push({
               key: 'edit',
@@ -287,12 +319,28 @@ export default {
               sorter: false,
               filter: false
             })
-            vm.selectedTable = table
             vm.collapse = true
           }
         })
         .catch(function (error) {
           console.log(error)
+        })
+    },
+    deleteTable () {
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/deleteTable', {
+        params: {
+          database: vm.database,
+          table: vm.selectedTable
+        }
+      })
+        .then(function (response) {
+          if (response.data) {
+            if (response.data.status === 'success') {
+              vm.$parent.getDatabases()
+              vm.collapse = false
+            }
+          }
         })
     },
     deleteDB () {
@@ -346,6 +394,9 @@ h2 {
 .btn {
   color: white;
 }
+.blue {
+  color: #39b2d5;
+}
 .tablebutton {
   color: white;
   margin: 10px;
@@ -373,6 +424,9 @@ h2 {
 }
 .left {
     min-width: 100px;
+}
+.margin-right {
+  margin-right: 10px;
 }
 .edit {
   margin-right: 5px;

@@ -89,7 +89,7 @@ export default {
     },
     save () {
       var vm = this
-      this.$axios.get(this.$SERVER_URI + '/api/addTable', {
+      this.$axios.get(this.$SERVER_URI + '/api/createTable', {
         params: {
           database: vm.database,
           table: vm.tableName,
@@ -103,7 +103,7 @@ export default {
             if (response.data.status === 'success') {
               vm.$parent.$parent.$parent.getDatabases(vm.tableName)
               vm.$parent.$parent.getTableSchema(vm.tableName)
-              vm.$parent.$parent.createTableModal = false
+              vm.$parent.$parent.addTableModal = false
             } else {
               console.log(response.data.message)
             }
@@ -129,6 +129,7 @@ export default {
 }
 input {
   margin: 10px;
+  text-indent: 10px;
   min-width: 100px;
   border: none;
   border-bottom: 2px solid #cfcfcf;

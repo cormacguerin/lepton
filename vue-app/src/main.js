@@ -6,8 +6,9 @@ import App from './App.vue'
 import Axios from 'axios'
 import VueRouter from 'vue-router'
 import Home from './components/Home.vue'
-import Data from './components/Data.vue'
-import Visualize from './components/Visualize.vue'
+import Schema from './components/Schema.vue'
+import Dashboard from './components/Dashboard.vue'
+import Insights from './components/Insights.vue'
 import { cilPlus } from '@coreui/icons'
 import 'vue-flex/dist/vue-flex.css'
 import '@coreui/icons/css/all.css'
@@ -22,10 +23,10 @@ import '@coreui/coreui/scss/coreui.scss'
 // import '@fortawesome/fontawesome/styles.css'
 import fontawesome from '@fortawesome/fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
-import { faPlus, faBars, faEllipsisV } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faMinus, faBars, faEllipsisV } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
-library.add(faPlus, faBars, faEllipsisV)
+library.add(faPlus, faMinus, faBars, faEllipsisV)
 
 fontawesome.config = {
   autoAddCss: false
@@ -44,8 +45,8 @@ Vue.component('CNavItem', CNavItem)
 
 Vue.config.productionTip = false
 
-Vue.prototype.$SERVER_URI = 'http://127.0.0.1:3000'
-// Vue.prototype.$SERVER_URI = 'https://35.239.29.200'
+// Vue.prototype.$SERVER_URI = 'http://127.0.0.1:3000'
+Vue.prototype.$SERVER_URI = 'https://35.239.29.200'
 
 Vue.prototype.$axios = Axios
 
@@ -61,8 +62,9 @@ Vue.config.productionTip = false
 
 const routes = [
   { path: '/', name: 'home', component: Home },
-  { path: '/data', name: 'data', component: Data },
-  { path: '/visualize', name: 'visualize', component: Visualize }
+  { path: '/schema', name: 'schema', component: Schema },
+  { path: '/dashboard', name: 'dashboard', component: Dashboard },
+  { path: '/insights', name: 'insights', component: Insights }
 ]
 
 const router = new VueRouter({

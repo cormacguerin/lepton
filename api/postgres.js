@@ -69,14 +69,13 @@ class Postgres {
     }
   }
 
-  execute(statement, callback) {
+  execute(statement, values, callback) {
     console.log(statement);
+    console.log(values);
     (async () => {
       const client = await this.pool.connect()
       try {
-        const reply = await client.query(statement)
-        // console.log(reply.rows);
-        // console.log(' - - ');
+        const reply = await client.query(statement, values)
         this.logger.write(statement + "\n");
         callback(null, reply.rows)
       } finally {
@@ -90,7 +89,7 @@ class Postgres {
     )
   }
 
-  pexecute(statement, values, callback) {
+  batch_execute(statement, values, callback) {
     console.log(statement);
     (async () => {
       this.logger.write(statement + "\n");
@@ -167,36 +166,124 @@ console.log("promises finished in " + totaltime + "ms");
 
   /*
    * Add database
+   * We prepend database names with the user_id to ensure no duplicates.
+   * Separately we tracks user databases in a database table.
    */
-  addDatabase(database, callback) {
+  addDatabase(user, database, callback) {
 
-    var query = "CREATE DATABASE " 
-      + database
-      + " WITH OWNER postgres"
+    var pg_db = user + '_' + database;
+
+    var query = "CREATE DATABASE \""
+      + pg_db
+      + "\" WITH OWNER postgres"
       + " ENCODING 'UTF8'"
       + " LC_COLLATE = 'en_US.UTF-8'"
-      + " LC_CTYPE = 'en_US.UTF-8'"
+      + " LC_CTYPE = 'en_US.UTF-8';"
 
-    this.execute(query, function(e,r) {
-      callback(e, r);
+    var vm = this;
+    this.execute(query, null, function(e,r) {
+      if (e) {
+        callback(e, r);
+      } else {
+        var query = "INSERT INTO databases(database,owner,reader,writer) VALUES($1,$2,$2,$2);"
+        vm.execute(query, [pg_db, user], function(e,r) {
+            callback(e, r);
+        });
+      }
+    });
+  }
+
+  getDatabases(user, callback) {
+    // var query = "SELECT datname FROM pg_database WHERE datistemplate = false;"
+    var query = "SELECT database FROM databases WHERE reader = $1;"
+    this.execute(query, [user], function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
     });
   }
 
   /*
    * Create database
    */
-  createTable(table, column, datatype, callback) {
+  createTable(user, database, table, column, datatype, callback) {
 
-    var query = "CREATE TABLE " 
+    var query = "CREATE TABLE \""
       + table
-      + "(" 
+      + "\" (\""
       + column
-      + " "
+      + "\" "
       + getDataType(datatype)
       + " PRIMARY KEY);"
 
-    this.execute(query, function(e,r) {
-      callback(e, r);
+    this.execute(query, null, function(e,r) {
+      callback(e,r);
+    });
+  }
+
+  /*
+   * Create search table
+   */
+  createSearchTable(user, database, table, callback) {
+
+    var query = "CREATE TABLE \""
+      + table
+      + "\" ("
+      + "id SERIAL PRIMARY KEY,"
+      + "url VARCHAR(2048) NOT NULL UNIQUE,"
+      + "feed jsonb,"
+      + "docscore real,"
+      + "tdscore real,"
+      + "atf real,"
+      + "lang VARCHAR(2),"
+      + "crawl_date TIMESTAMP,"
+      + "index_date TIMESTAMP,"
+      + "raw_text text[],"
+      + "unigrams text[],"
+      + "bigrams text[],"
+      + "trigrams text[],"
+      + "unigram_positions text[],"
+      + "bigram_positions text[],"
+      + "trigram_positions text[],"
+      + "segmented_grams jsonb);"
+
+    this.execute(query, null, function(e,r) {
+      callback(e,r);
+    });
+  }
+
+  /*
+   * After adding a table above, if successful we register it here.
+   */
+  registerTable(user, database, table, search, callback) {
+    var query = "INSERT INTO tables(database,tablename,search,owner) VALUES($1,$2,$3,$4);"
+    this.execute(query, [database, table, search, user], function(e,r) {
+        callback(e, r);
+    });
+  }
+
+  getTables(callback) {
+    var query = "SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema');"
+    this.execute(query, null, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  getSearchTables(database, callback) {
+    var query = "SELECT tablename, search FROM tables WHERE database = $1;"
+    this.execute(query, [database], function(e,r) {
+      console.log('getSearchTAbles response')
+      console.log(r)
+      callback(e,r);
+    });
+  }
+
+  getTableSchema(database, table, callback) {
+    var query = "SELECT column_name, data_type, character_maximum_length FROM INFORMATION_SCHEMA.COLUMNS WHERE udt_catalog=$1 AND table_name = $2;"
+    this.execute(query, [database,table], function(e,r) {
+      callback(e,r);
     });
   }
 
@@ -205,14 +292,15 @@ console.log("promises finished in " + totaltime + "ms");
    */
   addTableColumn(table, column, datatype, callback) {
 
-    var query = "ALTER TABLE " 
-      + table
-      + " ADD COLUMN " 
+    var query = "ALTER TABLE \""
+      + table 
+      + "\" ADD COLUMN \""
       + column
-      + " "
+      + "\" "
       + getDataType(datatype)
+      + ";"
 
-    this.execute(query, function(e,r) {
+    this.execute(query, null, function(e,r) {
       callback(e, r);
     });
   }
@@ -222,14 +310,15 @@ console.log("promises finished in " + totaltime + "ms");
    */
   renameTableColumn(table, column, old_column, callback) {
 
-    var query = "ALTER TABLE "
+    var query = "ALTER TABLE \""
       + table
-      + " RENAME COLUMN "
+      + "\" RENAME COLUMN \""
       + old_column
-      + " TO "
+      + "\" TO \""
       + column
+      + "\";"
 
-    this.execute(query, function(e,r) {
+    this.execute(query, null, function(e,r) {
       callback(e, r);
     });
   }
@@ -239,14 +328,15 @@ console.log("promises finished in " + totaltime + "ms");
    */
   setTableColumnDataType(table, column, datatype, callback) {
 
-    var query = "ALTER TABLE "
+    var query = "ALTER TABLE \""
       + table
-      + " ALTER COLUMN "
+      + "\" ALTER COLUMN \""
       + column
-      + " TYPE "
+      + "\" TYPE "
       + getDataType(datatype)
+      + ";"
 
-    this.execute(query, function(e,r) {
+    this.execute(query, null, function(e,r) {
       callback(e, r);
     });
   }
@@ -256,12 +346,13 @@ console.log("promises finished in " + totaltime + "ms");
    */
   deleteTableColumn(table, column, callback) {
 
-    var query = "ALTER TABLE " 
+    var query = "ALTER TABLE \""
       + table
-      + " DROP COLUMN " 
+      + "\" DROP COLUMN \""
       + column
+      + "\";"
 
-    this.execute(query, function(e,r) {
+    this.execute(query, [table, column], function(e,r) {
       callback(e, r);
     });
   }
@@ -270,15 +361,13 @@ console.log("promises finished in " + totaltime + "ms");
     var it = new Date().getTime();
     console.log("ADD TABLE DATA " + table);
     var pkey = "SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS data_type"
-      + " FROM   pg_index i"
-      + " JOIN   pg_attribute a ON a.attrelid = i.indrelid"
+      + " FROM pg_index i"
+      + " JOIN pg_attribute a ON a.attrelid = i.indrelid"
       + " AND a.attnum = ANY(i.indkey) "
-      + " WHERE  i.indrelid = '"
-      + table
-      + "'::regclass"
-      + " AND    i.indisprimary;"
+      + " WHERE i.indrelid = $1::regclass"
+      + " AND i.indisprimary;"
     var this_ = this;
-    this.execute(pkey, function(e,r) {
+    this.execute(pkey, [table], function(e,r) {
       if (e) {
         console.log(e);
         return callback(e);
@@ -304,16 +393,16 @@ console.log("promises finished in " + totaltime + "ms");
           insert_prep += ', ';
         }
       }
-      var conflict_prep = '';
+      var values_prep = '';
       for (var i=1; i<=keys.length; i++) {
-        conflict_prep += keys[i-1];
-        conflict_prep += ' = ';
-        conflict_prep += '$' + i.toString();
+        values_prep += keys[i-1];
+        values_prep += ' = ';
+        values_prep += '$' + i.toString();
         if (i < keys.length) {
-          conflict_prep += ', ';
+          values_prep += ', ';
         }
       }
-      var insert = "INSERT INTO "
+      var statement = "INSERT INTO "
         + table
         + " ("
         + keys
@@ -323,11 +412,11 @@ console.log("promises finished in " + totaltime + "ms");
         + " ON CONFLICT ("
         + primary_key
         + ") DO UPDATE SET "
-        + conflict_prep 
+        + values_prep 
         + ";"
 
-      console.log(insert);
-      this_.pexecute(insert, data, function(e,r) {
+      console.log(statement);
+      this_.batch_execute(statement, [data], function(e,r) {
         var this__ = this_;
         if (e) {
           console.log(e);
@@ -357,23 +446,39 @@ console.log("promises finished in " + totaltime + "ms");
   /*
    * Delete database
    */
+  deleteTable(database, table, callback) {
+
+    var query = "DROP TABLE \""
+      + table
+      + "\";"
+
+    this.execute(query, null, function(e,r) {
+      callback(e, r);
+    });
+  }
+
+  /*
+   * Delete database
+   */
   deleteDatabase(database, callback) {
 
-    var disable = "UPDATE pg_database SET datallowconn = 'false' WHERE datname = \'" +database+"\';"
-    var disconnect = "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = \'" +database+"\';"
-    var drop = "DROP DATABASE " + database
+    var disable = "UPDATE pg_database SET datallowconn = 'false' WHERE datname = $1;"
+    var disconnect = "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1;"
+    var drop = "DROP DATABASE \""
+      + database
+      + "\";"
 
     var this_ = this;
-    this.execute(disable, function(e,r) {
+    this.execute(disable, [database], function(e,r) {
       if (e) {
         console.log(e);
       }
-      this_.execute(disconnect, function(e,r) {
+      this_.execute(disconnect, [database], function(e,r) {
         var this__ = this_;
         if (e) {
           console.log(e);
         }
-        this__.execute(drop, function(e,r) {
+        this__.execute(drop, null, function(e,r) {
           callback(e, r);
         });
       });
@@ -386,20 +491,22 @@ console.log("promises finished in " + totaltime + "ms");
   addUser(username, email, password, default_view, facebook_user_id, facebook_info, account_type, account_status, confirm_code, color_code, role, callback) {
 
     var query = "INSERT INTO users(username, email, password, default_view, facebook_user_id, facebook_info, account_type, account_status, confirm_code, color_code, role, created_date)"
-      + " VALUES("
-      + "\'" + username + "\',"
-      + "\'" + email + "\',"
-      + "\'" + password + "\',"
-      + "\'" + default_view + "\',"
-      + "\'" + facebook_user_id + "\',"
-      + "\'" + facebook_info + "\',"
-      + "\'" + account_status + "\',"
-      + "\'" + account_type + "\',"
-      + "\'" + confirm_code + "\',"
-      + "\'" + color_code + "\',"
-      + "\'" + role + "\',"
-      + "\'" + new Date().getTime() + "\') RETURNING id;"
-    this.execute(query, function(e,r) {
+      + " VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id;"
+      var values = [
+        username,
+        email,
+        password,
+        default_view,
+        facebook_user_id,
+        facebook_info,
+        account_status,
+        account_type,
+        confirm_code,
+        color_code,
+        role,
+        new Date().getTime()
+      ]
+    this.execute(query, [values], function(e,r) {
       if (e) {
         callback(e);
       } else {
@@ -409,15 +516,15 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   confirmUser(user_id, callback) {
-    var query = "UPDATE users SET account_status = 'confirmed' WHERE id = \'" + user_id + "\';"
-    this.execute(query, function(e,r) {
+    var query = "UPDATE users SET account_status = 'confirmed' WHERE id = $1;"
+    this.execute(query, [user_id], function(e,r) {
       callback(e,r);
     });
   }
 
   resetConfirmCode(email, confirm_code, callback) {
-    var query = "UPDATE users SET confirm_code = \'" + confirm_code + "\' WHERE email = \'" + email + "\';"
-    this.execute(query, function(e,r) {
+    var query = "UPDATE users SET confirm_code = $1 WHERE email = $2;"
+    this.execute(query, [confirm_code, email], function(e,r) {
       if (e) {
         callback(false);
       } else {
@@ -427,8 +534,8 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   resetPassword(email, password, confirm_code, callback) {
-    var query = "UPDATE users SET password = \'" + password + "\' WHERE email = \'" + email + "\' AND confirm_code =  \'" + confirm_code + "\';"
-    this.execute(query, function(e,r) {
+    var query = "UPDATE users SET password = $1 WHERE email = $2 AND confirm_code = $3;"
+    this.execute(query, [password, email, confirm_code], function(e,r) {
       if (e) {
         callback(false);
       } else {
@@ -439,14 +546,20 @@ console.log("promises finished in " + totaltime + "ms");
 
   getUserClients(callback) {
     var query = "SELECT * FROM user_clients;"
-    this.execute(query, function(e,r) {
+    this.execute(query, null, function(e,r) {
       callback(e,r);
     });
   }
 
   checkTableForValue(table, column, value, callback) {
-    var query = "SELECT COUNT(" + column + ") FROM " + table + " WHERE " + column + " = '" + value + "';"
-    this.execute(query, function(e,r) {
+    var query = "SELECT COUNT("
+      + column
+      + ") FROM "
+      + table
+      + " WHERE "
+      + column
+      + " = $1;"
+    this.execute(query, [value], function(e,r) {
       if (e) {
         console.log(e);
         callback(false);
@@ -462,40 +575,50 @@ console.log("promises finished in " + totaltime + "ms");
 
   addUserClient(client, callback) {
     var query = "INSERT INTO user_clients (client_id, user_id, success, created_date, active_date, token, message)"
-      + " VALUES("
-      + "\'" + client.client_id + "\',"
-      + "\'" + client.user_id + "\',"
-      + "\'" + client.success + "\',"
-      + "\'" + new Date().getTime() + "\',"
-      + "\'" + new Date().getTime() + "\',"
-      + "\'" + client.token + "\',"
-      + "\'" + client.message + "\')"
+      + " VALUES($1,$2,$3,$4,$5,$6,$7)"
       + " ON CONFLICT (user_id,client_id) DO UPDATE SET"
-      + " active_date = " + new Date().getTime() + ","
-      + " token = \'" + client.token + "\',"
-      + " message = \'" + client.message + "\';";
-    this.execute(query, function(e,r) {
+      + " active_date = $8,"
+      + " token = $9,"
+      + " message = $10;"
+    var values = [
+      client.client_id,
+      client.user_id,
+      client.success,
+      new Date().getTime(),
+      new Date().getTime(),
+      client.token,
+      client.message,
+      new Date().getTime(),
+      client.token,
+      client.message
+    ]
+    this.execute(query, values, function(e,r) {
       callback(e,r);
     });
   }
 
   removeUserClient(client, callback) {
-    var query = "DELETE FROM user_clients WHERE client_id = "
-      + "\'" + client.client_id + "\' AND user_id = "
-      + "\'" + client.user_id + "\';"
-    this.execute(query, function(e,r) {
+    var query = "DELETE FROM user_clients WHERE client_id = $1 AND user_id = $2;"
+    this.execute(query, [client.client_id, client.user_id], function(e,r) {
       callback(e,r);
     });
   }
 
   getUserInfo(key, values, callback) {
+    var values_prep = '';
+    for (var i=1; i<=values.length; i++) {
+      values_prep += '$' + i.toString();
+      if (i < values.length) {
+        values_prep += ', ';
+      }
+    }
     var query;
     if (Number.isInteger(parseInt(key))) {
-      query = "SELECT " + values.join(',') + " FROM users WHERE id = '" + key + "';"
+      query = "SELECT " + values.join(',') + " FROM users WHERE id = $1;"
     } else {
-      query = "SELECT " + values.join(',') + " FROM users WHERE email = '" + key + "';"
+      query = "SELECT " + values.join(',') + " FROM users WHERE email = $1;"
     }
-    this.execute(query, function(e,r) {
+    this.execute(query, [key], function(e,r) {
       if (r) {
         if (r[0]) {
           callback(e,r[0]);
@@ -510,8 +633,8 @@ console.log("promises finished in " + totaltime + "ms");
 
   getUsernameFromId(user_id, callback) {
     if (Number.isInteger(parseInt(user_id)) ) {
-      var query = "SELECT username FROM users WHERE id = '" + user_id + "';"
-      this.execute(query, function(e,r) {
+      var query = "SELECT username FROM users WHERE id = $1;"
+      this.execute(query, [user_id], function(e,r) {
         if (r) {
           if (r[0]) {
             callback(e,r[0].username);
@@ -525,48 +648,17 @@ console.log("promises finished in " + totaltime + "ms");
     }
   }
 
-  getDatabases(callback) {
-    var query = "SELECT datname FROM pg_database WHERE datistemplate = false;"
-    this.execute(query, function(e,r) {
-      console.log(e);
-      console.log(r);
-      callback(e,r);
-    });
-  }
-
-  getTables(callback) {
-    var query = "SELECT table_name as tables FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema');"
-    this.execute(query, function(e,r) {
-      console.log(e);
-      console.log(r);
-      callback(e,r);
-    });
-  }
-
-  getTableSchema(database, table, callback) {
-    var query = "SELECT column_name, data_type, character_maximum_length FROM INFORMATION_SCHEMA.COLUMNS WHERE udt_catalog='" + database + "' AND table_name = '" + table + "';"
-    this.execute(query, function(e,r) {
-      console.log(e);
-      console.log(r);
-      callback(e,r);
-    });
-  }
-
   setFTS(d,t,c,df,b,callback) {
-    var query = "INSERT INTO text_tables_index(database,_table,_column,display_field,enable) VALUES("
-      + "\'" + d + "\',"
-      + "\'" + t + "\',"
-      + "\'" + c + "\',"
-      + "\'" + df + "\',"
-      + "\'" + b + "\')"
+    var query = "INSERT INTO text_tables_index(database,_table,_column,display_field,enable) VALUES($1,$2,$3,$4,$5)"
       + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column_key DO UPDATE SET "
-      + " database = \'" + d + "\',"
-      + " _table = \'" + t + "\',"
-      + " _column = \'" + c + "\',"
-      + " display_field = \'" + df + "\',"
-      + " enable = \'" + b + "\';";
+      + " database = $6,"
+      + " _table = $7,"
+      + " _column = $8,"
+      + " display_field = $9,"
+      + " enable = $10;";
+    values = [d,t,c,df,b,d,t,c,df,b]
 
-    this.execute(query, function(e,r) {
+    this.execute(query, values, function(e,r) {
       console.log(e);
       console.log(r);
       callback(e,r);

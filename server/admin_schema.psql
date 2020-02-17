@@ -48,3 +48,23 @@ CREATE TABLE text_tables_index (
     enable BOOLEAN,
     UNIQUE (database,_table,_column)
 );
+
+DROP TABLE IF EXISTS databases CASCADE;
+CREATE TABLE databases (
+    id serial PRIMARY KEY,
+    database VARCHAR (64) NOT NULL,
+    owner INT REFERENCES users (id),
+    reader INT REFERENCES users (id),
+    writer INT REFERENCES users (id),
+    UNIQUE (database, owner)
+);
+
+DROP TABLE IF EXISTS tables CASCADE;
+CREATE TABLE tables (
+    id serial PRIMARY KEY,
+    database VARCHAR (64) NOT NULL,
+    tablename VARCHAR (64) NOT NULL,
+    search BOOLEAN NOT NULL,
+    owner INT REFERENCES users (id),
+    UNIQUE (database, tablename, owner)
+);
