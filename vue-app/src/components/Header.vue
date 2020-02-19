@@ -43,7 +43,6 @@
           @click="showTab('home')"
         >
           <CNavItem
-            active
             class="homeTab"
             title="Home"
           >
@@ -54,7 +53,6 @@
           @click="showTab('schema')"
         >
           <CNavItem
-            active
             class="schemaTab"
             title="Schema"
           >
@@ -75,7 +73,6 @@
           @click="showTab('insights')"
         >
           <CNavItem
-            active
             class="insightsTab"
             title="Insights"
           >
@@ -86,25 +83,20 @@
     </div>
     <div
       id="home"
-    >
-      home here
-    </div>
+      hidden
+    />
     <div
       id="schema"
-    >
-    </div>
+      hidden
+    />
     <div
       id="dashboard"
       hidden
-    >
-      dashboard here
-    </div>
+    />
     <div
       id="insights"
       hidden
-    >
-      insights here
-    </div>
+    />
   </flex-col>
 </template>
 
@@ -133,25 +125,13 @@ export default {
       document.getElementById(this.selectedTab).hidden = true
       document.getElementById(t).hidden = false
       this.selectedTab = t
-      this.$router.push(t)
+      this.$router.push({ path: '/' + t, name: t })
     }
   }
 }
 </script>
 
 <style>
-#header {
-    font-family: "Avenir", Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-align: left;
-    height: 80px;
-    color: #2c3e50;
-    margin-top: 0px;
-}
-.header {
-  background-color: #171f24;
-}
 @media (max-width: 576px) {
   .desktopNav {
     display: none!important;
@@ -161,6 +141,18 @@ export default {
   .mobileNav {
     display: none!important;
   }
+}
+#header {
+  font-family: "Avenir", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: left;
+  height: 80px;
+  color: #2c3e50;
+  margin-top: 0px;
+}
+.header {
+  background-color: #171f24;
 }
 ul.sidebar-panel-nav {
   list-style-type: none;

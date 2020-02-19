@@ -145,6 +145,18 @@ app.get('/api/createSearchTable', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
+app.get('/api/createDataSetTable', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.query)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.createDataSetTable(req.user_id, queryData.database, queryData.table, queryData.query, function(r) {
+    console.log('r');
+    console.log(r);
+    res.json(r);
+  });
+});
 app.get('/api/addTableColumn', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   if (!(queryData.database && queryData.table && queryData.column && queryData.datatype)) {
@@ -172,6 +184,16 @@ app.get('/api/deleteColumn', user.authorize, function(req, res, next) {
     return;
   }
 	data.deleteTableColumn(queryData.database, queryData.table, queryData.column, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/runQuery', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.query)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.runQuery(queryData.database, queryData.query, function(r) {
     res.json(r);
   });
 });

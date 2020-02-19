@@ -36,7 +36,7 @@ exports.getDatabases = function(u,c) {
         for (var i=0; i<d.length; i++) {
           promises.push(new Promise((pr, pe) => {
             var database = d[i].database;
-            db_pg['admin'].getSearchTables(database, function(e,s) {
+            db_pg['admin'].getTables(database, function(e,s) {
               if (e) {
                 console.log(e);
                 c(e);
@@ -163,7 +163,7 @@ exports.createTable = function(u,d,t,c,dt,callback) {
         callback({status:'failed',error:err})
       } else {
         if (r.length === 0) {
-          db_pg['admin'].registerTable(u,d,t,false, function(e,r) {
+          db_pg['admin'].registerTable(u,d,t,'data',null, function(e,r) {
             if (e) {
               console.log(e);
               callback({status:'failed'})
@@ -197,7 +197,46 @@ exports.createSearchTable = function(u,d,t,callback) {
         console.log('r.length');
         console.log(r.length);
         if (r.length === 0) {
-          db_pg['admin'].registerTable(u,d,t,true, function(e,r) {
+          db_pg['admin'].registerTable(u,d,t,'search',null, function(e,r) {
+            if (e) {
+              console.log(e);
+              callback({status:'failed'})
+            } else {
+              callback({status:'success'})
+            }
+          });
+        } else {
+          callback({status:'failed'})
+        }
+      }
+    });
+  });
+}
+
+exports.createDataSetTable = function(u,d,t,q,callback) {
+  if (!d) {
+    callback({status:'failed'})
+  }
+  if (d.length > 63) {
+    callback({status:'failed'})
+  }
+  initDB(d, function() {
+    db_pg[d].runQuery(q,function(err,r) {
+      if (err){
+        console.log("unable to create search table");
+        console.log(err);
+        callback({status:'failed',error:err})
+      } else {
+        console.log(r);
+        console.log('r.length');
+        console.log(r.length);
+        if (r.length > 0) {
+          var dataset = {}
+          dataset.query = q;
+          dataset.fields = Object.keys(r[0]);
+          console.log('dataset');
+          console.log(dataset);
+          db_pg['admin'].registerTable(u,d,t,'dataset',dataset, function(e,r) {
             if (e) {
               console.log(e);
               callback({status:'failed'})
@@ -420,7 +459,14 @@ exports.deleteTable = function(d, t, c) {
         console.log('r.length');
         console.log(r.length);
         if (r.length === 0) {
-          c({status:'success'})
+          db_pg['admin'].unregisterTable(d,t, function(e,r) {
+            if (e) {
+              console.log(e);
+              c({status:'failed'})
+            } else {
+              c({status:'success'})
+            }
+          });
         } else {
           c({status:'failed'})
         }
@@ -436,7 +482,6 @@ exports.deleteDatabase = function(d,c) {
   }
 	db_pg['admin'].deleteDatabase(d, function(err,r) {
 		if (err) {
-			console.log("unable to retrieve user_clients");
 			console.log(err);
       c({status:'failed',error:err})
 		} else {
@@ -449,6 +494,22 @@ exports.deleteDatabase = function(d,c) {
         c({status:'failed'})
       }
     }
+  });
+}
+
+exports.runQuery = function(d,q,callback) {
+  if (!(d&&q)) {
+    return callback({status:'failed'})
+  }
+  initDB(d, function() {
+    db_pg[d].runQuery(q, function(err,r) {
+      if (err){
+        console.log(err);
+        callback({status:'failed', error:err})
+      } else {
+        callback({status:'success', message:r})
+      }
+    });
   });
 }
 

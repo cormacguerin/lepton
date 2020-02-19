@@ -64,7 +64,8 @@ CREATE TABLE tables (
     id serial PRIMARY KEY,
     database VARCHAR (64) NOT NULL,
     tablename VARCHAR (64) NOT NULL,
-    search BOOLEAN NOT NULL,
+    type VARCHAR (32) NOT NULL,
+    data text,
     owner INT REFERENCES users (id),
     UNIQUE (database, tablename, owner)
 );

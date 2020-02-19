@@ -1,25 +1,135 @@
 <template>
-  <div class="visualize">
-    <h2>Dashboard</h2>
+  <div class="schema">
+    <flex-row
+      justify="center"
+      class="cards"
+    >
+      <div class="flexgrow" />
+      <div class="addchart">
+        <CButton
+          class="btn active"
+          color="success"
+          @click="addChartModal = true"
+        >
+          <span>
+            <i
+              class="fa fa-plus"
+              aria-hidden="true"
+            />
+            Chart
+          </span>
+        </CButton>
+        <CModal
+          title="Add Chart"
+          color="success"
+          :show.sync="addChartModal"
+        >
+          <template #footer-wrapper>
+            <div class="hidden" />
+          </template>
+          <EditChart
+            :dbs="dbs"
+          />
+        </CModal>
+      </div>
+    </flex-row>
+    <flex-col
+      justify="center"
+      class="cards"
+    >
+      <ChartCard
+        v-for="(value, key) in dbs"
+        :key="key"
+        :database="value.key"
+        :tables="value.tables"
+        :datasets="value.datasets"
+      />
+    </flex-col>
   </div>
 </template>
 <script>
 
-export default {
-  name: 'Dashboard'
-}
+import ChartCard from './ChartCard.vue'
+import EditChart from './EditChart.vue'
 
+export default {
+  name: 'Schema',
+  components: {
+    ChartCard,
+    EditChart
+  },
+  data () {
+    return {
+      dbs: {
+      },
+      addChartModal: false
+    }
+  },
+  created () {
+    this.getDatabases()
+  },
+  methods: {
+    getDatabases () {
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/getDatabases', {
+      })
+        .then(function (response) {
+          if (response.data) {
+            vm.dbs = response.data
+          }
+        })
+        .catch(function (error) {
+          console.log(error)
+        })
+    }
+  }
+}
 </script>
+
 <style scoped>
-.visualize {
+.schema {
     width: 100%;
-    height: 50vh;
+    height: 100vh;
     background: white;
+}
+.cards {
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.flexgrow {
+    flex-grow: 2;
+}
+.headertitle {
+    margin-top: 50px;
+    margin-left: 10px;
+}
+.addchart {
+    margin-top: 50px;
+    margin-right: 10px;
 }
 h2 {
     padding: 15px 0px 0px 0px;
     margin: 0px;
     text-align: center;
     font-size: 24px;
+}
+.databaseTab {
+}
+.searchTab {
+}
+.tabs {
+    background-color: #171f24;
+    width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.nav-tabs {
+    border: 0px;
+}
+.tabsContainer {
+    background-color: #171f24;
+}
+.hidden {
 }
 </style>

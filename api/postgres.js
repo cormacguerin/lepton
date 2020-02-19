@@ -89,6 +89,34 @@ class Postgres {
     )
   }
 
+  /*
+   * same as above, but in row mode array
+   */
+  raexecute(statement, values, callback) {
+    console.log(statement);
+    console.log(values);
+    const query = {
+      text: statement,
+      values: values,
+      rowMode: 'array',
+    };
+    (async () => {
+      const client = await this.pool.connect()
+      try {
+        const reply = await client.query(query)
+        this.logger.write(statement + "\n");
+        callback(null, reply.rows)
+      } finally {
+        client.release()
+      }
+    })().catch(
+      e => {
+        console.log(e.stack);
+        callback(e);
+      }
+    )
+  }
+
   batch_execute(statement, values, callback) {
     console.log(statement);
     (async () => {
@@ -255,13 +283,29 @@ console.log("promises finished in " + totaltime + "ms");
   /*
    * After adding a table above, if successful we register it here.
    */
-  registerTable(user, database, table, search, callback) {
-    var query = "INSERT INTO tables(database,tablename,search,owner) VALUES($1,$2,$3,$4);"
-    this.execute(query, [database, table, search, user], function(e,r) {
+  registerTable(user, database, table, type, data, callback) {
+    var query = "INSERT INTO tables(database,tablename,type,owner,data) VALUES($1,$2,$3,$4,$5);"
+    this.execute(query, [database, table, type, user, data], function(e,r) {
         callback(e, r);
     });
   }
 
+  /*
+   * 
+   */
+  unregisterTable(database, table, callback) {
+    var query = "DELETE FROM tables WHERE tablename = \'"
+      + table
+      + "\'"
+      + " AND database = \'"
+      + database
+      + "\';"
+    this.execute(query, null, function(e,r) {
+        callback(e, r);
+    });
+  }
+
+  /*
   getTables(callback) {
     var query = "SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema');"
     this.execute(query, null, function(e,r) {
@@ -270,9 +314,10 @@ console.log("promises finished in " + totaltime + "ms");
       callback(e,r);
     });
   }
+  */
 
-  getSearchTables(database, callback) {
-    var query = "SELECT tablename, search FROM tables WHERE database = $1;"
+  getTables(database, callback) {
+    var query = "SELECT tablename, type, data FROM tables WHERE database = $1;"
     this.execute(query, [database], function(e,r) {
       console.log('getSearchTAbles response')
       console.log(r)
@@ -352,7 +397,7 @@ console.log("promises finished in " + totaltime + "ms");
       + column
       + "\";"
 
-    this.execute(query, [table, column], function(e,r) {
+    this.execute(query, null, function(e,r) {
       callback(e, r);
     });
   }
@@ -479,7 +524,10 @@ console.log("promises finished in " + totaltime + "ms");
           console.log(e);
         }
         this__.execute(drop, null, function(e,r) {
-          callback(e, r);
+          var query = "DELETE FROM databases WHERE database = $1"
+          this__.execute(query, [database], function(e,r) {
+              callback(e, r);
+          });
         });
       });
     });
@@ -659,6 +707,18 @@ console.log("promises finished in " + totaltime + "ms");
     values = [d,t,c,df,b,d,t,c,df,b]
 
     this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  runQuery(q,callback) {
+    // var query = "SELECT " + c + " FROM " + t + ";"
+    // var query = "select customer.customer_name, count(keg.keg_status) FROM ag_e_keg AS keg INNER JOIN ag_e_customer AS customer on customer.customer_id = keg.keg_cache_is_shipment_is_customer_id GROUP BY customer_name, keg_status, keg_updated HAVING keg_status='Shipped' AND keg_updated < '2014-06-01' ORDER BY count(keg.keg_status) DESC";
+    var query = "select count(keg.keg_status), customer.customer_name FROM ag_e_keg AS keg INNER JOIN ag_e_customer AS customer on customer.customer_id = keg.keg_cache_is_shipment_is_customer_id GROUP BY customer_name, keg_status, keg_updated HAVING keg_status='Shipped' AND keg_updated < '2014-06-01' ORDER BY count(keg.keg_status) DESC LIMIT 50";
+
+    this.execute(q, null, function(e,r) {
       console.log(e);
       console.log(r);
       callback(e,r);

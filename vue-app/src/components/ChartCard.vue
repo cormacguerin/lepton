@@ -1,5 +1,6 @@
 <template>
   <div class="card">
+    <!--
     <flex-col
       no-wrap
       class="container"
@@ -16,7 +17,7 @@
             <div class="cylinder" />
           </div>
           <div class="flexgrow">
-            <h2>{{ formatDatabaseName() }}</h2>
+            <h2>{{ formatChartName() }}</h2>
           </div>
           <div class="edit">
             <CDropdown
@@ -49,7 +50,7 @@
             <CButton
               v-for="t in tables"
               :key="t.tablename"
-              :color="getTableColor(t.type)"
+              :color="getTableColor(t.search)"
               class="tablebutton"
               variant="outline"
               @click="getTableSchema(t.tablename)"
@@ -106,33 +107,6 @@
                 <div class="hidden" />
               </template>
               <AddSearchTable
-                :key="index"
-                :database="database"
-              />
-            </CModal>
-            <CButton
-              class="tablebutton active"
-              color="danger"
-              variant="outline"
-              @click="addDataSetTableModal = true"
-            >
-              <span>
-                <i
-                  class="fa fa-plus"
-                  aria-hidden="true"
-                />
-              </span>
-              Data Set
-            </CButton>
-            <CModal
-              title="Add Search Table"
-              color="danger"
-              :show.sync="addDataSetTableModal"
-            >
-              <template #footer-wrapper>
-                <div class="hidden" />
-              </template>
-              <AddDataSetTable
                 :key="index"
                 :database="database"
               />
@@ -242,22 +216,17 @@
         </template>
       </CDataTable>
     </CCollapse>
+    -->
   </div>
 </template>
 <script>
 
-import AddTable from './AddTable.vue'
-import AddSearchTable from './AddSearchTable.vue'
-import AddDataSetTable from './AddDataSetTable.vue'
-import EditTableColumn from './EditTableColumn.vue'
+// import EditTableColumn from './EditTableColumn.vue'
 
 export default {
-  name: 'DatabaseCard',
+  name: 'ChartCard',
   components: {
-    AddTable,
-    AddSearchTable,
-    AddDataSetTable,
-    EditTableColumn
+    // EditTableColumn
   },
   props: {
     database: {
@@ -285,7 +254,6 @@ export default {
       collapse: false,
       addTableModal: false,
       addSearchTableModal: false,
-      addDataSetTableModal: false,
       addTableColumnModal: false,
       editTableColumnModal: false,
       itemData: {
@@ -300,16 +268,14 @@ export default {
   created () {
   },
   methods: {
-    formatDatabaseName () {
+    formatChartName () {
       const r = /^[0-9]+_/gi
       return this.database.replace(r, '')
     },
     getTableColor (t) {
       console.log(t)
-      if (t === 'search') {
+      if (t === true) {
         return 'warning'
-      } else if (t === 'dataset') {
-        return 'danger'
       } else {
         return 'info'
       }
@@ -369,7 +335,7 @@ export default {
         .then(function (response) {
           if (response.data) {
             if (response.data.status === 'success') {
-              vm.$parent.getDatabases()
+              vm.$parent.getCharts()
               vm.collapse = false
             }
           }
@@ -377,7 +343,7 @@ export default {
     },
     deleteDB () {
       var vm = this
-      this.$axios.get(this.$SERVER_URI + '/api/deleteDatabase', {
+      this.$axios.get(this.$SERVER_URI + '/api/deleteChart', {
         params: {
           database: vm.database
         }
@@ -385,7 +351,7 @@ export default {
         .then(function (response) {
           if (response.data) {
             if (response.data.status === 'success') {
-              vm.$parent.getDatabases()
+              vm.$parent.getCharts()
             }
           }
         })
