@@ -284,7 +284,7 @@ console.log("promises finished in " + totaltime + "ms");
    * After adding a table above, if successful we register it here.
    */
   registerTable(user, database, table, type, data, callback) {
-    var query = "INSERT INTO tables(database,tablename,type,owner,data) VALUES($1,$2,$3,$4,$5);"
+    var query = "INSERT INTO tables(database,tablename,type,owner,data) VALUES($1,$2,$3,$4,$5) ON CONFLICT ON CONSTRAINT tables_database_tablename_owner_key DO UPDATE SET database=$1, type=$3, owner=$4, data=$5 WHERE tables.tablename=$2;"
     this.execute(query, [database, table, type, user, data], function(e,r) {
         callback(e, r);
     });
@@ -305,16 +305,14 @@ console.log("promises finished in " + totaltime + "ms");
     });
   }
 
-  /*
-  getTables(callback) {
-    var query = "SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema');"
-    this.execute(query, null, function(e,r) {
-      console.log(e);
-      console.log(r);
+  getTable(database, tablename, callback) {
+    var query = "SELECT tablename, type, data FROM tables WHERE database = $1 and tablename = $2;"
+    this.execute(query, [database, tablename], function(e,r) {
+      console.log('getSearchTAbles response')
+      console.log(r)
       callback(e,r);
     });
   }
-  */
 
   getTables(database, callback) {
     var query = "SELECT tablename, type, data FROM tables WHERE database = $1;"

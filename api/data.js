@@ -234,8 +234,6 @@ exports.createDataSetTable = function(u,d,t,q,callback) {
           var dataset = {}
           dataset.query = q;
           dataset.fields = Object.keys(r[0]);
-          console.log('dataset');
-          console.log(dataset);
           db_pg['admin'].registerTable(u,d,t,'dataset',dataset, function(e,r) {
             if (e) {
               console.log(e);
@@ -505,7 +503,7 @@ exports.runQuery = function(d,q,callback) {
     db_pg[d].runQuery(q, function(err,r) {
       if (err){
         console.log(err);
-        callback({status:'failed', error:err})
+        callback({status:'failed', error:err, message:err.message})
       } else {
         callback({status:'success', message:r})
       }

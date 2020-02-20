@@ -8,14 +8,18 @@
           placeholder="dataset name"
         >
       </div>
-      <textarea v-model="query"
+      <textarea
+        v-model="query"
         placeholder=""
-      >
-      </textarea>
+      />
+      <div class="error">
+        {{ error }}
+      </div>
       <div class="margin">
         <CButton
           class="active left"
-          color="info"
+          variant="outline"
+          color="danger"
           @click="run"
         >
           Run Query
@@ -24,7 +28,8 @@
       <div class="margin">
         <CButton
           class="active left"
-          color="info"
+          variant="outline"
+          color="danger"
           @click="save"
         >
           Save
@@ -35,6 +40,7 @@
       <CDataTable
         :items="columns"
         :fields="fields"
+        small
         table-filter
         columns-per-page-select
         sorter
@@ -68,7 +74,7 @@
 <script>
 
 export default {
-  name: 'AddDataSetTable',
+  name: 'EditDataSetTable',
   components: {
   },
   props: {
@@ -97,7 +103,8 @@ export default {
       columns: [
       ],
       fields: [
-      ]
+      ],
+      error: ''
     }
   },
   watch: {
@@ -133,10 +140,12 @@ export default {
           if (response.data) {
             console.log(response.data)
             if (response.data.status === 'success') {
+              vm.error = ''
               console.log(response.data.message)
               vm.columns = response.data.message
               vm.fields = Object.keys(vm.columns[0])
             } else {
+              vm.error = 'Error ' + response.data.message
               console.log(response.data.error)
             }
           }
@@ -158,10 +167,12 @@ export default {
           if (response.data) {
             console.log(response.data)
             if (response.data.status === 'success') {
+              vm.error = ''
               vm.$parent.$parent.$parent.getDatabases(vm.tableName)
               vm.$parent.$parent.getTableSchema(vm.tableName)
               vm.$parent.$parent.addDataSetTableModal = false
             } else {
+              vm.error = 'Error ' + response.data.message
               console.log(response.data.message)
             }
           }
@@ -188,12 +199,22 @@ export default {
 .left {
   float: left;
 }
-input {
+.error {
   margin: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  color: #f86c6b;
+  text-align: left;
+}
+input {
   text-indent: 10px;
   min-width: 100px;
   border: none;
   border-bottom: 2px solid #cfcfcf;
   outline: 0;
+}
+textarea {
+  margin: 10px;
+  padding: 10px;
 }
 </style>

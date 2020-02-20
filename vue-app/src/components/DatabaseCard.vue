@@ -52,7 +52,7 @@
               :color="getTableColor(t.type)"
               class="tablebutton"
               variant="outline"
-              @click="getTableSchema(t.tablename)"
+              @click="selectTable(t)"
             >
               {{ t.tablename }}
             </CButton>
@@ -135,6 +135,8 @@
               <AddDataSetTable
                 :key="index"
                 :database="database"
+                :dataset="selectedDataset"
+                :table-name="selectedTable"
               />
             </CModal>
           </flex-row>
@@ -144,8 +146,11 @@
     <CCollapse
       :show="collapse"
       :duration="300"
-      class="mt-2"
+      class="mt-2 borderpad"
     >
+      <!--
+        modal for editing a column (not visible until edit is clicked)
+      -->
       <CModal
         title="Edit Table"
         color="info"
@@ -165,82 +170,105 @@
           is-edit
         />
       </CModal>
-      <CDataTable
-        :items="columns"
-        :fields="fields"
-        table-filter
-        columns-per-page-select
-        sorter
-        pagination
+      <!--
+        dataset edit area
+      -->
+      <div
+        :id="database + '_dataset'"
+        hidden
       >
-        <template
-          #edit="{item, index}"
-          :columns="columns"
+        {{ selectedTable.tablename }}
+        <EditDataSetTable
+          :key="index"
+          :database="database"
+          :dataset="selectedDataset"
+          :table-name="selectedTable"
+        />
+      </div>
+      <!--
+        main table
+      -->
+      <div
+        :id="database + '_table'"
+        hidden
+      >
+        <CDataTable
+          :items="columns"
+          :fields="fields"
+          table-filter
+          columns-per-page-select
+          sorter
+          pagination
         >
-          <td class="py-2">
-            <CButton
-              color="primary"
-              class="blue"
-              variant="outline"
-              square
-              size="sm"
-              @click="editTableColumn(item)"
-            >
-              Edit
-            </CButton>
-          </td>
-        </template>
-        <nav aria-label="pagination">
-          <ul class="pagination" />
-        </nav>
-        <template #under-table="addTable">
-          <div class="addTable">
-            <CButton
-              class="btn active margin-right"
-              color="info"
-              @click="deleteTable"
-            >
-              <span>
-                <i
-                  class="fa fa-minus"
-                  aria-hidden="true"
-                />
-                Delete
-              </span>
-            </CButton>
-            <CButton
-              class="btn active"
-              color="info"
-              @click="addTableColumnModal = true"
-            >
-              <span>
-                <i
-                  class="fa fa-plus"
-                  aria-hidden="true"
-                />
-                Column
-              </span>
-            </CButton>
-            <CModal
-              title="Add Table"
-              color="info"
-              :show.sync="addTableColumnModal"
-            >
-              <template #footer-wrapper>
-                <div class="hidden" />
-              </template>
-              <EditTableColumn
-                :key="index"
-                :database="database"
-                :table-name="selectedTable"
-                :columns="columns"
+          <template
+            #edit="{item, index}"
+            :columns="columns"
+          >
+            <td class="py-2">
+              <CButton
+                color="primary"
+                class="blue"
+                variant="outline"
+                square
+                size="sm"
+                @click="editTableColumn(item)"
               >
-                ADD COLUMN
-              </EditTableColumn>
-            </CModal>
-          </div>
-        </template>
-      </CDataTable>
+                Edit
+              </CButton>
+            </td>
+          </template>
+          <nav aria-label="pagination">
+            <ul class="pagination" />
+          </nav>
+          <template #under-table="addTable">
+            <div class="addTable">
+              <CButton
+                class="btn active margin-right"
+                color="info"
+                @click="deleteTable"
+              >
+                <span>
+                  <i
+                    class="fa fa-minus"
+                    aria-hidden="true"
+                  />
+                  Delete
+                </span>
+              </CButton>
+              <CButton
+                class="btn active"
+                color="info"
+                @click="addTableColumnModal = true"
+              >
+                <span>
+                  <i
+                    class="fa fa-plus"
+                    aria-hidden="true"
+                  />
+                  Column
+                </span>
+              </CButton>
+              <CModal
+                title="Add Table"
+                color="info"
+                :show.sync="addTableColumnModal"
+              >
+                <template #footer-wrapper>
+                  <div class="hidden" />
+                </template>
+                <EditTableColumn
+                  :key="index"
+                  :database="database"
+                  :table-name="selectedTable"
+                  :columns="columns"
+                >
+                  ADD COLUMN
+                </EditTableColumn>
+              </CModal>
+            </div>
+          </template>
+        </CDataTable>
+      </div>
     </CCollapse>
   </div>
 </template>
@@ -249,6 +277,7 @@
 import AddTable from './AddTable.vue'
 import AddSearchTable from './AddSearchTable.vue'
 import AddDataSetTable from './AddDataSetTable.vue'
+import EditDataSetTable from './EditDataSetTable.vue'
 import EditTableColumn from './EditTableColumn.vue'
 
 export default {
@@ -257,6 +286,7 @@ export default {
     AddTable,
     AddSearchTable,
     AddDataSetTable,
+    EditDataSetTable,
     EditTableColumn
   },
   props: {
@@ -282,6 +312,7 @@ export default {
       details: [
       ],
       selectedTable: '',
+      selectedDataset: '',
       collapse: false,
       addTableModal: false,
       addSearchTableModal: false,
@@ -305,7 +336,6 @@ export default {
       return this.database.replace(r, '')
     },
     getTableColor (t) {
-      console.log(t)
       if (t === 'search') {
         return 'warning'
       } else if (t === 'dataset') {
@@ -318,21 +348,36 @@ export default {
       this.editTableColumnModal = true
       this.itemData = i
     },
-    getTableSchema (table) {
-      if (table === this.selectedTable && this.collapse === true) {
+    selectTable (table) {
+      if (table.tablename === this.selectedTable && this.collapse === true) {
         this.collapse = false
         return
       }
+      if (table.type === 'dataset') {
+        this.selectedTable = table.tablename
+        this.selectedDataset = table.data
+        this.collapse = true
+        document.getElementById(this.database + '_dataset').hidden = false
+        document.getElementById(this.database + '_table').hidden = true
+        // this.addDataSetTableModal = true
+      } else {
+        this.selectedDataset = ''
+        document.getElementById(this.database + '_dataset').hidden = true
+        document.getElementById(this.database + '_table').hidden = false
+        this.getTableSchema(table)
+      }
+    },
+    getTableSchema (table) {
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/getTableSchema', {
         params: {
           database: vm.database,
-          table: table
+          table: table.tablename
         }
       })
         .then(function (response) {
           if (response.data) {
-            vm.selectedTable = table
+            vm.selectedTable = table.tablename
             vm.columns = response.data.d
             console.log(1)
             console.log(vm.columns)
@@ -454,8 +499,13 @@ h2 {
     border-radius: 3px;
     color: white;
 }
+.borderpad {
+  border: 1px solid #c8ced3;
+  border-radius: 4px;
+  padding: 10px;
+}
 .left {
-    min-width: 100px;
+  min-width: 100px;
 }
 .margin-right {
   margin-right: 10px;
@@ -479,5 +529,8 @@ h2 {
 }
 .pointer {
     cursor: pointer;
+}
+#dataset {
+    display: block;
 }
 </style>

@@ -12,7 +12,7 @@
             <CDropdown
               ref="databaseDropDown"
               :toggler-text="selectedDatabase"
-              color="bg-dark"
+              color="dark"
               no-caret
               nav
               placement="start"
@@ -28,9 +28,9 @@
           </div>
           <div class="dropdown">
             <CDropdown
-              ref="DatasetDropDown"
-              :toggler-text="selectedDataset"
-              color="bg-dark"
+              ref="DataSetDropDown"
+              :toggler-text="selectedDataSet"
+              color="dark"
               no-caret
               nav
               placement="start"
@@ -38,41 +38,51 @@
               <CDropdownItem
                 v-for="t in tables"
                 :key="t.tablename"
-                @click="selectDataset(t)"
+                @click="selectDataSet(t)"
               >
                 {{ t.tablename }}
               </CDropdownItem>
             </CDropdown>
           </div>
+        </flex-row>
+        <flex-row
+          class="left"
+        >
+          <!--
+            Chart Selector
+          -->
           <div class="dropdown">
             <CDropdown
-              ref="columnDropDown"
-              :toggler-text="selectedColumn"
-              color="bg-dark"
+              ref="chartDropDown"
+              :toggler-text="selectedChart"
+              color="dark"
               no-caret
               nav
               placement="start"
             >
               <CDropdownItem
-                v-for="c in columns"
+                v-for="c in charts"
                 :key="c"
-                @click="selectColumn(c.column_name)"
+                @click="selectChart(c)"
               >
-                {{ c.column_name }}
+                {{ c }}
               </CDropdownItem>
             </CDropdown>
           </div>
+          <!--
+            Label and dimensions
+          -->
           <div class="dropdown">
             <CDropdown
               ref="dimensionsDropDown"
               :toggler-text="selectedDimension"
-              color="bg-dark"
+              color="dark"
               no-caret
               nav
               placement="start"
             >
               <CDropdownItem
-                v-for="d in dimensions"
+                v-for="d in fields"
                 :key="d"
                 @click="selectDimension(d)"
               >
@@ -80,71 +90,82 @@
               </CDropdownItem>
             </CDropdown>
           </div>
+          <!--
+            Render Chart Button
+          -->
           <CButton
-            color="success"
-            class="tablebutton active"
-            @click="addDataset"
+            color="info"
+            class="run active"
+            @click="renderChart"
           >
             <span>
               <i
-                class="fa
-                fa-plus"
+                class="far
+                fa-play-circle"
                 aria-hidden="true"
               />
-              Data Table
+              Chart Data
             </span>
           </CButton>
         </flex-row>
-        <!--
-        <flex-col
-          justify="end"
-          class="centerflex"
-        >
-          <flex-row
-            justify="start"
-            class="buttons"
-          >
-            <CButton
-              v-for="t in tables"
-              :key="t.tablename"
-              :color="getTableColor(t.search)"
-              class="tablebutton"
-              variant="outline"
-              @click="getTableSchema(t.tablename)"
-            >
-              {{ t.tablename }}
-            </CButton>
-            <CButton
-              color="info"
-              class="tablebutton active"
-              @click="addTableModal = true"
-            >
-              <span>
-                <i
-                  class="fa
-                  fa-plus"
-                  aria-hidden="true"
-                />
-                Data Table
-              </span>
-            </CButton>
-          </flex-row>
-        </flex-col>
-        -->
-        <line-chart :chart-data="datacollection"></line-chart>
-        <button @click="fillData()">Randomize</button>
       </div>
+      <div
+        id="linechart"
+        hidden
+      >
+        <line-chart
+          :chart-data="datacollection"
+        />
+      </div>
+      <div
+        id="barchart"
+        hidden
+      >
+        <bar-chart
+          :chart-data="datacollection"
+        />
+      </div>
+      <div
+        id="piechart"
+        hidden
+      >
+        <pie-chart
+          :chart-data="datacollection"
+        />
+      </div>
+      <!-- <button @click="fillData()">Randomize</button> -->
+      <!--
+        Render Chart Button
+      -->
+      <CButton
+        color="success"
+        class="tablebutton active"
+        @click="saveChart"
+      >
+        <span>
+          <i
+            class="fa
+            fa-plus"
+            aria-hidden="true"
+          />
+          Data Table
+        </span>
+      </CButton>
     </flex-col>
   </div>
 </template>
 <script>
 
 import LineChart from './charts/LineChart.js'
+import BarChart from './charts/BarChart.js'
+import PieChart from './charts/PieChart.js'
 
 export default {
   name: 'EditChart',
   components: {
-    LineChart
+    LineChart,
+    BarChart,
+    PieChart
   },
   props: {
     dbs: {
@@ -163,25 +184,25 @@ export default {
   data () {
     return {
       selectedDatabase: 'database',
-      selectedDataset: 'dataset',
-      selectedColumn: 'column',
+      selectedDataSet: 'dataset',
+      selectedChart: 'chart',
+      selectedDimension: 'dimension',
       datacollection: null,
-      dimensions: ['X', 'Y'],
+      dimensions: [],
       query: '',
       tables: [],
-      columns: [],
-      chartdatasets: []
+      charts: ['linechart', 'barchart', 'piechart'],
+      dataSet: {}
     }
   },
   created () {
   },
   mounted () {
-  //  this.fillData()
   },
   methods: {
     fillData () {
       this.datacollection = {
-        labels: ['A'],
+        labels: [''],
         datasets: [
           {
             label: 'Data One',
@@ -213,43 +234,30 @@ export default {
       }
       this.$refs.databaseDropDown.hide()
     },
-    selectDataset (ds) {
+    selectDataSet (ds) {
       var dataset = JSON.parse(ds.data)
       console.log(dataset)
       this.query = dataset.query
       this.fields = dataset.fields
-      this.selectedDataset = ds.tablename
-      this.$refs.DatasetDropDown.hide()
+      this.selectedDataSet = ds.tablename
+      this.$refs.DataSetDropDown.hide()
+      this.loadDataSet()
     },
-    selectColumn (column) {
-      this.selectedColumn = column
-      this.$refs.columnDropDown.hide()
+    selectChart (chart) {
+      this.$refs.chartDropDown.hide()
+      console.log('this.selectedChart')
+      console.log(this.selectedChart)
+      if (this.selectedChart !== 'chart') {
+        document.getElementById(this.selectedChart).hidden = true
+      }
+      document.getElementById(chart).hidden = false
+      this.selectedChart = chart
     },
-    /*
-    getTableSchema (table) {
-      var vm = this
-      this.$axios.get(this.$SERVER_URI + '/api/getTableSchema', {
-        params: {
-          database: vm.selectedDatabase,
-          table: table
-        }
-      })
-        .then(function (response) {
-          if (response.data) {
-            vm.selectedTable = table
-            vm.columns = response.data.d
-            vm.$refs.DatasetDropDown.hide()
-          }
-        })
-        .catch(function (error) {
-          console.log(error)
-        })
-    },
-    */
     selectDimension (d) {
       this.selectedDimension = d
+      this.$refs.dimensionsDropDown.hide()
     },
-    addDataset (d) {
+    loadDataSet () {
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/runQuery', {
         params: {
@@ -260,40 +268,7 @@ export default {
         .then(function (response) {
           if (response.data) {
             if (response.data.status === 'success') {
-              console.log(response.data.message)
-              var labels = []
-              var datasetsObj = {}
-              // one of the keys should be a label, remove it
-              for (var i in response.data.message[0]) {
-                var dataset = {}
-                dataset.data = []
-                dataset.fill = false
-                dataset.label = i
-                dataset.backgroundColor = '#afafaf'
-                datasetsObj[i] = dataset
-              }
-              for (var j in response.data.message) {
-                console.log(j)
-                console.log(response.data.message[j])
-                labels.push(response.data.message[j].customer_name)
-                for (var k in response.data.message[j]) {
-                  console.log('k ' + k)
-                  console.log(response.data.message[j][k])
-                  datasetsObj[k].data.push(response.data.message[j][k])
-                }
-              }
-              console.log('datasetsObj')
-              console.log(datasetsObj)
-              console.log(Object.values(datasetsObj))
-              vm.datacollection = {
-                labels: labels,
-                datasets: Object.values(datasetsObj)
-              }
-              console.log('vm.datacollection')
-              console.log(vm.datacollection)
-            } else {
-              console.log('failed')
-              console.log(response.data.error)
+              vm.dataSet = response.data.message
             }
             /*
             datasets: [
@@ -310,6 +285,60 @@ export default {
             */
           }
         })
+    },
+    renderChart () {
+      if (this.dataSet) {
+        console.log('this.dataSet')
+        console.log(this.dataSet)
+        var labels = []
+        var datasetsObj = {}
+        /*
+          We expect a stream of data like
+          {key1:value1,key1:value2,key2:value1,ke2:value2}
+          we need to sort these into objects such that
+          key1:{data:[value1,value2]}}
+          key2:{data:[value1,value2]}}
+          key3:{data:[value1,value2]}}
+          etc.
+          first create a bunch of empty objects for each key
+        */
+        for (var i in this.dataSet[0]) {
+          var dataset = {}
+          dataset.data = []
+          dataset.fill = false
+          dataset.backgroundColor = '#afafaf'
+          console.log('i ' + i)
+          // if (i !== this.selectedDimension) {
+          datasetsObj[i] = dataset
+          // }
+        }
+        console.log('datasetsObj begin')
+        console.log(datasetsObj)
+        console.log('this.selectedDimension ' + this.selectedDimension)
+        for (var j in this.dataSet) {
+          console.log('j ' + j)
+          for (var k in this.dataSet[j]) {
+            console.log('k ' + k)
+            if (k === this.selectedDimension) {
+              labels.push(this.dataSet[j][k])
+            }
+            console.log(this.dataSet[j][k])
+            datasetsObj[k].label = k
+            datasetsObj[k].data.push(this.dataSet[j][k])
+          }
+        }
+        console.log('datasetsObj')
+        console.log(datasetsObj)
+        console.log(Object.values(datasetsObj))
+        this.datacollection = {
+          labels: labels,
+          datasets: Object.values(datasetsObj)
+        }
+        console.log('this.datacollection')
+        console.log(this.datacollection)
+      } else {
+        console.log('no chart dataset to render')
+      }
     }
   }
 }
@@ -331,15 +360,22 @@ export default {
   margin: 5px;
 }
 .container {
-    padding: 0px;
+  padding: 0px;
 }
 .chart {
+}
+.run {
+  margin: 10px;
+  height: 35px;
+}
+.table-responsive {
+  overflow-x: scroll;
 }
 .dropdown {
   margin: 5px;
 }
 .left {
-    min-width: 100px;
+  min-width: 100px;
 }
 .margin-right {
   margin-right: 10px;

@@ -31,7 +31,7 @@
         </CModal>
       </div>
     </flex-row>
-    <flex-col
+    <div
       justify="center"
       class="cards"
     >
@@ -41,7 +41,7 @@
         :database="value.key"
         :tables="value.tables"
       />
-    </flex-col>
+    </div>
   </div>
 </template>
 <script>
