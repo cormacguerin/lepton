@@ -157,6 +157,18 @@ app.get('/api/createDataSetTable', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
+app.get('/api/deleteDataSetTable', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.deleteDataSetTable(req.user_id, queryData.database, queryData.table, function(r) {
+    console.log('r');
+    console.log(r);
+    res.json(r);
+  });
+});
 app.get('/api/addTableColumn', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   if (!(queryData.database && queryData.table && queryData.column && queryData.datatype)) {

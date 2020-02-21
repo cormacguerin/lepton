@@ -15,26 +15,40 @@
       <div class="error">
         {{ error }}
       </div>
-      <div class="margin">
-        <CButton
-          class="active left"
-          variant="outline"
-          color="danger"
-          @click="run"
-        >
-          Run Query
-        </CButton>
-      </div>
-      <div class="margin">
-        <CButton
-          class="active left"
-          variant="outline"
-          color="danger"
-          @click="save"
-        >
-          Save
-        </CButton>
-      </div>
+      <flex-row>
+        <div class="margin">
+          <CButton
+            class="active left"
+            variant="outline"
+            color="danger"
+            @click="run"
+          >
+            Run Query
+          </CButton>
+        </div>
+        <div class="margin">
+          <CButton
+            class="active left"
+            variant="outline"
+            color="danger"
+            @click="save"
+          >
+            Save
+          </CButton>
+        </div>
+        <div class="right">
+          <div class="margin">
+            <CButton
+              class="active left"
+              variant="outline"
+              color="danger"
+              @click="delete_"
+            >
+              Delete
+            </CButton>
+          </div>
+        </div>
+      </flex-row>
     </flex-col>
     <div class="preview">
       <CDataTable
@@ -170,7 +184,30 @@ export default {
               vm.error = ''
               vm.$parent.$parent.$parent.getDatabases(vm.tableName)
               vm.$parent.$parent.getTableSchema(vm.tableName)
-              vm.$parent.$parent.addDataSetTableModal = false
+            } else {
+              vm.error = 'Error ' + response.data.message
+              console.log(response.data.message)
+            }
+          }
+        })
+        .catch(function (error) {
+          console.log(error)
+        })
+    },
+    delete_ () {
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/deleteDataSetTable', {
+        params: {
+          database: vm.database,
+          table: vm.tableName
+        }
+      })
+        .then(function (response) {
+          if (response.data) {
+            console.log(response.data)
+            if (response.data.status === 'success') {
+              vm.$parent.$parent.$parent.getDatabases(vm.tableName)
+              vm.$parent.$parent.collapse = false
             } else {
               vm.error = 'Error ' + response.data.message
               console.log(response.data.message)
@@ -199,6 +236,9 @@ export default {
 .left {
   float: left;
 }
+.right {
+  float: right;
+}
 .error {
   margin: 10px;
   padding-left: 10px;
@@ -214,6 +254,7 @@ input {
   outline: 0;
 }
 textarea {
+  background-color: #efefef;
   margin: 10px;
   padding: 10px;
 }

@@ -189,7 +189,6 @@ export default {
   float: left;
 }
 input {
-  margin: 10px;
   text-indent: 10px;
   min-width: 100px;
   border: none;

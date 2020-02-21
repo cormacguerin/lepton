@@ -125,7 +125,7 @@
               Data Set
             </CButton>
             <CModal
-              title="Add Search Table"
+              title="Add Data Set"
               color="danger"
               :show.sync="addDataSetTableModal"
             >
@@ -177,7 +177,7 @@
         :id="database + '_dataset'"
         hidden
       >
-        {{ selectedTable.tablename }}
+        {{ showSelectedTable() }}
         <EditDataSetTable
           :key="index"
           :database="database"
@@ -364,7 +364,12 @@ export default {
         this.selectedDataset = ''
         document.getElementById(this.database + '_dataset').hidden = true
         document.getElementById(this.database + '_table').hidden = false
-        this.getTableSchema(table)
+        this.getTableSchema(table.tablename)
+      }
+    },
+    showSelectedTable () {
+      if (this.selectedTable) {
+        return this.selectedTable.tablename
       }
     },
     getTableSchema (table) {
@@ -372,12 +377,12 @@ export default {
       this.$axios.get(this.$SERVER_URI + '/api/getTableSchema', {
         params: {
           database: vm.database,
-          table: table.tablename
+          table: table
         }
       })
         .then(function (response) {
           if (response.data) {
-            vm.selectedTable = table.tablename
+            vm.selectedTable = table
             vm.columns = response.data.d
             console.log(1)
             console.log(vm.columns)

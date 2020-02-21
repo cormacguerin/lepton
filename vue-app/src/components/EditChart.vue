@@ -25,6 +25,9 @@
                 {{ formatDatabaseName(d.key) }}
               </CDropdownItem>
             </CDropdown>
+            <div class="dropdownLabel">
+              Database
+            </div>
           </div>
           <div class="dropdown">
             <CDropdown
@@ -43,6 +46,9 @@
                 {{ t.tablename }}
               </CDropdownItem>
             </CDropdown>
+            <div class="dropdownLabel">
+              Data Set
+            </div>
           </div>
         </flex-row>
         <flex-row
@@ -68,9 +74,60 @@
                 {{ c }}
               </CDropdownItem>
             </CDropdown>
+            <div class="dropdownLabel">
+              Chart
+            </div>
           </div>
           <!--
-            Label and dimensions
+            Labels (X) label
+          -->
+          <div class="dropdown">
+            <CDropdown
+              ref="labelDropDown"
+              :toggler-text="selectedLabel"
+              color="dark"
+              no-caret
+              nav
+              placement="start"
+            >
+              <CDropdownItem
+                v-for="d in fields"
+                :key="d"
+                @click="selectLabel(d)"
+              >
+                {{ d }}
+              </CDropdownItem>
+            </CDropdown>
+            <div class="dropdownLabel">
+              Label(X-axis)
+            </div>
+          </div>
+          <!--
+            Labels (Y) scale
+          -->
+          <div class="dropdown">
+            <CDropdown
+              ref="scaleDropDown"
+              :toggler-text="selectedScale"
+              color="dark"
+              no-caret
+              nav
+              placement="start"
+            >
+              <CDropdownItem
+                v-for="d in fields"
+                :key="d"
+                @click="selectScale(d)"
+              >
+                {{ d }}
+              </CDropdownItem>
+            </CDropdown>
+            <div class="dropdownLabel">
+              Scale(Y-axis)
+            </div>
+          </div>
+          <!--
+            Datasets/Dimensions(D)
           -->
           <div class="dropdown">
             <CDropdown
@@ -89,7 +146,27 @@
                 {{ d }}
               </CDropdownItem>
             </CDropdown>
+            <div class="dropdownLabel">
+              Dimensions
+            </div>
           </div>
+          <!--
+            Render Chart Button
+          -->
+          <CButton
+            color="info"
+            class="run active"
+            @click="loadDataSet"
+          >
+            <span>
+              <i
+                class="far
+                fa-play-circle"
+                aria-hidden="true"
+              />
+              Reload Data
+            </span>
+          </CButton>
           <!--
             Render Chart Button
           -->
@@ -183,10 +260,12 @@ export default {
   },
   data () {
     return {
-      selectedDatabase: 'database',
-      selectedDataSet: 'dataset',
-      selectedChart: 'chart',
-      selectedDimension: 'dimension',
+      selectedDatabase: 'select',
+      selectedDataSet: 'select',
+      selectedChart: 'select',
+      selectedLabel: 'select',
+      selectedScale: 'select',
+      selectedDimension: 'select',
       datacollection: null,
       dimensions: [],
       query: '',
@@ -227,6 +306,11 @@ export default {
     selectDatabase (database, tables) {
       this.selectedDatabase = database
       this.tables = []
+      this.selectedDataSet = 'select'
+      this.selectedChart = 'select'
+      this.selectedLabel = 'select'
+      this.selectedScale = 'select'
+      this.selectedDimension = 'select'
       for (var i in tables) {
         if (tables[i].type === 'dataset') {
           this.tables.push(tables[i])
@@ -235,6 +319,10 @@ export default {
       this.$refs.databaseDropDown.hide()
     },
     selectDataSet (ds) {
+      this.selectedChart = 'select'
+      this.selectedLabel = 'select'
+      this.selectedScale = 'select'
+      this.selectedDimension = 'select'
       var dataset = JSON.parse(ds.data)
       console.log(dataset)
       this.query = dataset.query
@@ -247,11 +335,19 @@ export default {
       this.$refs.chartDropDown.hide()
       console.log('this.selectedChart')
       console.log(this.selectedChart)
-      if (this.selectedChart !== 'chart') {
+      if (this.selectedChart !== 'select') {
         document.getElementById(this.selectedChart).hidden = true
       }
       document.getElementById(chart).hidden = false
       this.selectedChart = chart
+    },
+    selectLabel (d) {
+      this.selectedLabel = d
+      this.$refs.labelDropDown.hide()
+    },
+    selectScale (d) {
+      this.selectedScale = d
+      this.$refs.scaleDropDown.hide()
     },
     selectDimension (d) {
       this.selectedDimension = d
@@ -287,58 +383,60 @@ export default {
         })
     },
     renderChart () {
-      if (this.dataSet) {
-        console.log('this.dataSet')
-        console.log(this.dataSet)
-        var labels = []
-        var datasetsObj = {}
-        /*
-          We expect a stream of data like
-          {key1:value1,key1:value2,key2:value1,ke2:value2}
-          we need to sort these into objects such that
-          key1:{data:[value1,value2]}}
-          key2:{data:[value1,value2]}}
-          key3:{data:[value1,value2]}}
-          etc.
-          first create a bunch of empty objects for each key
-        */
-        for (var i in this.dataSet[0]) {
-          var dataset = {}
-          dataset.data = []
-          dataset.fill = false
-          dataset.backgroundColor = '#afafaf'
-          console.log('i ' + i)
-          // if (i !== this.selectedDimension) {
-          datasetsObj[i] = dataset
-          // }
-        }
-        console.log('datasetsObj begin')
-        console.log(datasetsObj)
-        console.log('this.selectedDimension ' + this.selectedDimension)
-        for (var j in this.dataSet) {
-          console.log('j ' + j)
-          for (var k in this.dataSet[j]) {
-            console.log('k ' + k)
-            if (k === this.selectedDimension) {
-              labels.push(this.dataSet[j][k])
-            }
-            console.log(this.dataSet[j][k])
-            datasetsObj[k].label = k
-            datasetsObj[k].data.push(this.dataSet[j][k])
+      var vm = this
+      console.log('this.dataSet')
+      console.log(vm.dataSet)
+      var labels = []
+      var datasetsObj = {}
+      /*
+        We expect a stream of data like
+        {key1:value1,key1:value2,key2:value1,ke2:value2}
+        we need to sort these into objects such that
+        key1:{data:[value1,value2]}}
+        key2:{data:[value1,value2]}}
+        key3:{data:[value1,value2]}}
+        etc.
+        first create a bunch of empty objects for each dataset
+      */
+      console.log('this.selectedDimension ' + vm.selectedDimension)
+      console.log('this.selectedLabel ' + vm.selectedLabel)
+      console.log('this.selectedScale ' + vm.selectedScale)
+      for (var j in vm.dataSet) {
+        if (vm.dataSet[j][vm.selectedLabel]) {
+          if (!(labels.includes(vm.dataSet[j][vm.selectedLabel]))) {
+            labels.push(vm.dataSet[j][vm.selectedLabel])
           }
         }
-        console.log('datasetsObj')
-        console.log(datasetsObj)
-        console.log(Object.values(datasetsObj))
-        this.datacollection = {
-          labels: labels,
-          datasets: Object.values(datasetsObj)
+        if (vm.dataSet[j][vm.selectedDimension]) {
+          if (datasetsObj[vm.dataSet[j][vm.selectedDimension]]) {
+            if (vm.dataSet[j][vm.selectedScale]) {
+              datasetsObj[vm.dataSet[j][vm.selectedDimension]].data.push(vm.dataSet[j][vm.selectedScale])
+            }
+          } else {
+            datasetsObj[vm.dataSet[j][vm.selectedDimension]] = {}
+            datasetsObj[vm.dataSet[j][vm.selectedDimension]].data = []
+            datasetsObj[vm.dataSet[j][vm.selectedDimension]].fill = false
+            datasetsObj[vm.dataSet[j][vm.selectedDimension]].background_color = '#afafaf'
+            datasetsObj[vm.dataSet[j][vm.selectedDimension]].label = vm.dataSet[j][vm.selectedDimension]
+            if (vm.dataSet[j][vm.selectedScale]) {
+              datasetsObj[vm.dataSet[j][vm.selectedDimension]].data.push(vm.dataSet[j][vm.selectedScale])
+            }
+          }
         }
-        console.log('this.datacollection')
-        console.log(this.datacollection)
-      } else {
-        console.log('no chart dataset to render')
       }
+      console.log('labels')
+      console.log(labels)
+      console.log('datasetsObj')
+      console.log(datasetsObj)
+      console.log('datasetsObj')
+      console.log(datasetsObj)
+      console.log(Object.values(datasetsObj))
+      vm.datacollection = {
+        labels: labels,
+        datasets: Object.values(datasetsObj)
+      }
+      console.log('this.datacollection')
+      console.log(vm.datacollection)
     }
   }
 }

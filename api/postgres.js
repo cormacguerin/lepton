@@ -293,12 +293,14 @@ console.log("promises finished in " + totaltime + "ms");
   /*
    * 
    */
-  unregisterTable(database, table, callback) {
+  unregisterTable(database, table, type, callback) {
     var query = "DELETE FROM tables WHERE tablename = \'"
       + table
       + "\'"
       + " AND database = \'"
       + database
+      + "\' AND type = \'"
+      + type
       + "\';"
     this.execute(query, null, function(e,r) {
         callback(e, r);

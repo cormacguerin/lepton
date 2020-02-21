@@ -23,10 +23,10 @@ import '@coreui/coreui/scss/coreui.scss'
 // import '@fortawesome/fontawesome/styles.css'
 import fontawesome from '@fortawesome/fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
-import { faPlus, faMinus, faBars, faEllipsisV } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faPlayCircle, faMinus, faBars, faEllipsisV } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
-library.add(faPlus, faMinus, faBars, faEllipsisV)
+library.add(faPlus, faPlayCircle, faMinus, faBars, faEllipsisV)
 
 fontawesome.config = {
   autoAddCss: false

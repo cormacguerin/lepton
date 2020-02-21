@@ -250,6 +250,25 @@ exports.createDataSetTable = function(u,d,t,q,callback) {
   });
 }
 
+exports.deleteDataSetTable = function(u,d,t,callback) {
+  if (!d) {
+    callback({status:'failed'})
+  }
+  if (d.length > 63) {
+    callback({status:'failed'})
+  }
+  initDB(d, function() {
+    db_pg['admin'].unregisterTable(d,t,'dataset', function(e,r) {
+      if (e) {
+        console.log(e);
+        callback({status:'failed'})
+      } else {
+        callback({status:'success'})
+      }
+    });
+  });
+}
+
 exports.addTableColumn = function(d,t,c,dt,df,fts,callback) {
   if (!(d&&t&&c)) {
     return callback({status:'failed'})
@@ -457,7 +476,7 @@ exports.deleteTable = function(d, t, c) {
         console.log('r.length');
         console.log(r.length);
         if (r.length === 0) {
-          db_pg['admin'].unregisterTable(d,t, function(e,r) {
+          db_pg['admin'].unregisterTable(d,t,'data', function(e,r) {
             if (e) {
               console.log(e);
               c({status:'failed'})
