@@ -20,8 +20,6 @@
           </div>
           <div class="edit">
             <CDropdown
-              nav
-              placement="bottom-end"
             >
               <template #toggler="toggler">
                 <i
@@ -30,7 +28,7 @@
                 />
               </template>
               <CDropdownItem
-                @click="deleteDB()"
+                @click.native="deleteDB()"
               >
                 Delete
               </CDropdownItem>

@@ -128,7 +128,14 @@ class Postgres {
         const promisePush = async function() {
 var it = new Date().getTime();
           for (const v in values) {
-            /*
+            for (var x in values[v]) {
+              // console.log(values[v][x]);
+              // set empty stuff to null
+              if (values[v][x] === "") {
+                values[v][x] = null;
+              }
+            }
+            /*         
             console.log('v');
             console.log(v);
             console.log('values[v]');
@@ -408,11 +415,11 @@ console.log("promises finished in " + totaltime + "ms");
     var pkey = "SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS data_type"
       + " FROM pg_index i"
       + " JOIN pg_attribute a ON a.attrelid = i.indrelid"
-      + " AND a.attnum = ANY(i.indkey) "
+      + " AND a.attnum = ANY(i.indkey)"
       + " WHERE i.indrelid = $1::regclass"
       + " AND i.indisprimary;"
     var this_ = this;
-    this.execute(pkey, [table], function(e,r) {
+    this.execute(pkey, ['"' + table + '"'], function(e,r) {
       if (e) {
         console.log(e);
         return callback(e);
@@ -431,6 +438,8 @@ console.log("promises finished in " + totaltime + "ms");
       }
 
       var keys = Object.keys(data[0]);
+      console.log('keys')
+      console.log(keys)
       var insert_prep = '';
       for (var i=1; i<=keys.length; i++) {
         insert_prep += '$' + i.toString();
@@ -440,28 +449,31 @@ console.log("promises finished in " + totaltime + "ms");
       }
       var values_prep = '';
       for (var i=1; i<=keys.length; i++) {
+        values_prep += '\"';
         values_prep += keys[i-1];
-        values_prep += ' = ';
+        values_prep += '\" = ';
         values_prep += '$' + i.toString();
         if (i < keys.length) {
           values_prep += ', ';
         }
       }
-      var statement = "INSERT INTO "
+      var quotedKeys = "\"" + keys.join("\",\"") + "\"";
+      var statement = "INSERT INTO \""
         + table
-        + " ("
-        + keys
+        + "\" ("
+        + quotedKeys
         + ") VALUES("
         + insert_prep
         + ")"
         + " ON CONFLICT ("
         + primary_key
         + ") DO UPDATE SET "
+//      + " ON CONFLICT DO UPDATE SET "
         + values_prep 
         + ";"
 
       console.log(statement);
-      this_.batch_execute(statement, [data], function(e,r) {
+      this_.batch_execute(statement, data, function(e,r) {
         var this__ = this_;
         if (e) {
           console.log(e);
@@ -704,7 +716,7 @@ console.log("promises finished in " + totaltime + "ms");
       + " _column = $8,"
       + " display_field = $9,"
       + " enable = $10;";
-    values = [d,t,c,df,b,d,t,c,df,b]
+    var values = [d,t,c,df,b,d,t,c,df,b]
 
     this.execute(query, values, function(e,r) {
       console.log(e);
@@ -1891,7 +1903,7 @@ function getDataType(dt) {
     case 'decimal':
       return 'NUMERIC(16,2)';
     case 'bigdecimal':
-      return 'NUMERIC(32,8)';
+      return 'NUMERIC(32,16)';
     case 'real': 
       return 'REAL';
     case 'date': 

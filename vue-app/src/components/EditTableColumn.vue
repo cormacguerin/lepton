@@ -11,15 +11,11 @@
         <CDropdown
           ref="dataTypeDropDown"
           :toggler-text="dataType"
-          color="text-white bg-dark"
-          no-caret
-          nav
-          placement="bottom-end"
         >
           <CDropdownItem
             v-for="dt in dataTypes"
             :key="dt"
-            @click="selectDataType(dt)"
+            @click.native="selectDataType(dt)"
           >
             {{ dt }}
           </CDropdownItem>
@@ -59,15 +55,11 @@
           <CDropdown
             ref="displayFieldDropDown"
             :toggler-text="displayField"
-            color="text-white bg-dark"
-            no-caret
-            nav
-            placement="bottom-end"
           >
             <CDropdownItem
               v-for="f in columns"
               :key="f.column_name"
-              @click="selectDisplayField(f.column_name)"
+              @click.native="selectDisplayField(f.column_name)"
             >
               {{ f.column_name }}
             </CDropdownItem>

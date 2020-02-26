@@ -19,15 +19,11 @@
           <CDropdown
             ref="dataTypeDropDown"
             :toggler-text="dataType"
-            color="text-white bg-dark"
-            no-caret
-            nav
-            placement="bottom-end"
           >
             <CDropdownItem
               v-for="dt in dataTypes"
               :key="dt"
-              @click="selectDataType(dt)"
+              @click.native="selectDataType(dt)"
             >
               {{ dt }}
             </CDropdownItem>

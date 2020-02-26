@@ -161,7 +161,7 @@ def buildPayload(url, soup, head):
     rawdata = base64.b64encode(data.encode())
     try:
         base64_string = rawdata.decode('UTF-8')
-        #data = UrlData(body.decode('UTF-8'),head.decode('UTF-8'))
+        # data = UrlData(body.decode('UTF-8'),head.decode('UTF-8'))
     except UnicodeEncodeError as e:
         print(str(e))
         return None

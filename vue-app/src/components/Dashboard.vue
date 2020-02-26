@@ -69,13 +69,16 @@ export default {
     this.getDatabases()
   },
   methods: {
-    getDatabases () {
+    getDatabases (f) {
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/getDatabases', {
       })
         .then(function (response) {
           if (response.data) {
             vm.dbs = response.data
+          }
+          if (f) {
+            f()
           }
         })
         .catch(function (error) {
