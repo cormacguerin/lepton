@@ -5,12 +5,12 @@ import VueFlex from 'vue-flex'
 import App from './App.vue'
 import Axios from 'axios'
 import VueRouter from 'vue-router'
+import { cilPlus } from '@coreui/icons'
 import { CDropdown, CDropdownItem } from './components/celements/celements.ts'
 import Home from './components/Home.vue'
 import Schema from './components/Schema.vue'
 import Dashboard from './components/Dashboard.vue'
 import Insights from './components/Insights.vue'
-import { cilPlus } from '@coreui/icons'
 import 'vue-flex/dist/vue-flex.css'
 import '@coreui/icons/css/all.css'
 import '@coreui/icons/css/free.css'
@@ -52,9 +52,7 @@ Vue.prototype.$SERVER_URI = 'https://35.239.29.200'
 Vue.prototype.$axios = Axios
 
 Vue.use(VueFlex)
-
 Vue.use(VueRouter)
-
 // Vue.use(CoreuiVue)
 
 Vue.use(FontAwesomeIcon)

@@ -8,7 +8,7 @@
       <div class="addchart">
         <CButton
           class="btn active"
-          color="success"
+          color="info"
           @click="addChartModal = true"
         >
           <span>
@@ -21,7 +21,8 @@
         </CButton>
         <CModal
           title="Add Chart"
-          color="success"
+          color="info"
+          size="lg"
           :show.sync="addChartModal"
         >
           <template #footer-wrapper>
@@ -134,5 +135,9 @@ h2 {
     background-color: #171f24;
 }
 .hidden {
+}
+.modal {
+  width: 1000px;
+  max-width: 1024px;
 }
 </style>
