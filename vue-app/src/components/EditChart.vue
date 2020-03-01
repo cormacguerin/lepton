@@ -154,14 +154,14 @@
             <flex-row>
               <div class="dropdown">
                 <CDropdown
-                  ref="selectedColorFieldDropDown"
-                  :toggler-text="selectedColorField"
+                  ref="selectedDimensionsColorFieldDropDown"
+                  :toggler-text="selectedDimensionsColorField"
                   color="dark"
                 >
                   <CDropdownItem
                     v-for="d in dimensions"
                     :key="d"
-                    @click.native="selectColorField(d)"
+                    @click.native="selectDimensionsColorField(d)"
                   >
                     {{ d }}
                   </CDropdownItem>
@@ -169,7 +169,29 @@
               </div>
               <div class="dropdown">
                 <ColorPicker
-                  ref="picker"
+                  ref="dpicker"
+                  show-fallback
+                  fallback-input-type="color"
+                />
+              </div>
+              <div class="dropdown">
+                <CDropdown
+                  ref="selectedLabelsColorFieldDropDown"
+                  :toggler-text="selectedLabelsColorField"
+                  color="dark"
+                >
+                  <CDropdownItem
+                    v-for="d in labels"
+                    :key="d"
+                    @click.native="selectLabelsColorField(d)"
+                  >
+                    {{ d }}
+                  </CDropdownItem>
+                </CDropdown>
+              </div>
+              <div class="dropdown">
+                <ColorPicker
+                  ref="lpicker"
                   show-fallback
                   fallback-input-type="color"
                 />
@@ -291,12 +313,15 @@ export default {
       selectedLabel: 'select',
       selectedScale: 'select',
       selectedDimension: 'none',
-      selectedColorField: 'select',
-      selectedColor: '#efefef',
+      selectedDimensionsColorField: 'select',
+      selectedDimensionsColor: '#efefef',
+      selectedLabelsColorField: 'select',
+      selectedLabelsColor: '#efefef',
       datacollection: null,
       dataoptions: null,
       dimensions: [],
       fields: [],
+      labels: [],
       query: '',
       tables: [],
       charts: ['linechart', 'barchart', 'piechart'],
@@ -308,11 +333,49 @@ export default {
   },
   mounted () {
     this.$watch(
-      '$refs.picker.color', (n, o) => {
-        if (this.datasetOptions[this.selectedColorField]) {
-          this.datasetOptions[this.selectedColorField].strokeColor = n
-          this.datasetOptions[this.selectedColorField].backgroundColor = n
+      '$refs.dpicker.color', (n, o) => {
+        var c = []
+        for (var i = 0; i < this.labels.length; i++) {
+          c.push(n)
+        }
+        if (this.datasetOptions[this.selectedDimensionsColorField]) {
+          this.datasetOptions[this.selectedDimensionsColorField].strokeColor = c
+          this.datasetOptions[this.selectedDimensionsColorField].backgroundColor = c
           this.renderChart()
+        }
+      })
+    this.$watch(
+      '$refs.lpicker.color', (n, o) => {
+        var x = 0
+        for (var i in this.labels) {
+          console.log(this.labels[i])
+          console.log(x)
+          if (this.selectedLabelsColorField === this.labels[i]) {
+            break
+          } else {
+            x++
+          }
+        }
+        console.log('this.selectedLabelsColorField')
+        console.log(this.selectedLabelsColorField)
+        console.log(this.datasetOptions)
+        for (var j in this.dimensions) {
+          console.log('j')
+          console.log(j)
+          console.log('this.dimensions[j]')
+          console.log(this.dimensions[j])
+          /*
+          if (this.datasetOptions[this.dimensions[j]] === undefined) {
+            this.datasetOptions[this.dimensions[j]] = {}
+            this.datasetOptions[this.dimensions[j]].strokeColor = []
+            this.datasetOptions[this.dimensions[j]].backgroundColor = []
+            this.datasetOptions[this.dimensions[j]].strokeColor[x] = n
+            this.datasetOptions[this.dimensions[j]].backgroundColor[x] = n
+          } else {
+          */
+          this.datasetOptions[this.dimensions[j]].strokeColor[x] = n
+          this.datasetOptions[this.dimensions[j]].backgroundColor[x] = n
+          // }
         }
       })
   },
@@ -389,14 +452,20 @@ export default {
             this.dimensions.push(this.dataSet[i][this.selectedDimension])
           }
           this.datasetOptions[this.dataSet[i][this.selectedDimension]] = {}
+          this.datasetOptions[this.dataSet[i][this.selectedDimension]].strokeColor = []
+          this.datasetOptions[this.dataSet[i][this.selectedDimension]].backgroundColor = []
         }
       }
       console.log(this.dimensions)
       this.$refs.dimensionsDropDown.hide()
     },
-    selectColorField (d) {
-      this.selectedColorField = d
-      this.$refs.selectedColorFieldDropDown.hide()
+    selectDimensionsColorField (d) {
+      this.selectedDimensionsColorField = d
+      this.$refs.selectedDimensionsColorFieldDropDown.hide()
+    },
+    selectLabelsColorField (d) {
+      this.selectedLabelsColorField = d
+      this.$refs.selectedLabelsColorFieldDropDown.hide()
     },
     loadDataSet () {
       var vm = this
@@ -510,6 +579,7 @@ export default {
           }
         }
       }
+      this.labels = labels
       console.log(Object.values(datasetsObj))
       vm.datacollection = {
         labels: labels,
