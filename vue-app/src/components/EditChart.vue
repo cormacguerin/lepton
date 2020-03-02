@@ -166,6 +166,9 @@
                     {{ d }}
                   </CDropdownItem>
                 </CDropdown>
+                <div class="dropdownLabel">
+                  Dimensions
+                </div>
               </div>
               <div class="dropdown">
                 <ColorPicker
@@ -188,6 +191,9 @@
                     {{ d }}
                   </CDropdownItem>
                 </CDropdown>
+                <div class="dropdownLabel">
+                  Labels
+                </div>
               </div>
               <div class="dropdown">
                 <ColorPicker
@@ -331,6 +337,10 @@ export default {
   },
   created () {
   },
+  /*
+   * A couple of watches to look at the color selections, these get added into a datasetOptions
+   * object which read again in the render function and each property applied to the relevent data dimension
+   */
   mounted () {
     this.$watch(
       '$refs.dpicker.color', (n, o) => {
@@ -346,37 +356,35 @@ export default {
       })
     this.$watch(
       '$refs.lpicker.color', (n, o) => {
-        var x = 0
-        for (var i in this.labels) {
-          console.log(this.labels[i])
-          console.log(x)
-          if (this.selectedLabelsColorField === this.labels[i]) {
-            break
-          } else {
-            x++
+        if (this.selectedDimension === 'none') {
+          if (this.datasetOptions[this.selectedLabel] === undefined) {
+            this.datasetOptions[this.selectedLabel] = {}
           }
-        }
-        console.log('this.selectedLabelsColorField')
-        console.log(this.selectedLabelsColorField)
-        console.log(this.datasetOptions)
-        for (var j in this.dimensions) {
-          console.log('j')
-          console.log(j)
-          console.log('this.dimensions[j]')
-          console.log(this.dimensions[j])
-          /*
-          if (this.datasetOptions[this.dimensions[j]] === undefined) {
-            this.datasetOptions[this.dimensions[j]] = {}
-            this.datasetOptions[this.dimensions[j]].strokeColor = []
-            this.datasetOptions[this.dimensions[j]].backgroundColor = []
+          this.datasetOptions[this.selectedLabel].strokeColor = n
+          this.datasetOptions[this.selectedLabel].backgroundColor = n
+        } else {
+          var x = 0
+          for (var i in this.labels) {
+            console.log(this.labels[i])
+            console.log(x)
+            if (this.selectedLabelsColorField === this.labels[i]) {
+              break
+            } else {
+              x++
+            }
+          }
+          for (var j in this.dimensions) {
+            console.log('j')
+            console.log(j)
+            console.log('this.dimensions[j]')
+            console.log(this.dimensions[j])
             this.datasetOptions[this.dimensions[j]].strokeColor[x] = n
             this.datasetOptions[this.dimensions[j]].backgroundColor[x] = n
-          } else {
-          */
-          this.datasetOptions[this.dimensions[j]].strokeColor[x] = n
-          this.datasetOptions[this.dimensions[j]].backgroundColor[x] = n
-          // }
+          }
         }
+        console.log('this.datasetOptions')
+        console.log(this.datasetOptions)
+        this.renderChart()
       })
   },
   methods: {
@@ -485,17 +493,16 @@ export default {
           })
       })
     },
+    /*
+     * Main logic here. We expect a stream of data like
+     * {key1:value1,key1:value2,key2:value1,ke2:value2}
+     * Loop over every dataset and access each element by user selected key
+     * format & push the data into the chartjs data structured object (datasetsObj)
+     */
     renderChart () {
       var vm = this
       var labels = []
       var datasetsObj = {}
-      /*
-        We expect a stream of data like
-        {key1:value1,key1:value2,key2:value1,ke2:value2}
-        we need to sort these into objects such that
-        etc.
-        first create a bunch of empty objects for each dataset
-      */
       console.log('vm.dataSet')
       console.log(vm.dataSet)
       for (var j in vm.dataSet) {
@@ -508,74 +515,55 @@ export default {
           console.log('no label skip')
           continue
         }
-        // set data
+        var obj
         if (vm.selectedDimension === 'none') {
-          console.log('no dimensions')
-          if (datasetsObj[0]) {
-            if (vm.dataSet[j][vm.selectedScale]) {
-              datasetsObj[0].data.push(vm.dataSet[j][vm.selectedScale])
-            } else {
-              datasetsObj[0].data.push(null)
-            }
-            if (vm.dataSet[j][vm.selectedLabel]) {
-              datasetsObj[0].labels.push(vm.dataSet[j][vm.selectedLabel])
-            } else {
-              datasetsObj[0].labels.push(null)
-            }
+          obj = vm.selectedLabel
+        } else {
+          obj = vm.dataSet[j][vm.selectedDimension]
+        }
+        if (datasetsObj[obj]) {
+          if (obj) {
+            datasetsObj[obj].data.push(vm.dataSet[j][vm.selectedScale])
           } else {
-            datasetsObj[0] = {}
-            datasetsObj[0].data = []
-            datasetsObj[0].labels = []
-            datasetsObj[0].fill = false
-            datasetsObj[0].background_color = '#afafaf'
-            datasetsObj[0].label = vm.SelectedLabel
-            if (vm.dataSet[j][vm.selectedScale]) {
-              datasetsObj[0].data.push(vm.dataSet[j][vm.selectedScale])
-            } else {
-              datasetsObj[0].data.push(null)
-            }
-            if (vm.dataSet[j][vm.selectedLabel]) {
-              datasetsObj[0].labels.push(vm.dataSet[j][vm.selectedLabel])
-            } else {
-              datasetsObj[0].labels.push(null)
+            datasetsObj[obj].data.push(null)
+          }
+          if (vm.dataSet[j][vm.selectedLabel]) {
+            datasetsObj[obj].labels.push(vm.dataSet[j][vm.selectedLabel])
+          } else {
+            datasetsObj[obj].labels.push(null)
+          }
+        } else {
+          var label
+          if (vm.selectedDimension === 'none') {
+            label = vm.selectedLabel
+          } else {
+            label = obj
+          }
+          datasetsObj[obj] = {}
+          datasetsObj[obj].data = []
+          datasetsObj[obj].labels = []
+          datasetsObj[obj].fill = false
+          datasetsObj[obj].label = label
+          // set user options
+          console.log('deb a')
+          console.log(datasetsObj)
+          if (vm.datasetOptions[obj]) {
+            for (const k in vm.datasetOptions[obj]) {
+              console.log('k ' + k)
+              console.log(vm.datasetOptions[obj][k])
+              datasetsObj[obj][k] = vm.datasetOptions[obj][k]
             }
           }
-        } else if (vm.dataSet[j][vm.selectedDimension]) {
-          if (datasetsObj[vm.dataSet[j][vm.selectedDimension]]) {
-            if (vm.dataSet[j][vm.selectedScale]) {
-              datasetsObj[vm.dataSet[j][vm.selectedDimension]].data.push(vm.dataSet[j][vm.selectedScale])
-            } else {
-              datasetsObj[vm.dataSet[j][vm.selectedDimension]].data.push(null)
-            }
-            if (vm.dataSet[j][vm.selectedLabel]) {
-              datasetsObj[vm.dataSet[j][vm.selectedDimension]].labels.push(vm.dataSet[j][vm.selectedLabel])
-            } else {
-              datasetsObj[vm.dataSet[j][vm.selectedDimension]].labels.push(null)
-            }
+          // add data
+          if (vm.dataSet[j][vm.selectedScale]) {
+            datasetsObj[obj].data.push(vm.dataSet[j][vm.selectedScale])
           } else {
-            datasetsObj[vm.dataSet[j][vm.selectedDimension]] = {}
-            datasetsObj[vm.dataSet[j][vm.selectedDimension]].data = []
-            datasetsObj[vm.dataSet[j][vm.selectedDimension]].labels = []
-            datasetsObj[vm.dataSet[j][vm.selectedDimension]].fill = false
-            datasetsObj[vm.dataSet[j][vm.selectedDimension]].label = vm.dataSet[j][vm.selectedDimension]
-            // set user options
-            if (vm.datasetOptions[vm.dataSet[j][vm.selectedDimension]]) {
-              for (const k in vm.datasetOptions[vm.dataSet[j][vm.selectedDimension]]) {
-                console.log('k ' + k)
-                console.log(vm.datasetOptions[vm.dataSet[j][vm.selectedDimension]][k])
-                datasetsObj[vm.dataSet[j][vm.selectedDimension]][k] = vm.datasetOptions[vm.dataSet[j][vm.selectedDimension]][k]
-              }
-            }
-            if (vm.dataSet[j][vm.selectedScale]) {
-              datasetsObj[vm.dataSet[j][vm.selectedDimension]].data.push(vm.dataSet[j][vm.selectedScale])
-            } else {
-              datasetsObj[vm.dataSet[j][vm.selectedDimension]].data.push(null)
-            }
-            if (vm.dataSet[j][vm.selectedLabel]) {
-              datasetsObj[vm.dataSet[j][vm.selectedDimension]].labels.push(vm.dataSet[j][vm.selectedLabel])
-            } else {
-              datasetsObj[vm.dataSet[j][vm.selectedDimension]].labels.push(null)
-            }
+            datasetsObj[obj].data.push(null)
+          }
+          if (vm.dataSet[j][vm.selectedLabel]) {
+            datasetsObj[obj].labels.push(vm.dataSet[j][vm.selectedLabel])
+          } else {
+            datasetsObj[obj].labels.push(null)
           }
         }
       }
