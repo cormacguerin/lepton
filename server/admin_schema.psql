@@ -69,3 +69,15 @@ CREATE TABLE tables (
     owner INT REFERENCES users (id),
     UNIQUE (database, tablename, type, owner)
 );
+
+DROP TABLE IF EXISTS charts CASCADE;
+CREATE TABLE charts (
+    id serial PRIMARY KEY,
+    name VARCHAR (64) NOT NULL,
+    database VARCHAR (64) NOT NULL,
+    dataset VARCHAR (64) NOT NULL,
+    chart text NOT NULL,
+    data text,
+    owner INT REFERENCES users (id),
+    UNIQUE (name, owner)
+);
