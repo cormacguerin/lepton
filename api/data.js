@@ -530,6 +530,79 @@ exports.runQuery = function(d,q,callback) {
   });
 }
 
+exports.addChart = function(user_id,d,ds,n,c,cd,callback) {
+  if (!(d&&ds&&n&&c)) {
+    return callback({status:'failed'})
+  }
+  initDB(d, function() {
+    db_pg['admin'].addChart(user_id,d,ds,n,c,cd, function(err,r) {
+      if (err){
+        console.log(err);
+        callback({status:'failed', error:err, message:err.message})
+      } else {
+        callback({status:'success', message:r})
+      }
+    });
+  });
+}
+
+/*
+ * get chart
+ */
+exports.getMyCharts = function(id,callback) {
+  if (!(d&&q)) {
+    return callback({status:'failed'})
+  }
+  initDB(d, function() {
+    db_pg['admin'].getChartsByOwner(id, function(err,r) {
+      if (err){
+        console.log(err);
+        callback({status:'failed', error:err, message:err.message})
+      } else {
+        callback({status:'success', message:r})
+      }
+    });
+  });
+}
+
+/*
+ * get chart
+ */
+exports.getChartById = function(id,callback) {
+  if (!(d&&q)) {
+    return callback({status:'failed'})
+  }
+  initDB(d, function() {
+    db_pg['admin'].getChartById(id, function(err,r) {
+      if (err){
+        console.log(err);
+        callback({status:'failed', error:err, message:err.message})
+      } else {
+        callback({status:'success', message:r})
+      }
+    });
+  });
+}
+
+/*
+ * get chart
+ */
+exports.getChartById = function(id,callback) {
+  if (!(d&&q)) {
+    return callback({status:'failed'})
+  }
+  initDB(d, function() {
+    db_pg['admin'].getChartById(id, function(err,r) {
+      if (err){
+        console.log(err);
+        callback({status:'failed', error:err, message:err.message})
+      } else {
+        callback({status:'success', message:r})
+      }
+    });
+  });
+}
+
 function initDB(database, callback) {
 
   var fs = require('fs')

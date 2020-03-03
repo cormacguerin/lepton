@@ -209,6 +209,37 @@ app.get('/api/runQuery', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
+app.get('/api/addChart', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.dataset && queryData.name && queryData.chart && queryData.data)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.addChart(req.user_id, queryData.database, queryData.dataset, queryData.name, queryData.chart, queryData.data, function(r) {
+    console.log('r');
+    console.log(r);
+    res.json(r);
+  });
+});
+app.get('/api/getMyCharts', user.authorize, function(req, res, next) {
+	data.getMyCharts(req.uer_id, function(r) {
+    console.log('r');
+    console.log(r);
+    res.json(r);
+  });
+});
+app.get('/api/getChartById', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.chart_id)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.getChartById(queryData.chart_id, function(r) {
+    console.log('r');
+    console.log(r);
+    res.json(r);
+  });
+});
 /*
  *	A table definition. example data
  * 	{

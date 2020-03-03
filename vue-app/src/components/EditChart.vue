@@ -151,58 +151,104 @@
             <legend class="legend">
               colors
             </legend>
-            <flex-row>
-              <div class="dropdown">
-                <CDropdown
-                  ref="selectedDimensionsColorFieldDropDown"
-                  :toggler-text="selectedDimensionsColorField"
-                  color="dark"
-                >
-                  <CDropdownItem
-                    v-for="d in dimensions"
-                    :key="d"
-                    @click.native="selectDimensionsColorField(d)"
+            <flex-col>
+              <div
+                v-show="selectedDimension === 'none'"
+              >
+                <flex-row>
+                  <div class="dropdown">
+                    <CDropdown
+                      ref="selectedLabelsColorFieldDropDown"
+                      :toggler-text="selectedLabelsColorField"
+                      color="dark"
+                    >
+                      <CDropdownItem
+                        v-for="d in labels"
+                        :key="d"
+                        @click.native="selectLabelsColorField(d)"
+                      >
+                        {{ d }}
+                      </CDropdownItem>
+                    </CDropdown>
+                    <div class="dropdownLabel">
+                      Labels
+                    </div>
+                  </div>
+                  <div class="dropdown">
+                    <CDropdown
+                      ref="selectedLabelsColorPropertyFieldDropDown"
+                      :toggler-text="selectedLabelsColorPropertyField"
+                      color="dark"
+                    >
+                      <CDropdownItem
+                        v-for="d in colorProperties"
+                        :key="d"
+                        @click.native="selectLabelsColorPropertyField(d)"
+                      >
+                        {{ d }}
+                      </CDropdownItem>
+                    </CDropdown>
+                    <div class="dropdownLabel">
+                      Property
+                    </div>
+                  </div>
+                  <ColorPicker
+                    ref="lpicker"
+                    show-fallback
+                    fallback-input-type="color"
+                  />
+                </flex-row>
+              </div>
+              <div
+                v-show="selectedDimension !== 'none'"
+              >
+                <flex-row>
+                  <div
+                    class="dropdown"
                   >
-                    {{ d }}
-                  </CDropdownItem>
-                </CDropdown>
-                <div class="dropdownLabel">
-                  Dimensions
-                </div>
+                    <CDropdown
+                      ref="selectedDimensionsColorFieldDropDown"
+                      :toggler-text="selectedDimensionsColorField"
+                      color="dark"
+                    >
+                      <CDropdownItem
+                        v-for="d in dimensions"
+                        :key="d"
+                        @click.native="selectDimensionsColorField(d)"
+                      >
+                        {{ d }}
+                      </CDropdownItem>
+                    </CDropdown>
+                    <div class="dropdownLabel">
+                      Dimensions
+                    </div>
+                  </div>
+                  <div class="dropdown">
+                    <CDropdown
+                      ref="selectedDimensionsColorPropertyFieldDropDown"
+                      :toggler-text="selectedDimensionsColorPropertyField"
+                      color="dark"
+                    >
+                      <CDropdownItem
+                        v-for="d in colorProperties"
+                        :key="d"
+                        @click.native="selectDimensionsColorPropertyField(d)"
+                      >
+                        {{ d }}
+                      </CDropdownItem>
+                    </CDropdown>
+                    <div class="dropdownLabel">
+                      Property
+                    </div>
+                  </div>
+                  <ColorPicker
+                    ref="dpicker"
+                    show-fallback
+                    fallback-input-type="color"
+                  />
+                </flex-row>
               </div>
-              <div class="dropdown">
-                <ColorPicker
-                  ref="dpicker"
-                  show-fallback
-                  fallback-input-type="color"
-                />
-              </div>
-              <div class="dropdown">
-                <CDropdown
-                  ref="selectedLabelsColorFieldDropDown"
-                  :toggler-text="selectedLabelsColorField"
-                  color="dark"
-                >
-                  <CDropdownItem
-                    v-for="d in labels"
-                    :key="d"
-                    @click.native="selectLabelsColorField(d)"
-                  >
-                    {{ d }}
-                  </CDropdownItem>
-                </CDropdown>
-                <div class="dropdownLabel">
-                  Labels
-                </div>
-              </div>
-              <div class="dropdown">
-                <ColorPicker
-                  ref="lpicker"
-                  show-fallback
-                  fallback-input-type="color"
-                />
-              </div>
-            </flex-row>
+            </flex-col>
           </fieldset>
         </div>
         <!-- Actual Chart -->
@@ -320,14 +366,19 @@ export default {
       selectedScale: 'select',
       selectedDimension: 'none',
       selectedDimensionsColorField: 'select',
+      selectedDimensionsColorPropertyField: 'select',
       selectedDimensionsColor: '#efefef',
+      selectedLabelsColorPropertyField: 'select',
       selectedLabelsColorField: 'select',
       selectedLabelsColor: '#efefef',
       datacollection: null,
       dataoptions: null,
+      dcolor: 'rgba(0, 0, 0, 0.1)',
+      lcolor: 'rgba(0, 0, 0, 0.1)',
       dimensions: [],
       fields: [],
       labels: [],
+      colorProperties: ['backgroundColor', 'borderColor', 'hoverBackgroundColor', 'hoverBorderColor', 'pointBackgroundColor', 'pointBorderColor', 'pointHoverBackgroundColor', 'pointHoverBorderColor'],
       query: '',
       tables: [],
       charts: ['linechart', 'barchart', 'piechart'],
@@ -344,43 +395,54 @@ export default {
   mounted () {
     this.$watch(
       '$refs.dpicker.color', (n, o) => {
+        console.log('dpicker hit')
+        /*
         var c = []
         for (var i = 0; i < this.labels.length; i++) {
           c.push(n)
         }
-        if (this.datasetOptions[this.selectedDimensionsColorField]) {
-          this.datasetOptions[this.selectedDimensionsColorField].strokeColor = c
-          this.datasetOptions[this.selectedDimensionsColorField].backgroundColor = c
-          this.renderChart()
+        */
+        if (this.datasetOptions[this.selectedDimensionsColorField] === undefined) {
+          this.datasetOptions[this.selectedDimensionsColorField] = {}
         }
+        if (this.datasetOptions[this.selectedDimensionsColorField][this.selectedDimensionsColorPropertyField] === undefined) {
+          //  this.datasetOptions[this.selectedDimensionsColorField][this.selectedDimensionsColorPropertyField] = []
+        }
+        this.datasetOptions[this.selectedDimensionsColorField][this.selectedDimensionsColorPropertyField] = n
+        this.renderChart()
       })
     this.$watch(
       '$refs.lpicker.color', (n, o) => {
+        console.log('lpicker hit')
+        var x = 0
+        for (var i in this.labels) {
+          console.log(this.labels[i])
+          console.log(x)
+          if (this.selectedLabelsColorField === this.labels[i]) {
+            break
+          } else {
+            x++
+          }
+        }
         if (this.selectedDimension === 'none') {
           if (this.datasetOptions[this.selectedLabel] === undefined) {
             this.datasetOptions[this.selectedLabel] = {}
           }
-          this.datasetOptions[this.selectedLabel].strokeColor = n
-          this.datasetOptions[this.selectedLabel].backgroundColor = n
-        } else {
-          var x = 0
-          for (var i in this.labels) {
-            console.log(this.labels[i])
-            console.log(x)
-            if (this.selectedLabelsColorField === this.labels[i]) {
-              break
-            } else {
-              x++
-            }
+          if (this.datasetOptions[this.selectedLabel][this.selectedLabelsColorPropertyField] === undefined) {
+            this.datasetOptions[this.selectedLabel][this.selectedLabelsColorPropertyField] = []
           }
+          this.datasetOptions[this.selectedLabel][this.selectedLabelsColorPropertyField][x] = n
+        } else {
+          return
+          /*
           for (var j in this.dimensions) {
             console.log('j')
             console.log(j)
             console.log('this.dimensions[j]')
             console.log(this.dimensions[j])
-            this.datasetOptions[this.dimensions[j]].strokeColor[x] = n
-            this.datasetOptions[this.dimensions[j]].backgroundColor[x] = n
+            this.datasetOptions[this.dimensions[j]][this.selectedLabelsColorPropertyField][x] = n
           }
+          */
         }
         console.log('this.datasetOptions')
         console.log(this.datasetOptions)
@@ -460,8 +522,6 @@ export default {
             this.dimensions.push(this.dataSet[i][this.selectedDimension])
           }
           this.datasetOptions[this.dataSet[i][this.selectedDimension]] = {}
-          this.datasetOptions[this.dataSet[i][this.selectedDimension]].strokeColor = []
-          this.datasetOptions[this.dataSet[i][this.selectedDimension]].backgroundColor = []
         }
       }
       console.log(this.dimensions)
@@ -469,11 +529,27 @@ export default {
     },
     selectDimensionsColorField (d) {
       this.selectedDimensionsColorField = d
+      this.setDcolor()
       this.$refs.selectedDimensionsColorFieldDropDown.hide()
+    },
+    selectDimensionsColorPropertyField (d) {
+      console.log('deb 1')
+      this.selectedDimensionsColorPropertyField = d
+      console.log('deb 2')
+      this.setDcolor()
+      console.log('deb 3')
+      this.$refs.selectedDimensionsColorFieldDropDown.hide()
+      console.log('deb 4')
     },
     selectLabelsColorField (d) {
       this.selectedLabelsColorField = d
+      this.setLcolor()
       this.$refs.selectedLabelsColorFieldDropDown.hide()
+    },
+    selectLabelsColorPropertyField (d) {
+      this.selectedLabelsColorPropertyField = d
+      this.setLcolor()
+      this.$refs.selectedLabelsColorPropertyFieldDropDown.hide()
     },
     loadDataSet () {
       var vm = this
@@ -492,6 +568,25 @@ export default {
             }
           })
       })
+    },
+    setDcolor () {
+      if (this.datasetOptions[this.selectedDimensionsColorField] !== undefined) {
+        if (this.datasetOptions[this.selectedDimensionsColorField][this.selectedDimensionsColorPropertyField]) {
+          this.$refs.dpicker.color = this.datasetOptions[this.selectedDimensionsColorField][this.selectedDimensionsColorPropertyField]
+        } else {
+          this.$refs.dpicker.color = 'rgba(0, 0, 0, 0.1)'
+        }
+      }
+    },
+    setLcolor () {
+      console.log('what lcolor?')
+      if (this.datasetOptions[this.selectedLabelsColorField] !== undefined) {
+        if (this.datasetOptions[this.selectedLabelsColorField][this.selectedLabelsColorPropertyField]) {
+          this.$refs.lpicker.color = this.datasetOptions[this.selectedLabelsColorField][this.selectedLabelsColorPropertyField]
+        } else {
+          this.$refs.lpicker.color = 'rgba(0, 0, 0, 0.1)'
+        }
+      }
     },
     /*
      * Main logic here. We expect a stream of data like
@@ -544,6 +639,7 @@ export default {
           datasetsObj[obj].labels = []
           datasetsObj[obj].fill = false
           datasetsObj[obj].label = label
+          datasetsObj[obj].borderWidth = 1
           // set user options
           console.log('deb a')
           console.log(datasetsObj)
@@ -605,21 +701,31 @@ export default {
     },
     save () {
       var vm = this
-      this.$axios.get(this.$SERVER_URI + '/api/createTable', {
+      var data = {}
+      if (vm.datacollection) {
+        data = vm.datacollection
+      }
+      var chart = {}
+      chart.selectedChart = vm.selectedChart
+      chart.selectedLabel = vm.selectedLabel
+      chart.selectedScale = vm.selectedScale
+      chart.selectedDimension = vm.selectedDimension
+      chart.datasetOptions = vm.datasetOptions
+      chart.dimensions = vm.dimensions
+      this.$axios.get(this.$SERVER_URI + '/api/addChart', {
         params: {
-          database: vm.database,
-          dataset: vm.dataSet,
-          chartname: vm.chartName,
-          datatype: vm.dataType
+          database: vm.selectedDatabase,
+          dataset: vm.selectedDataSet,
+          name: vm.chartName,
+          chart: chart,
+          data: data
         }
       })
         .then(function (response) {
           if (response.data) {
             console.log(response.data)
             if (response.data.status === 'success') {
-              vm.$parent.$parent.$parent.getDatabases(vm.tableName)
-              vm.$parent.$parent.getTableSchema(vm.tableName)
-              vm.$parent.$parent.addTableModal = false
+              console.log('success')
             } else {
               console.log(response.data.message)
             }

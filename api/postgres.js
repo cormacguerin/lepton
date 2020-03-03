@@ -501,7 +501,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   /*
-   * Delete database
+   * Delete table
    */
   deleteTable(database, table, callback) {
 
@@ -542,6 +542,40 @@ console.log("promises finished in " + totaltime + "ms");
           });
         });
       });
+    });
+  }
+
+  /*
+   * Add Chart
+   */
+  addChart(user_id, database, dataset, name, chart, chartdata, callback) {
+
+    var query = "INSERT INTO charts(name,database,dataset,chart,data,owner) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT ON CONSTRAINT charts_name_owner_key DO UPDATE SET database=$2, dataset=$3, chart=$4, data=$5 WHERE charts.name=$1 and charts.owner=$6;"
+
+    console.log(query);
+
+    this.execute(query, [name, database, dataset, chart, chartdata, user_id], function(e,r) {
+      callback(e, r);
+    });
+  }
+
+  /*
+   * get chart
+   */
+  getChartsByOwner(id, callback) {
+    var query = "SELECT database, dataset, chart, chartdata FROM charts where owner = $1;"
+    this.execute(query, [id], function(e,r) {
+      callback(e,r);
+    });
+  }
+
+  /*
+   * get chart
+   */
+  getChartById(id, callback) {
+    var query = "SELECT database, dataset, chart, chartdata FROM charts where id = $1;"
+    this.execute(query, [id], function(e,r) {
+      callback(e,r);
     });
   }
 

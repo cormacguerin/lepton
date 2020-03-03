@@ -79,14 +79,6 @@ export default {
       ]
     }
   }
-  /*
-  watch: {
-    color: function (val) {
-      console.log('picker ' + val)
-      this.selectedColor = val
-    }
-  }
-  */
 }
 </script>
 <style scoped>
