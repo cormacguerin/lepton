@@ -22,54 +22,6 @@
         </CDropdown>
       </div>
     </flex-row>
-    <template v-if="dataType === 'text'">
-      <flex-row>
-        <div class="margin">
-          <label
-            class="container"
-          >
-            Enable Full Text Search ?
-            <input
-              type="checkbox"
-              :checked="fts"
-              @click="switchFTS"
-            >
-            <span class="checkmark" />
-          </label>
-        </div>
-        <!-- switches don't work or style, no idea why.
-        <CSwitch
-          :color="dark"
-          :varient="outline"
-          :size="sm"
-          :shape="square"
-          :checked="fts"
-          @click="switchFTS()"
-        />
-        -->
-      </flex-row>
-    </template>
-    <template v-if="fts === true">
-      <flex-row>
-        <div class="margin nopadding">
-          <CDropdown
-            ref="displayFieldDropDown"
-            :toggler-text="displayField"
-          >
-            <CDropdownItem
-              v-for="f in columns"
-              :key="f.column_name"
-              @click.native="selectDisplayField(f.column_name)"
-            >
-              {{ f.column_name }}
-            </CDropdownItem>
-          </CDropdown>
-        </div>
-        <div class="displayfield">
-          Display Field
-        </div>
-      </flex-row>
-    </template>
     <div class="margin left">
       <CButton
         class="active"
@@ -108,6 +60,10 @@ export default {
       default: ''
     },
     tableName: {
+      type: String,
+      default: ''
+    },
+    tableType: {
       type: String,
       default: ''
     },
@@ -169,24 +125,13 @@ export default {
       this.$refs.displayFieldDropDown.hide()
       this.displayField = t
     },
-    switchFTS () {
-      if (this.fts === true) {
-        this.fts = false
-      } else {
-        this.fts = true
-      }
-    },
     save () {
       var vm = this
       var params = {
         database: vm.database,
         table: vm.tableName,
         column: vm.columnName,
-        datatype: vm.dataType,
-        fts: vm.fts
-      }
-      if (this.fts === true) {
-        params.displayfield = vm.displayField
+        datatype: vm.dataType
       }
       var saveUrl
       if (this.isEdit === false) {

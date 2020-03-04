@@ -24,7 +24,7 @@
             </router-link>
           </li>
           <li>
-            <router-link to="/crud">
+            <router-link to="/insights">
               Insights
             </router-link>
           </li>

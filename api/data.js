@@ -88,39 +88,60 @@ exports.getTables = function(database, c) {
 
 exports.getTableSchema = function(database, table, c) {
   console.log('getTableSchema for database ' + database + ' table ' + table);
-  initDB(database, function() {
-    db_pg[database].getTableSchema(database, table, function(e, s) {
+  initDB('admin', function() {
+    db_pg['admin'].getTableMeta(database, table, function(e, m) {
       if (e) {
-        console.log("unable to retrieve user_clients");
-        console.log(e);
-        c(e);
+        callback(e);
       } else {
-        var response = [] 
-        for (var i in s) {
-          var s_ = {};
-          s_.column_name = s[i].column_name; 
-          if (s[i].data_type === "character varying") {
-            if (s[i].character_maximum_length === 64) {
-              s_.data_type = "varchar_64"
-            } else if (s[i].character_maximum_length === 256) {
-              s_.data_type = "varchar_256"
-            } else if (s[i].character_maximum_length === 2048) {
-              s_.data_type = "varchar_2048"
+        initDB(database, function() {
+          db_pg[database].getTableSchema(database, table, function(e, s) {
+            if (e) {
+              console.log("unable to retrieve user_clients");
+              console.log(e);
+              c(e);
             } else {
-              s_.data_type = null
+              var response = [] 
+              for (var i in s) {
+                var s_ = {};
+                s_.column_name = s[i].column_name; 
+                console.log('m');
+                console.log(m);
+                console.log('s_.column_name')
+                console.log(s_.column_name)
+                for (var j in m) {
+                  if (m[j].column_name === s_.column_name) {
+                    console.log('m[j]')
+                    console.log(m[j])
+                    s_.fts = true;
+                    s_.display_field = m[j].display_field;
+                    break;
+                  }
+                }
+                if (s[i].data_type === "character varying") {
+                  if (s[i].character_maximum_length === 64) {
+                    s_.data_type = "varchar_64"
+                  } else if (s[i].character_maximum_length === 256) {
+                    s_.data_type = "varchar_256"
+                  } else if (s[i].character_maximum_length === 2048) {
+                    s_.data_type = "varchar_2048"
+                  } else {
+                    s_.data_type = null
+                  }
+                } else if (s[i].data_type === "numeric(16,2)") {
+                  s_.data_type = "decimal"
+                } else if (s[i].data_type === "numeric(32,8)") {
+                  s_.data_type = "bigdecimal"
+                } else {
+                  s_.data_type = s[i].data_type;
+                }
+                response.push(s_);
+              }
+              console.log('response');
+              console.log(response);
+              c(response);
             }
-          } else if (s[i].data_type === "numeric(16,2)") {
-            s_.data_type = "decimal"
-          } else if (s[i].data_type === "numeric(32,8)") {
-            s_.data_type = "bigdecimal"
-          } else {
-            s_.data_type = s[i].data_type;
-          }
-          response.push(s_);
-        }
-        console.log('response');
-        console.log(response);
-        c(response);
+          });
+        });
       }
     });
   });
@@ -269,11 +290,11 @@ exports.deleteDataSetTable = function(u,d,t,callback) {
   });
 }
 
-exports.addTableColumn = function(d,t,c,dt,df,fts,callback) {
+exports.addTableColumn = function(d,t,c,dt,df,callback) {
   if (!(d&&t&&c)) {
     return callback({status:'failed'})
   }
-  if (fts==='true'&&(!df||df==='undefined'||df===null)) {
+  if (!df||df==='undefined'||df===null) {
     return callback({status:'failed'})
   }
   initDB(d, function() {
@@ -284,17 +305,7 @@ exports.addTableColumn = function(d,t,c,dt,df,fts,callback) {
         callback({status:'failed',error:err})
       } else {
         if (r.length === 0) {
-          if (dt === 'text') {
-            setFTS(d,t,c,df,fts, function(e,r) {
-              if (e) {
-                callback({status:'failed', message:'column updated successfully, but unable to enable full text search', error:e});
-              } else {
-                callback({status:'success',message:r})
-              }
-            });
-          } else {
             callback({status:'success',message:r})
-          }
         } else {
           callback({status:'failed'})
         }
@@ -303,16 +314,13 @@ exports.addTableColumn = function(d,t,c,dt,df,fts,callback) {
   });
 }
 
-exports.updateTableColumn = function(d,t,c,ec,dt,edt,df,fts,callback) {
+exports.updateTableColumn = function(d,t,c,ec,dt,edt,df,callback) {
   if (!(d&&t&&c&&ec&&dt&&edt)) {
     return callback({status:'failed'})
   }
-  if (fts==='true'&&(!df||df==='undefined'||df===null)) {
+  if (!df||df==='undefined'||df===null) {
     return callback({status:'failed'})
   }
-  console.log("dt " + dt)
-  console.log("df " + df)
-  console.log("fts " + fts)
   initDB(d, function() {
     var status;
     var promises = [];
@@ -356,17 +364,7 @@ exports.updateTableColumn = function(d,t,c,ec,dt,edt,df,fts,callback) {
       await Promise.all(promises)
       .then((r)=> {
         console.log(r);
-        if (dt === 'text') {
-          setFTS(d,t,c,df,fts, function(e,r) {
-            if (e) {
-              callback({status:'failed', message:'column updated successfully, but unable to set full text search', error:e});
-            } else {
-              callback({status:'success', message:r})
-            }
-          });
-        } else {
           callback({status:'success', message:r})
-        }
       })
       .catch((e) => {
         console.log(e);
@@ -380,12 +378,36 @@ exports.updateTableColumn = function(d,t,c,ec,dt,edt,df,fts,callback) {
 /*
  * Updates the table where we track which table/column
  */
-function setFTS(d,t,c,df,b,callback) {
+exports.setFTS = function(d,t,c,b,callback) {
   if (!(d&&t&&c&&b)) {
     return callback({status:'failed'})
   }
   initDB('admin', function() {
-    db_pg['admin'].setFTS(d, t, c, df, b, function(err, r) {
+    db_pg['admin'].setFTS(d, t, c, b, function(err, r) {
+      if (err) {
+        console.log("unable to retrieve user_clients")
+        console.log(err)
+        callback({status:'failed', error:err})
+      } else {
+        if (r.length === 0) {
+          callback(r)
+        } else {
+          callback(err)
+        }
+      }
+    })
+  })
+}
+
+/*
+ * Updates the table where we track which table/column
+ */
+exports.setFTSDisplayField = function(d,t,df,callback) {
+  if (!(d&&t&&df)) {
+    return callback({status:'failed'})
+  }
+  initDB('admin', function() {
+    db_pg['admin'].setFTSDisplayField(d, t, df, function(err, r) {
       if (err) {
         console.log("unable to retrieve user_clients")
         console.log(err)
@@ -395,7 +417,7 @@ function setFTS(d,t,c,df,b,callback) {
         console.log('r.length')
         console.log(r.length)
         if (r.length === 0) {
-          callback(null,r)
+          callback(r)
         } else {
           callback(err)
         }
@@ -408,18 +430,28 @@ exports.deleteTableColumn = function(d,t,c,callback) {
   if (!(d&&t&&c)) {
     return callback({status:'failed'})
   }
-  initDB(d, function() {
-    db_pg[d].deleteTableColumn(t, c, function(err,r) {
-      if (err){
-        console.log("unable to retrieve user_clients");
+  initDB('admin', function() {
+    db_pg['admin'].deleteTextColumn(d, t, c, function(err, r) {
+      if (err ) {
+        console.log("unable to delete text column");
         console.log(err);
         callback({status:'failed', error:err})
       } else {
-        if (r.length === 0) {
-          callback({status:'success'})
-        } else {
-          callback({status:'failed'})
-        }
+        initDB(d, function() {
+          db_pg[d].deleteTableColumn(t, c, function(err,r) {
+            if (err){
+              console.log("unable to retrieve user_clients");
+              console.log(err);
+              callback({status:'failed', error:err})
+            } else {
+              if (r.length === 0) {
+                callback({status:'success'})
+              } else {
+                callback({status:'failed'})
+              }
+            }
+          });
+        });
       }
     });
   });
@@ -465,28 +497,38 @@ exports.addTableData = function(d,t,data,callback) {
 }
 
 exports.deleteTable = function(d, t, c) {
-  initDB(d, function() {
-    db_pg[d].deleteTable(d, t, function(err,r) {
-      if (err) {
+  initDB('admin', function() {
+    db_pg['admin'].deleteTextTable(d, t, function(err,r) {
+      if (err){
         console.log("unable to retrieve user_clients");
         console.log(err);
-        c({status:'failed',error:err})
+        callback({status:'failed', error:err})
       } else {
-        console.log(r);
-        console.log('r.length');
-        console.log(r.length);
-        if (r.length === 0) {
-          db_pg['admin'].unregisterTable(d,t,'data', function(e,r) {
-            if (e) {
-              console.log(e);
-              c({status:'failed'})
+        initDB(d, function() {
+          db_pg[d].deleteTable(t, function(err,r) {
+            if (err) {
+              console.log("unable to retrieve user_clients");
+              console.log(err);
+              c({status:'failed',error:err})
             } else {
-              c({status:'success'})
+              console.log(r);
+              console.log('r.length');
+              console.log(r.length);
+              if (r.length === 0) {
+                db_pg['admin'].unregisterTable(d,t,'data', function(e,r) {
+                  if (e) {
+                    console.log(e);
+                    c({status:'failed'})
+                  } else {
+                    c({status:'success'})
+                  }
+                });
+              } else {
+                c({status:'failed'})
+              }
             }
           });
-        } else {
-          c({status:'failed'})
-        }
+        });
       }
     });
   });

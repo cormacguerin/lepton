@@ -19,8 +19,7 @@
             <h2>{{ formatDatabaseName() }}</h2>
           </div>
           <div class="edit">
-            <CDropdown
-            >
+            <CDropdown>
               <template #toggler="toggler">
                 <i
                   class="fa fa-ellipsis-v pointer"
@@ -134,7 +133,7 @@
                 :key="index"
                 :database="database"
                 :dataset="selectedDataset"
-                :table-name="selectedTable"
+                :table-name="selectedTable.tablename"
               />
             </CModal>
           </flex-row>
@@ -159,7 +158,8 @@
         </template>
         <EditTableColumn
           :database="database"
-          :table-name="selectedTable"
+          :table-name="selectedTable.tablename"
+          :table-type="selectedTable.type"
           :column-name="itemData.column_name"
           :edit-column-name="itemData.column_name"
           :data-type="itemData.data_type"
@@ -180,7 +180,7 @@
           :key="index"
           :database="database"
           :dataset="selectedDataset"
-          :table-name="selectedTable"
+          :table-name="selectedTable.tablename"
         />
       </div>
       <!--
@@ -199,10 +199,10 @@
           pagination
         >
           <template
-            #edit="{item, index}"
+            #edit="{item}"
             :columns="columns"
           >
-            <td class="py-2">
+            <td>
               <CButton
                 color="primary"
                 class="blue"
@@ -215,11 +215,46 @@
               </CButton>
             </td>
           </template>
+          <template
+            #fts="{item}"
+          >
+            <td>
+              <div v-if="item.data_type === 'text' && selectedTable.type ==='search'">
+                <label
+                  class="checkbox"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="item.fts"
+                    @click="setFTS(item)"
+                  >
+                  <span class="checkmark" />
+                </label>
+              </div>
+            </td>
+          </template>
           <nav aria-label="pagination">
             <ul class="pagination" />
           </nav>
           <template #under-table="addTable">
-            <div class="addTable">
+            <flex-row class="underTable">
+              <div
+                v-if="selectedTable.type ==='search'"
+                class="margin-right"
+              >
+                <CDropdown
+                  ref=""
+                  :toggler-text="selectedDisplayField"
+                >
+                  <CDropdownItem
+                    v-for="c in columns"
+                    :key="c.column_name"
+                    @click.native="setFTSDisplayField(c.column_name)"
+                  >
+                    {{ c.column_name }}
+                  </CDropdownItem>
+                </CDropdown>
+              </div>
               <CButton
                 class="btn active margin-right"
                 color="info"
@@ -257,13 +292,14 @@
                 <EditTableColumn
                   :key="index"
                   :database="database"
-                  :table-name="selectedTable"
+                  :table-name="selectedTable.tablename"
+                  :table-type="selectedTable.type"
                   :columns="columns"
                 >
                   ADD COLUMN
                 </EditTableColumn>
               </CModal>
-            </div>
+            </flex-row>
           </template>
         </CDataTable>
       </div>
@@ -309,7 +345,7 @@ export default {
       ],
       details: [
       ],
-      selectedTable: '',
+      selectedTable: {},
       selectedDataset: '',
       collapse: false,
       addTableModal: false,
@@ -317,6 +353,7 @@ export default {
       addDataSetTableModal: false,
       addTableColumnModal: false,
       editTableColumnModal: false,
+      selectedDisplayField: 'select',
       itemData: {
         database: '',
         table_name: '',
@@ -347,12 +384,12 @@ export default {
       this.itemData = i
     },
     selectTable (table) {
-      if (table.tablename === this.selectedTable && this.collapse === true) {
+      if (table.tablename === this.selectedTable.tablename && this.collapse === true) {
         this.collapse = false
         return
       }
+      this.selectedTable = table
       if (table.type === 'dataset') {
-        this.selectedTable = table.tablename
         this.selectedDataset = table.data
         this.collapse = true
         document.getElementById(this.database + '_dataset').hidden = false
@@ -370,6 +407,46 @@ export default {
         return this.selectedTable.tablename
       }
     },
+    setFTS (c) {
+      console.log(c)
+      if (c.fts === false) {
+        c.fts = true
+      } else {
+        c.fts = false
+      }
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/setFTS', {
+        params: {
+          database: vm.database,
+          table: vm.selectedTable.tablename,
+          column: c.column_name,
+          fts: c.fts
+        }
+      })
+        .then(function (response) {
+          if (response.data) {
+            for (var i = 0; i < vm.columns; i++) {
+              if (vm.columns[i].column_name === c.columns_name) {
+                vm.columns[i].fts = c.fts
+              }
+            }
+          }
+        })
+    },
+    setFTSDisplayField (c) {
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/setFTSDisplayField', {
+        params: {
+          database: vm.database,
+          table: vm.selectedTable.tablename,
+          display_field: c
+        }
+      })
+        .then(function (response) {
+          if (response.data) {
+          }
+        })
+    },
     getTableSchema (table) {
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/getTableSchema', {
@@ -380,22 +457,29 @@ export default {
       })
         .then(function (response) {
           if (response.data) {
-            vm.selectedTable = table
             vm.columns = response.data.d
-            console.log(1)
-            console.log(vm.columns)
-            console.log(vm.fields)
             if (vm.columns.length === 0) {
-              console.log(2)
               vm.collapse = true
               return
             }
-            console.log(3)
+            for (var i in vm.columns) {
+              if (vm.columns[i].fts === true) {
+                vm.selectedDisplayField = vm.columns[i].display_field
+                break
+              }
+            }
             vm.fields = Object.keys(vm.columns[0])
+            if (vm.selectedTable.type === 'search') {
+              vm.fields.push({
+                key: 'fts',
+                label: 'Full Text Search',
+                sorter: false,
+                filter: false
+              })
+            }
             vm.fields.push({
               key: 'edit',
-              label: '',
-              _style: 'width:1%',
+              label: 'edit',
               sorter: false,
               filter: false
             })
@@ -411,7 +495,7 @@ export default {
       this.$axios.get(this.$SERVER_URI + '/api/deleteTable', {
         params: {
           database: vm.database,
-          table: vm.selectedTable
+          table: vm.selectedTable.tablename
         }
       })
         .then(function (response) {
@@ -475,7 +559,9 @@ h2 {
   color: white;
 }
 .blue {
+  width: 20px;
   color: #39b2d5;
+  background-color: #fff;
 }
 .tablebutton {
   color: white;
@@ -527,7 +613,7 @@ h2 {
 .centerflex {
   width: 100%;
 }
-.addTable {
+.underTable {
     float: right;
 }
 .pointer {
@@ -535,5 +621,59 @@ h2 {
 }
 #dataset {
     display: block;
+}
+.checkbox {
+  display: block;
+  position: relative;
+  padding-left: 35px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.checkbox input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  position: absolute;
+  margin-left: auto;
+  margin-right: auto;
+  height: 20px;
+  width: 20px;
+  background-color: #eee;
+}
+
+.checkbox input:checked ~ .checkmark {
+  background-color: #39b2d5;
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.checkbox input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.checkbox .checkmark:after {
+  left: 9px;
+  top: 5px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 3px 3px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
 }
 </style>

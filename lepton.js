@@ -111,6 +111,10 @@ app.get('/api/addDatabase', user.authorize, function(req, res, next) {
 });
 app.get('/api/deleteTable', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
 	data.deleteTable(queryData.database, queryData.table, function(r) {
     res.json(r);
   });
@@ -175,7 +179,7 @@ app.get('/api/addTableColumn', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.addTableColumn(queryData.database, queryData.table, queryData.column, queryData.datatype, queryData.displayfield, queryData.fts, function(r) {
+	data.addTableColumn(queryData.database, queryData.table, queryData.column, queryData.datatype, queryData.displayfield, function(r) {
     res.json(r);
   });
 });
@@ -185,7 +189,7 @@ app.get('/api/updateTableColumn', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.updateTableColumn(queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, queryData.displayfield, queryData.fts, function(r) {
+	data.updateTableColumn(queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, queryData.displayfield, function(r) {
     res.json(r);
   });
 });
@@ -196,6 +200,26 @@ app.get('/api/deleteColumn', user.authorize, function(req, res, next) {
     return;
   }
 	data.deleteTableColumn(queryData.database, queryData.table, queryData.column, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/setFTS', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.column && queryData.fts)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.setFTS(queryData.database, queryData.table, queryData.column, queryData.fts, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/setFTSDisplayField', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.display_field)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.setFTSDisplayField(queryData.database, queryData.table, queryData.display_field, function(r) {
     res.json(r);
   });
 });
@@ -540,7 +564,6 @@ app.get('/', function(req, res, next) {
 app.use('/schema/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/dashboard/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/insights/', express.static(__dirname + '/vue-app/dist/'));
-
 // web root
 app.use('/', express.static(__dirname + '/vue-app/dist/'));
 

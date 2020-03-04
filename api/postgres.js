@@ -210,7 +210,7 @@ console.log("promises finished in " + totaltime + "ms");
 
     var query = "CREATE DATABASE \""
       + pg_db
-      + "\" WITH OWNER postgres"
+      + "\" WITH owner postgres"
       + " ENCODING 'UTF8'"
       + " LC_COLLATE = 'en_US.UTF-8'"
       + " LC_CTYPE = 'en_US.UTF-8';"
@@ -317,8 +317,6 @@ console.log("promises finished in " + totaltime + "ms");
   getTable(database, tablename, callback) {
     var query = "SELECT tablename, type, data FROM tables WHERE database = $1 and tablename = $2;"
     this.execute(query, [database, tablename], function(e,r) {
-      console.log('getSearchTAbles response')
-      console.log(r)
       callback(e,r);
     });
   }
@@ -326,14 +324,19 @@ console.log("promises finished in " + totaltime + "ms");
   getTables(database, callback) {
     var query = "SELECT tablename, type, data FROM tables WHERE database = $1;"
     this.execute(query, [database], function(e,r) {
-      console.log('getSearchTAbles response')
-      console.log(r)
       callback(e,r);
     });
   }
 
   getTableSchema(database, table, callback) {
     var query = "SELECT column_name, data_type, character_maximum_length FROM INFORMATION_SCHEMA.COLUMNS WHERE udt_catalog=$1 AND table_name = $2;"
+    this.execute(query, [database,table], function(e,r) {
+      callback(e,r);
+    });
+  }
+
+  getTableMeta(database, table, callback) {
+    var query = "SELECT _column AS column_name, display_field from text_tables_index WHERE database = $1 AND _table = $2"
     this.execute(query, [database,table], function(e,r) {
       callback(e,r);
     });
@@ -405,6 +408,26 @@ console.log("promises finished in " + totaltime + "ms");
       + "\";"
 
     this.execute(query, null, function(e,r) {
+      callback(e, r);
+    });
+  }
+
+  /*
+   * Delete a text table column
+   */
+  deleteTextColumn(database, table, column, callback) {
+    var query = "DELETE FROM text_tables_index WHERE database = $1 AND _table = $2 AND _column = $3"
+    this.execute(query, [database, table, column], function(e,r) {
+      callback(e, r);
+    });
+  }
+
+  /*
+   * Delete text tables
+   */
+  deleteTextTable(database, table, callback) {
+    var query = "DELETE FROM text_tables_index WHERE database = $1 AND _table = $2"
+    this.execute(query, [database, table], function(e,r) {
       callback(e, r);
     });
   }
@@ -503,7 +526,7 @@ console.log("promises finished in " + totaltime + "ms");
   /*
    * Delete table
    */
-  deleteTable(database, table, callback) {
+  deleteTable(table, callback) {
 
     var query = "DROP TABLE \""
       + table
@@ -529,19 +552,34 @@ console.log("promises finished in " + totaltime + "ms");
     this.execute(disable, [database], function(e,r) {
       if (e) {
         console.log(e);
-      }
-      this_.execute(disconnect, [database], function(e,r) {
-        var this__ = this_;
-        if (e) {
-          console.log(e);
-        }
-        this__.execute(drop, null, function(e,r) {
-          var query = "DELETE FROM databases WHERE database = $1"
-          this__.execute(query, [database], function(e,r) {
-              callback(e, r);
-          });
+        callback(e);
+      } else {
+        this_.execute(disconnect, [database], function(e,r) {
+          var this__ = this_;
+          if (e) {
+            console.log(e);
+                callback(e, r);
+          } else {
+            this__.execute(drop, null, function(e,r) {
+              var query = "DELETE FROM text_tables_index WHERE database = $1"
+              var this___ = this__;
+              this__.execute(query, [database], function(e,r) {
+                if (e) {
+                  console.log(e);
+                  callback(e, r);
+                } else {
+                  this__.execute(drop, null, function(e,r) {
+                    var query = "DELETE FROM databases WHERE database = $1"
+                    this___.execute(query, [database], function(e,r) {
+                      callback(e, r);
+                    });
+                  });
+                }
+              });
+            });
+          }
         });
-      });
+      }
     });
   }
 
@@ -742,15 +780,25 @@ console.log("promises finished in " + totaltime + "ms");
     }
   }
 
-  setFTS(d,t,c,df,b,callback) {
-    var query = "INSERT INTO text_tables_index(database,_table,_column,display_field,enable) VALUES($1,$2,$3,$4,$5)"
+  setFTS(d,t,c,b,callback) {
+    var query = "INSERT INTO text_tables_index(database,_table,_column,enable) VALUES($1,$2,$3,$4)"
       + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column_key DO UPDATE SET "
-      + " database = $6,"
-      + " _table = $7,"
-      + " _column = $8,"
-      + " display_field = $9,"
-      + " enable = $10;";
-    var values = [d,t,c,df,b,d,t,c,df,b]
+      + " database = $5,"
+      + " _table = $6,"
+      + " _column = $7,"
+      + " enable = $8;";
+    var values = [d,t,c,b,d,t,c,b]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  setFTSDisplayField(d,t,df,callback) {
+    var query = "UPDATE text_tables_index SET display_field = $3 WHERE database = $1 and _table = $2;"
+    var values = [d,t,df]
 
     this.execute(query, values, function(e,r) {
       console.log(e);
