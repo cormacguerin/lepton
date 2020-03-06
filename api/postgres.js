@@ -638,7 +638,7 @@ console.log("promises finished in " + totaltime + "ms");
         role,
         new Date().getTime()
       ]
-    this.execute(query, [values], function(e,r) {
+    this.execute(query, values, function(e,r) {
       if (e) {
         callback(e);
       } else {

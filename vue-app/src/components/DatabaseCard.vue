@@ -592,6 +592,7 @@ h2 {
   border: 1px solid #c8ced3;
   border-radius: 4px;
   padding: 10px;
+  margin: 10px;
 }
 .left {
   min-width: 100px;
