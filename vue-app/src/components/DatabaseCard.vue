@@ -529,7 +529,7 @@ export default {
 <style scoped>
 h2 {
     padding-top: 30px;
-    color: #fff;
+    color: #2c3e50;
     text-align: left;
     font-size: 1.8em;
 }
@@ -564,7 +564,8 @@ h2 {
   background-color: #fff;
 }
 .tablebutton {
-  color: white;
+  color: #2c3e50;
+  background-color: #efefef;
   margin: 10px;
 }
 .container {
@@ -572,21 +573,22 @@ h2 {
 }
 .card {
     min-height: 125px;
-    margin: 10px;
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    margin-top: 20px;
     border: 1px solid #fff;
-    border-radius: 3px;
+    border-radius: 5px;
     background-color: #fff;
-    /*
-      box-shadow: 0px 1px 5px rgba(0,0,0,0.3), 0 0px 0px rgba(0,0,0,0.22);
-    */
+    -webkit-box-shadow:0 2px 4px 0 #b2b5be;
+       -moz-box-shadow:0 2px 4px 0 #b2b5be;
+            box-shadow:0 2px 4px 0 #b2b5be;
 }
 .database {
     min-width: 100px;
     width: 100%;
-    background-color: #07202f;
-    border-top: #39b2d5 4px solid;
     border-radius: 3px;
-    color: white;
+    color: #2c3e50;
 }
 .borderpad {
   border: 1px solid #c8ced3;

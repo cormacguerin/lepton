@@ -56,6 +56,9 @@ app.post('/login', function(req, res, next) {
 app.post('/register', function(req, res, next) {
 	user.register(req, res, next);
 });
+app.get('/logout', user.authorize, function(req, res, next) {
+	user.logout(req, res, next);
+});
 app.get('/api/getDatabases', user.authorize, function(req,res,next) {
 	data.getDatabases(req.user_id,function(d) {
     res.json(d);

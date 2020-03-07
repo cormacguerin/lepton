@@ -131,7 +131,7 @@ input.inputBox {
 }
 button.buttonBox {
     margin: 5px;
-    height: 40px;
+    height: 30px;
     padding: 5px;
     border-style: none;
     border-radius: 3px;

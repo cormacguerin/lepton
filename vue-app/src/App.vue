@@ -1,10 +1,21 @@
 <template>
   <div id="app">
     <div v-if="userinfo.authorized === false">
-      <img
-        alt="logo"
-        src="./assets/bblogo_color_small.png"
-      >
+      <div class="headerContainer">
+        <div class="layout">
+          <flex-row>
+            <div>
+              <img
+                alt="logo"
+                src="./assets/uchan_new_128.png"
+              >
+            </div>
+            <flex-col class="logo">
+              loptech
+            </flex-col>
+          </flex-row>
+        </div>
+      </div>
       <Login msg="Login" />
     </div>
     <div v-else>
@@ -72,13 +83,34 @@ export default {
 
 <style>
 #app {
-    font-family: 'Avenir', Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-align: center;
-    color: #2c3e50;
+  font-family: 'Avenir', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+  color: #2c3e50;
+  background-color: #fafbfb;
+}
+.logo {
+  color: white;
+  margin: 10px;
+  font-size: 2em;
+  font-family: 'Comfortaa', cursive;
+  justify-content: flex-end;
+}
+.layout {
+  width:300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.headerContainer {
+  margin-top: 100px;
+  margin-bottom: 20px;
+  min-width: 100%;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  background-color: #2c3e50;
 }
 body {
-    background-color: white;
+  background-color: white;
 }
 </style>

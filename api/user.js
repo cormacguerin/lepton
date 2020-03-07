@@ -666,6 +666,8 @@ exports.confirmEmail = function(req, res, next) {
 
 
 exports.logout = function(req,res,next) {
+  console.log(req.user_id)
+  console.log(req.client_id)
 	if (!req.user_id && !req.client_id) {
 		res.send(503);
 		return;
@@ -681,18 +683,18 @@ exports.logout = function(req,res,next) {
 					console.log(e);
 					res.sendStatus(503);
 				} else {
-                    // remove the active object
-                    delete userClients[req.user_id][req.client_id];
-                    // logout this users cookie session.
-                    console.log("user id " + req.user_id + " loggedout");
-                    res.cookie("petcookie", "", { expires: new Date() });
-                    res.status(200);
-                    res.json({
-                        authorized: false,
-                        message: "logged out"
-                    });
-                }
-                return;
+          // remove the active object
+          delete userClients[req.user_id][req.client_id];
+          // logout this users cookie session.
+          console.log("user id " + req.user_id + " loggedout");
+          res.cookie("petcookie", "", { expires: new Date() });
+          res.status(200);
+          res.json({
+              authorized: false,
+              message: "logged out"
+          });
+        }
+        return;
 			});
 		} else {
 			res.status(200);

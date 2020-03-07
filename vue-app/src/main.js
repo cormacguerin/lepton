@@ -26,6 +26,7 @@ import fontawesome from '@fortawesome/fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { faPlus, faPlayCircle, faMinus, faBars, faEllipsisV } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import './assets/fonts/comfortaa.css'
 
 library.add(faPlus, faPlayCircle, faMinus, faBars, faEllipsisV)
 

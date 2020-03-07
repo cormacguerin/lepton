@@ -86,8 +86,6 @@ export default {
 <style scoped>
 .schema {
     width: 100%;
-    height: 100vh;
-    background: white;
 }
 .cards {
     max-width: 1000px;

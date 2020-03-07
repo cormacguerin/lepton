@@ -13,7 +13,6 @@ export default {
 <style scoped>
 .home {
     max-width: 1000px;
-    height: 100vh;
     background: white;
 }
 h2 {

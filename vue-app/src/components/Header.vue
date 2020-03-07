@@ -34,52 +34,43 @@
     <div
       class="desktopNav"
     >
-      <CNav
-        variant="tabs"
-        class="tabs"
-        fade
-      >
-        <div
-          @click="showTab('home')"
+      <flex-row>
+        <img
+          class="desktopLogo"
+          alt="logo"
+          src="../assets/uchan_new_64.png"
         >
-          <CNavItem
-            class="homeTab"
-            title="Home"
-          >
-            <h2>Home</h2>
-          </CNavItem>
-        </div>
-        <div
-          @click="showTab('schema')"
+        <flex-col
+          justify="end"
         >
-          <CNavItem
-            class="schemaTab"
-            title="Schema"
-          >
-            <h2>Schema</h2>
-          </CNavItem>
-        </div>
-        <div
-          @click="showTab('dashboard')"
-        >
-          <CNavItem
-            class="dashboardTab"
-            title="Dashboard"
-          >
-            <h2>Dashboard</h2>
-          </CNavItem>
-        </div>
-        <div
-          @click="showTab('insights')"
-        >
-          <CNavItem
-            class="insightsTab"
-            title="Insights"
-          >
-            <h2>Insights</h2>
-          </CNavItem>
-        </div>
-      </CNav>
+          <flex-row>
+            <div
+              class="tab"
+              @click="showTab('home')"
+            >
+              <h2>Home</h2>
+            </div>
+            <div
+              class="tab"
+              @click="showTab('schema')"
+            >
+              <h2>Schema</h2>
+            </div>
+            <div
+              class="tab"
+              @click="showTab('dashboard')"
+            >
+              <h2>Dashboard</h2>
+            </div>
+            <div
+              class="tab"
+              @click="showTab('insights')"
+            >
+              <h2>Insights</h2>
+            </div>
+          </flex-row>
+        </flex-col>
+      </flex-row>
     </div>
     <div
       id="home"
@@ -135,6 +126,8 @@ export default {
 @media (max-width: 576px) {
   .desktopNav {
     display: none!important;
+    background-color: #2c3e50;
+    height: 100px;
   }
 }
 @media (min-width: 576px) {
@@ -153,6 +146,21 @@ export default {
 }
 .header {
   background-color: #171f24;
+}
+.desktopLogo {
+  margin: 10px;
+}
+.tab {
+  font-family: 'Comfortaa', cursive;
+  margin-left: 10px;
+  font-size: 1em;
+  color: white;
+}
+.nav-tabs {
+  margin-bottom: 0px;
+}
+.tabsContainer {
+  justify-content: flex-end;
 }
 ul.sidebar-panel-nav {
   list-style-type: none;
