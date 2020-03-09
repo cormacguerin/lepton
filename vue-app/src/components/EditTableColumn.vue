@@ -11,6 +11,7 @@
         <CDropdown
           ref="dataTypeDropDown"
           :toggler-text="dataType"
+          title="data type"
         >
           <CDropdownItem
             v-for="dt in dataTypes"

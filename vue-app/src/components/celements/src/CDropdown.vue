@@ -4,18 +4,26 @@
     v-on-clickaway="hide"
     @click="checkClick($event)"
   >
-    <div
-      class="dropdown"
-    >
-      <slot name="toggler">
+    <slot name="toggler">
+      <flex-col
+        class="titleContainer"
+        justify="center"
+      >
+        <div
+          class="title"
+        >
+          {{ title }}
+        </div>
+      </flex-col>
+      <div>
         <button
           class="btn"
           @click="toggle()"
         >
           {{ togglerText }}
         </button>
-      </slot>
-    </div>
+      </div>
+    </slot>
     <div
       :class="menuClass"
       @click="hide()"
@@ -41,6 +49,10 @@ export default {
     visible: {
       type: Boolean,
       default: false
+    },
+    title: {
+      type: String,
+      default: ''
     }
   },
   data () {
@@ -132,8 +144,25 @@ export default {
 .btn {
   min-width: 100px;
   border-radius: 4px;
-  background-color: #151515;
-  color: white;
+  color: #151515;
+  background-color: #efefef;
+}
+.title {
+  position: relative;
+  float: left;
+  font-size: .8em;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  top: 10px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border: 1px solid #efefef;
+  border-radius: 10px;
+  background-color: #f6f6f6;
+}
+.titleContainer {
+  margin-top: -18px;
 }
 
 </style>

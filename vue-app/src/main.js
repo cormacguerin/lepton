@@ -11,6 +11,7 @@ import Home from './components/Home.vue'
 import Schema from './components/Schema.vue'
 import Dashboard from './components/Dashboard.vue'
 import Insights from './components/Insights.vue'
+import Configure from './components/Configure.vue'
 import 'vue-flex/dist/vue-flex.css'
 import '@coreui/icons/css/all.css'
 import '@coreui/icons/css/free.css'
@@ -64,7 +65,8 @@ const routes = [
   { path: '/', name: 'home', component: Home },
   { path: '/schema', name: 'schema', component: Schema },
   { path: '/dashboard', name: 'dashboard', component: Dashboard },
-  { path: '/insights', name: 'insights', component: Insights }
+  { path: '/insights', name: 'insights', component: Insights },
+  { path: '/configure', name: 'configure', component: Configure }
 ]
 
 const router = new VueRouter({

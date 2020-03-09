@@ -36,12 +36,13 @@ exports.getDatabases = function(u,c) {
         for (var i=0; i<d.length; i++) {
           promises.push(new Promise((pr, pe) => {
             var database = d[i].database;
-            db_pg['admin'].getTables(database, function(e,s) {
+            const r = /^[0-9]+_/gi;
+            db_pg['admin'].getTables(u, database, function(e,s) {
               if (e) {
                 console.log(e);
                 c(e);
               } else {
-                pr({key:database,tables:s});
+                pr({key:database.replace(r,''),tables:s});
               }
             });
           }));
@@ -86,10 +87,11 @@ exports.getTables = function(database, c) {
 }
 */
 
-exports.getTableSchema = function(database, table, c) {
+exports.getTableSchema = function(user_id, d, table, c) {
+  const database = user_id + '_' + d;
   console.log('getTableSchema for database ' + database + ' table ' + table);
   initDB('admin', function() {
-    db_pg['admin'].getTableMeta(database, table, function(e, m) {
+    db_pg['admin'].getTableMeta(user_id, database, table, function(e, m) {
       if (e) {
         callback(e);
       } else {
@@ -154,7 +156,8 @@ exports.addDatabase = function(u,d,c) {
   if (d.length > 63) {
     c({status:'failed'})
   }
-	db_pg['admin'].addDatabase(u, d, function(e,r) {
+  const db = u + '_' + d;
+	db_pg['admin'].addDatabase(u, db, function(e,r) {
 		if (e){
 			console.log("unable to retrieve user_clients");
 			console.log(e);
@@ -176,15 +179,16 @@ exports.createTable = function(u,d,t,c,dt,callback) {
   if (d.length > 63) {
     callback({status:'failed'})
   }
-  initDB(d, function() {
-    db_pg[d].createTable(u,d,t,c,dt,function(err,r) {
+  const db = u + '_' + d;
+  initDB(db, function() {
+    db_pg[db].createTable(db,t,c,dt,function(err,r) {
       if (err){
         console.log("unable to create table");
         console.log(err);
         callback({status:'failed',error:err})
       } else {
         if (r.length === 0) {
-          db_pg['admin'].registerTable(u,d,t,'data',null, function(e,r) {
+          db_pg['admin'].registerTable(u,db,t,'data',null, function(e,r) {
             if (e) {
               console.log(e);
               callback({status:'failed'})
@@ -207,8 +211,9 @@ exports.createSearchTable = function(u,d,t,callback) {
   if (d.length > 63) {
     callback({status:'failed'})
   }
+  const db = u + '_' + d;
   initDB(d, function() {
-    db_pg[d].createSearchTable(u,d,t,function(err,r) {
+    db_pg[db].createSearchTable(db,t,function(err,r) {
       if (err){
         console.log("unable to create search table");
         console.log(err);
@@ -218,7 +223,7 @@ exports.createSearchTable = function(u,d,t,callback) {
         console.log('r.length');
         console.log(r.length);
         if (r.length === 0) {
-          db_pg['admin'].registerTable(u,d,t,'search',null, function(e,r) {
+          db_pg['admin'].registerTable(u,db,t,'search',null, function(e,r) {
             if (e) {
               console.log(e);
               callback({status:'failed'})
@@ -241,8 +246,9 @@ exports.createDataSetTable = function(u,d,t,q,callback) {
   if (d.length > 63) {
     callback({status:'failed'})
   }
-  initDB(d, function() {
-    db_pg[d].runQuery(q,function(err,r) {
+  const db = u + '_' + d;
+  initDB(db, function() {
+    db_pg[db].runQuery(u,q,function(err,r) {
       if (err){
         console.log("unable to create search table");
         console.log(err);
@@ -255,7 +261,7 @@ exports.createDataSetTable = function(u,d,t,q,callback) {
           var dataset = {}
           dataset.query = q;
           dataset.fields = Object.keys(r[0]);
-          db_pg['admin'].registerTable(u,d,t,'dataset',dataset, function(e,r) {
+          db_pg['admin'].registerTable(u,db,t,'dataset',dataset, function(e,r) {
             if (e) {
               console.log(e);
               callback({status:'failed'})
@@ -278,8 +284,9 @@ exports.deleteDataSetTable = function(u,d,t,callback) {
   if (d.length > 63) {
     callback({status:'failed'})
   }
-  initDB(d, function() {
-    db_pg['admin'].unregisterTable(d,t,'dataset', function(e,r) {
+  const db = u + '_' + d;
+  initDB('admin', function() {
+    db_pg['admin'].unregisterTable(u,db,t,'dataset', function(e,r) {
       if (e) {
         console.log(e);
         callback({status:'failed'})
@@ -290,15 +297,13 @@ exports.deleteDataSetTable = function(u,d,t,callback) {
   });
 }
 
-exports.addTableColumn = function(d,t,c,dt,df,callback) {
+exports.addTableColumn = function(u,d,t,c,dt,callback) {
   if (!(d&&t&&c)) {
     return callback({status:'failed'})
   }
-  if (!df||df==='undefined'||df===null) {
-    return callback({status:'failed'})
-  }
-  initDB(d, function() {
-    db_pg[d].addTableColumn(t, c, dt, function(err,r) {
+  const db = u + '_' + d;
+  initDB(db, function() {
+    db_pg[db].addTableColumn(t, c, dt, function(err,r) {
       if (err){
         console.log("unable to retrieve user_clients");
         console.log(err);
@@ -314,27 +319,25 @@ exports.addTableColumn = function(d,t,c,dt,df,callback) {
   });
 }
 
-exports.updateTableColumn = function(d,t,c,ec,dt,edt,df,callback) {
+exports.updateTableColumn = function(u, d,t,c,ec,dt,edt,callback) {
   if (!(d&&t&&c&&ec&&dt&&edt)) {
     return callback({status:'failed'})
   }
-  if (!df||df==='undefined'||df===null) {
-    return callback({status:'failed'})
-  }
-  initDB(d, function() {
+  initDB(db, function() {
     var status;
     var promises = [];
     const promisePush = async function() {
+      const db = u + '_' + d;
       var column;
       if (c !== ec) {
-        db_pg[d].renameTableColumn(t, c, ec, function(err,r) {
+        db_pg[db].renameTableColumn(t, c, ec, function(err,r) {
           promises.push(new Promise((pr, pe) => {
             if (err) {
               pe(err)
             } else {
               var promises_ = promises;
               if (dt !== edt) {
-                db_pg[d].setTableColumnDataType(t, c, dt, function(err,r) {
+                db_pg[db].setTableColumnDataType(t, c, dt, function(err,r) {
                   promises_.push(new Promise((pr, pe) => {
                     if (err) {
                       pe(err)
@@ -350,7 +353,7 @@ exports.updateTableColumn = function(d,t,c,ec,dt,edt,df,callback) {
         });
       } else {
         if (dt !== edt) {
-          db_pg[d].setTableColumnDataType(t, c, dt, function(err,r) {
+          db_pg[db].setTableColumnDataType(t, c, dt, function(err,r) {
             promises.push(new Promise((pr, pe) => {
               if (err) {
                 pe(err)
@@ -378,12 +381,12 @@ exports.updateTableColumn = function(d,t,c,ec,dt,edt,df,callback) {
 /*
  * Updates the table where we track which table/column
  */
-exports.setFTS = function(d,t,c,b,callback) {
+exports.setFTS = function(u,d,t,c,b,callback) {
   if (!(d&&t&&c&&b)) {
     return callback({status:'failed'})
   }
   initDB('admin', function() {
-    db_pg['admin'].setFTS(d, t, c, b, function(err, r) {
+    db_pg['admin'].setFTS(u, d, t, c, b, function(err, r) {
       if (err) {
         console.log("unable to retrieve user_clients")
         console.log(err)
@@ -402,12 +405,12 @@ exports.setFTS = function(d,t,c,b,callback) {
 /*
  * Updates the table where we track which table/column
  */
-exports.setFTSDisplayField = function(d,t,df,callback) {
+exports.setFTSDisplayField = function(u,d,t,df,callback) {
   if (!(d&&t&&df)) {
     return callback({status:'failed'})
   }
   initDB('admin', function() {
-    db_pg['admin'].setFTSDisplayField(d, t, df, function(err, r) {
+    db_pg['admin'].setFTSDisplayField(u, d, t, df, function(err, r) {
       if (err) {
         console.log("unable to retrieve user_clients")
         console.log(err)
@@ -426,19 +429,20 @@ exports.setFTSDisplayField = function(d,t,df,callback) {
   })
 }
 
-exports.deleteTableColumn = function(d,t,c,callback) {
+exports.deleteTableColumn = function(u,d,t,c,callback) {
   if (!(d&&t&&c)) {
     return callback({status:'failed'})
   }
   initDB('admin', function() {
-    db_pg['admin'].deleteTextColumn(d, t, c, function(err, r) {
+    db_pg['admin'].deleteTextColumn(u, d, t, c, function(err, r) {
       if (err ) {
         console.log("unable to delete text column");
         console.log(err);
         callback({status:'failed', error:err})
       } else {
-        initDB(d, function() {
-          db_pg[d].deleteTableColumn(t, c, function(err,r) {
+        const db = u + '_' + d;
+        initDB(db, function() {
+          db_pg[db].deleteTableColumn(t, c, function(err,r) {
             if (err){
               console.log("unable to retrieve user_clients");
               console.log(err);
@@ -457,19 +461,20 @@ exports.deleteTableColumn = function(d,t,c,callback) {
   });
 }
 
-exports.addTableData = function(d,t,data,callback) {
+exports.addTableData = function(u,d,t,data,callback) {
   if (!(d&&data)) {
     return callback({status:'failed'})
   }
   if (d.length > 63) {
     return callback({status:'failed'})
   }
-  initDB(d, function() {
+  const db = u + '_' + d;
+  initDB(db, function() {
     if (Array.isArray(data)) {
       if (typeof t !== 'string') {
         return callback('no table provided');
       }
-      db_pg[d].addTableData(t,data,function(err,r) {
+      db_pg[db].addTableData(t,data,function(err,r) {
         if (err) {
           console.log("unable to retrieve user_clients");
           console.log(err);
@@ -481,7 +486,7 @@ exports.addTableData = function(d,t,data,callback) {
     } else if (typeof data === 'object') {
       var results = [];
       Object.keys(data).forEach(function(table) {
-        db_pg[d].addTableData(table,data[table],function(err,r) {
+        db_pg[db].addTableData(table,data[table],function(err,r) {
           if (err){
             console.log("unable to retrieve user_clients");
             console.log(err);
@@ -496,50 +501,61 @@ exports.addTableData = function(d,t,data,callback) {
   });
 }
 
-exports.deleteTable = function(d, t, c) {
+exports.deleteTable = function(u, d, t, ty, c) {
   initDB('admin', function() {
-    db_pg['admin'].deleteTextTable(d, t, function(err,r) {
+    // delete any associeted text columns
+    const db = u + '_' + d;
+    db_pg['admin'].deleteTextTable(u, db, t, function(err,r) {
       if (err){
         console.log("unable to retrieve user_clients");
         console.log(err);
         callback({status:'failed', error:err})
       } else {
-        initDB(d, function() {
-          db_pg[d].deleteTable(t, function(err,r) {
-            if (err) {
-              console.log("unable to retrieve user_clients");
-              console.log(err);
-              c({status:'failed',error:err})
-            } else {
-              console.log(r);
-              console.log('r.length');
-              console.log(r.length);
-              if (r.length === 0) {
-                db_pg['admin'].unregisterTable(d,t,'data', function(e,r) {
-                  if (e) {
-                    console.log(e);
-                    c({status:'failed'})
+        // unregister the table
+        db_pg['admin'].unregisterTable(u,db,t,ty, function(e,r) {
+          if (e) {
+            console.log(e);
+            c({status:'failed to unregister table'})
+          } else {
+            initDB(db, function() {
+              db_pg[db].deleteTable(t, function(err,r) {
+                if (err) {
+                  console.log("unable to retrieve user_clients");
+                  console.log(err);
+                  c({status:'failed',error:err})
+                } else {
+                  console.log(r);
+                  console.log('r.length');
+                  console.log(r.length);
+                  if (r.length === 0) {
+                    db_pg['admin'].unregisterTable(db,t,ty, function(e,r) {
+                      if (e) {
+                        console.log(e);
+                        c({status:'failed'})
+                      } else {
+                        c({status:'success'})
+                      }
+                    });
                   } else {
-                    c({status:'success'})
+                    c({status:'failed'})
                   }
-                });
-              } else {
-                c({status:'failed'})
-              }
-            }
-          });
+                }
+              });
+            });
+          }
         });
       }
     });
   });
 }
 
-exports.deleteDatabase = function(d,c) {
-  if (db_pg[d]) {
-	  db_pg[d].end();
-    delete db_pg[d];
+exports.deleteDatabase = function(u,d,c) {
+  const db = u + '_' + d;
+  if (db_pg[db]) {
+	  db_pg[db].end();
+    delete db_pg[db];
   }
-	db_pg['admin'].deleteDatabase(d, function(err,r) {
+	db_pg['admin'].deleteDatabase(u, db, function(err,r) {
 		if (err) {
 			console.log(err);
       c({status:'failed',error:err})
@@ -556,12 +572,13 @@ exports.deleteDatabase = function(d,c) {
   });
 }
 
-exports.runQuery = function(d,q,callback) {
+exports.runQuery = function(u,d,q,callback) {
   if (!(d&&q)) {
     return callback({status:'failed'})
   }
-  initDB(d, function() {
-    db_pg[d].runQuery(q, function(err,r) {
+  const db = u + '_' + d;
+  initDB(db, function() {
+    db_pg[db].runQuery(q, function(err,r) {
       if (err){
         console.log(err);
         callback({status:'failed', error:err, message:err.message})
@@ -576,8 +593,9 @@ exports.addChart = function(user_id,d,ds,n,c,cd,callback) {
   if (!(d&&ds&&n&&c)) {
     return callback({status:'failed'})
   }
-  initDB(d, function() {
-    db_pg['admin'].addChart(user_id,d,ds,n,c,cd, function(err,r) {
+  const db = user_id + '_' + d;
+  initDB('admin', function() {
+    db_pg['admin'].addChart(user_id,db,ds,n,c,cd, function(err,r) {
       if (err){
         console.log(err);
         callback({status:'failed', error:err, message:err.message})
@@ -595,7 +613,7 @@ exports.getMyCharts = function(id,callback) {
   if (!(d&&q)) {
     return callback({status:'failed'})
   }
-  initDB(d, function() {
+  initDB('admin', function() {
     db_pg['admin'].getChartsByOwner(id, function(err,r) {
       if (err){
         console.log(err);
@@ -614,7 +632,7 @@ exports.getChartById = function(id,callback) {
   if (!(d&&q)) {
     return callback({status:'failed'})
   }
-  initDB(d, function() {
+  initDB('admin', function() {
     db_pg['admin'].getChartById(id, function(err,r) {
       if (err){
         console.log(err);
@@ -633,7 +651,7 @@ exports.getChartById = function(id,callback) {
   if (!(d&&q)) {
     return callback({status:'failed'})
   }
-  initDB(d, function() {
+  initDB('admin', function() {
     db_pg['admin'].getChartById(id, function(err,r) {
       if (err){
         console.log(err);

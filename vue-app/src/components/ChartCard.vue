@@ -17,7 +17,7 @@
             <div class="cylinder" />
           </div>
           <div class="flexgrow">
-            <h2>{{ formatChartName() }}</h2>
+            <h2>{{ database }}</h2>
           </div>
           <div class="edit">
             <CDropdown
@@ -268,10 +268,6 @@ export default {
   created () {
   },
   methods: {
-    formatChartName () {
-      const r = /^[0-9]+_/gi
-      return this.database.replace(r, '')
-    },
     getTableColor (t) {
       console.log(t)
       if (t === true) {

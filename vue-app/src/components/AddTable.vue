@@ -19,6 +19,7 @@
           <CDropdown
             ref="dataTypeDropDown"
             :toggler-text="dataType"
+            title="data type"
           >
             <CDropdownItem
               v-for="dt in dataTypes"
@@ -98,7 +99,7 @@ export default {
             console.log(response.data)
             if (response.data.status === 'success') {
               vm.$parent.$parent.$parent.getDatabases(vm.tableName)
-              vm.$parent.$parent.getTableSchema(vm.tableName)
+              // vm.$parent.$parent.getTableSchema(vm.tableName)
               vm.$parent.$parent.addTableModal = false
             } else {
               console.log(response.data.message)

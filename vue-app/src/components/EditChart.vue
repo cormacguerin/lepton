@@ -22,6 +22,7 @@
                 <CDropdown
                   ref="databaseDropDown"
                   :toggler-text="selectedDatabase"
+                  title="Database"
                   color="dark"
                 >
                   <CDropdownItem
@@ -29,17 +30,15 @@
                     :key="d.key"
                     @click.native="selectDatabase(d.key,d.tables)"
                   >
-                    {{ formatDatabaseName(d.key) }}
+                    {{ d.key }}
                   </cDropdownItem>
                 </CDropdown>
-                <div class="dropdownLabel">
-                  Database
-                </div>
               </div>
               <div class="dropdown">
                 <CDropdown
                   ref="DataSetDropDown"
                   :toggler-text="selectedDataSet"
+                  title="Data Set"
                   color="dark"
                 >
                   <CDropdownItem
@@ -50,9 +49,6 @@
                     {{ t.tablename }}
                   </CDropdownItem>
                 </CDropdown>
-                <div class="dropdownLabel">
-                  Data Set
-                </div>
               </div>
             </flex-row>
           </fieldset>
@@ -68,6 +64,7 @@
                 <CDropdown
                   ref="chartDropDown"
                   :toggler-text="selectedChart"
+                  title="Chart"
                   color="dark"
                 >
                   <CDropdownItem
@@ -78,9 +75,6 @@
                     {{ c }}
                   </CDropdownItem>
                 </CDropdown>
-                <div class="dropdownLabel">
-                  Chart
-                </div>
               </div>
               <!--
                 Labels (X) label
@@ -89,6 +83,7 @@
                 <CDropdown
                   ref="labelDropDown"
                   :toggler-text="selectedLabel"
+                  title="Lavel(X-axis)"
                   color="dark"
                 >
                   <CDropdownItem
@@ -99,9 +94,6 @@
                     {{ d }}
                   </CDropdownItem>
                 </CDropdown>
-                <div class="dropdownLabel">
-                  Label(X-axis)
-                </div>
               </div>
               <!--
                 Labels (Y) scale
@@ -110,6 +102,7 @@
                 <CDropdown
                   ref="scaleDropDown"
                   :toggler-text="selectedScale"
+                  title="Lavel(Y-axis)"
                   color="dark"
                 >
                   <CDropdownItem
@@ -120,9 +113,6 @@
                     {{ d }}
                   </CDropdownItem>
                 </CDropdown>
-                <div class="dropdownLabel">
-                  Scale(Y-axis)
-                </div>
               </div>
               <!--
                 Datasets/Dimensions(D)
@@ -131,6 +121,7 @@
                 <CDropdown
                   ref="dimensionsDropDown"
                   :toggler-text="selectedDimension"
+                  title="Dimensions"
                   color="dark"
                 >
                   <CDropdownItem
@@ -141,9 +132,6 @@
                     {{ d }}
                   </CDropdownItem>
                 </CDropdown>
-                <div class="dropdownLabel">
-                  Dimensions
-                </div>
               </div>
             </flex-row>
           </fieldset>
@@ -160,6 +148,7 @@
                     <CDropdown
                       ref="selectedLabelsColorFieldDropDown"
                       :toggler-text="selectedLabelsColorField"
+                      title="Labels"
                       color="dark"
                     >
                       <CDropdownItem
@@ -170,14 +159,12 @@
                         {{ d }}
                       </CDropdownItem>
                     </CDropdown>
-                    <div class="dropdownLabel">
-                      Labels
-                    </div>
                   </div>
                   <div class="dropdown">
                     <CDropdown
                       ref="selectedLabelsColorPropertyFieldDropDown"
                       :toggler-text="selectedLabelsColorPropertyField"
+                      title="Property"
                       color="dark"
                     >
                       <CDropdownItem
@@ -188,9 +175,6 @@
                         {{ d }}
                       </CDropdownItem>
                     </CDropdown>
-                    <div class="dropdownLabel">
-                      Property
-                    </div>
                   </div>
                   <ColorPicker
                     ref="lpicker"
@@ -209,6 +193,7 @@
                     <CDropdown
                       ref="selectedDimensionsColorFieldDropDown"
                       :toggler-text="selectedDimensionsColorField"
+                      title="Dimensions"
                       color="dark"
                     >
                       <CDropdownItem
@@ -219,14 +204,12 @@
                         {{ d }}
                       </CDropdownItem>
                     </CDropdown>
-                    <div class="dropdownLabel">
-                      Dimensions
-                    </div>
                   </div>
                   <div class="dropdown">
                     <CDropdown
                       ref="selectedDimensionsColorPropertyFieldDropDown"
                       :toggler-text="selectedDimensionsColorPropertyField"
+                      title="Property"
                       color="dark"
                     >
                       <CDropdownItem
@@ -237,9 +220,6 @@
                         {{ d }}
                       </CDropdownItem>
                     </CDropdown>
-                    <div class="dropdownLabel">
-                      Property
-                    </div>
                   </div>
                   <ColorPicker
                     ref="dpicker"
@@ -468,10 +448,6 @@ export default {
     },
     getRandomInt () {
       return Math.floor(Math.random() * (50 - 5 + 1)) + 5
-    },
-    formatDatabaseName (database) {
-      const r = /^[0-9]+_/gi
-      return database.replace(r, '')
     },
     selectDatabase (database, tables) {
       this.selectedDatabase = database
@@ -765,7 +741,7 @@ export default {
   overflow-x: scroll;
 }
 .dropdown {
-  margin: 5px;
+  margin: 10px;
 }
 .margin {
   margin: 5px;

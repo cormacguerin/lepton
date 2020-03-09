@@ -74,7 +74,7 @@ app.get('/api/getTables', user.authorize, function(req, res, next) {
 */
 app.get('/api/getTableSchema', user.authorize, function(req,res,next) {
   var queryData = url.parse(req.url, true).query;
-	data.getTableSchema(queryData.database, queryData.table, function(d) {
+	data.getTableSchema(req.user_id, queryData.database, queryData.table, function(d) {
     res.json({d});
   });
 });
@@ -114,17 +114,17 @@ app.get('/api/addDatabase', user.authorize, function(req, res, next) {
 });
 app.get('/api/deleteTable', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
-  if (!(queryData.database && queryData.table)) {
+  if (!(queryData.database && queryData.table && queryData.type)) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.deleteTable(queryData.database, queryData.table, function(r) {
+	data.deleteTable(req.user_id, queryData.database, queryData.table, queryData.type, function(r) {
     res.json(r);
   });
 });
 app.get('/api/deleteDatabase', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
-	data.deleteDatabase(queryData.database, function(r) {
+	data.deleteDatabase(req.user_id, queryData.database, function(r) {
     res.json(r);
   });
 });
@@ -182,7 +182,7 @@ app.get('/api/addTableColumn', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.addTableColumn(queryData.database, queryData.table, queryData.column, queryData.datatype, queryData.displayfield, function(r) {
+	data.addTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
     res.json(r);
   });
 });
@@ -192,7 +192,7 @@ app.get('/api/updateTableColumn', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.updateTableColumn(queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, queryData.displayfield, function(r) {
+	data.updateTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, queryData.displayfield, function(r) {
     res.json(r);
   });
 });
@@ -202,7 +202,7 @@ app.get('/api/deleteColumn', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.deleteTableColumn(queryData.database, queryData.table, queryData.column, function(r) {
+	data.deleteTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, function(r) {
     res.json(r);
   });
 });
@@ -212,7 +212,7 @@ app.get('/api/setFTS', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.setFTS(queryData.database, queryData.table, queryData.column, queryData.fts, function(r) {
+	data.setFTS(req.user_id, queryData.database, queryData.table, queryData.column, queryData.fts, function(r) {
     res.json(r);
   });
 });
@@ -222,7 +222,7 @@ app.get('/api/setFTSDisplayField', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.setFTSDisplayField(queryData.database, queryData.table, queryData.display_field, function(r) {
+	data.setFTSDisplayField(req.user_id, queryData.database, queryData.table, queryData.display_field, function(r) {
     res.json(r);
   });
 });
@@ -232,7 +232,7 @@ app.get('/api/runQuery', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.runQuery(queryData.database, queryData.query, function(r) {
+	data.runQuery(req.user_id, queryData.database, queryData.query, function(r) {
     res.json(r);
   });
 });
@@ -261,7 +261,7 @@ app.get('/api/getChartById', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.getChartById(queryData.chart_id, function(r) {
+	data.getChartById(req.user_id, queryData.chart_id, function(r) {
     console.log('r');
     console.log(r);
     res.json(r);
@@ -567,6 +567,7 @@ app.get('/', function(req, res, next) {
 app.use('/schema/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/dashboard/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/insights/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/configure/', express.static(__dirname + '/vue-app/dist/'));
 // web root
 app.use('/', express.static(__dirname + '/vue-app/dist/'));
 

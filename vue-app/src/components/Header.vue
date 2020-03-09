@@ -9,11 +9,6 @@
       <Sidebar>
         <ul class="sidebar-panel-nav">
           <li>
-            <router-link to="/">
-              Home
-            </router-link>
-          </li>
-          <li>
             <router-link to="/schema">
               Schema
             </router-link>
@@ -26,6 +21,11 @@
           <li>
             <router-link to="/insights">
               Insights
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/configure">
+              Configure
             </router-link>
           </li>
         </ul>
@@ -46,27 +46,27 @@
           <flex-row>
             <div
               class="tab"
-              @click="showTab('home')"
-            >
-              <h2>Home</h2>
-            </div>
-            <div
-              class="tab"
               @click="showTab('schema')"
             >
-              <h2>Schema</h2>
+              <h2>Schema |</h2>
             </div>
             <div
               class="tab"
               @click="showTab('dashboard')"
             >
-              <h2>Dashboard</h2>
+              <h2>Dashboard |</h2>
             </div>
             <div
               class="tab"
               @click="showTab('insights')"
             >
-              <h2>Insights</h2>
+              <h2>Insights |</h2>
+            </div>
+            <div
+              class="tab"
+              @click="showTab('configure')"
+            >
+              <h2>Configure |</h2>
             </div>
           </flex-row>
         </flex-col>
@@ -155,6 +155,7 @@ export default {
   margin-left: 10px;
   font-size: 1em;
   color: white;
+  cursor: pointer;
 }
 .nav-tabs {
   margin-bottom: 0px;
@@ -173,5 +174,8 @@ ul.sidebar-panel-nav > li > a {
   font-size: 1.5rem;
   display: block;
   padding-bottom: 0.5em;
+}
+h2 {
+  font-size: 1em;
 }
 </style>

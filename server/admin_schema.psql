@@ -38,17 +38,6 @@ CREATE TABLE mail_queue (
     status VARCHAR(64)
 );
 
-DROP TABLE IF EXISTS text_tables_index CASCADE;
-CREATE TABLE text_tables_index (
-    id serial PRIMARY KEY,
-    database VARCHAR (64) NOT NULL,
-    _table VARCHAR (64) NOT NULL,
-    _column VARCHAR (64) NOT NULL,
-    display_field VARCHAR(64),
-    enable BOOLEAN,
-    UNIQUE (database,_table,_column)
-);
-
 DROP TABLE IF EXISTS databases CASCADE;
 CREATE TABLE databases (
     id serial PRIMARY KEY,
@@ -67,7 +56,20 @@ CREATE TABLE tables (
     type VARCHAR (32) NOT NULL,
     data text,
     owner INT REFERENCES users (id),
-    UNIQUE (database, tablename, type, owner)
+    last_fed DATE,
+    last_processed DATE,
+    UNIQUE (database, tablename, owner)
+);
+
+DROP TABLE IF EXISTS text_tables_index CASCADE;
+CREATE TABLE text_tables_index (
+    id INT REFERENCES tables (id) PRIMARY KEY,
+    database VARCHAR (64) NOT NULL,
+    _table VARCHAR (64) NOT NULL,
+    _column VARCHAR (64) NOT NULL,
+    display_field VARCHAR(64),
+    enable BOOLEAN,
+    UNIQUE (database,_table,_column)
 );
 
 DROP TABLE IF EXISTS charts CASCADE;

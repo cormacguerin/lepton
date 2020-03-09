@@ -16,7 +16,7 @@
             <div class="cylinder" />
           </div>
           <div class="flexgrow">
-            <h2>{{ formatDatabaseName() }}</h2>
+            <h2>{{ database }}</h2>
           </div>
           <div class="edit">
             <CDropdown>
@@ -46,8 +46,8 @@
             <CButton
               v-for="t in tables"
               :key="t.tablename"
-              :color="getTableColor(t.type)"
-              class="tablebutton"
+              :color="getTableButtonColor(t.type)"
+              :class="getTableButtonClass(t.type)"
               variant="outline"
               @click="selectTable(t)"
             >
@@ -55,7 +55,7 @@
             </CButton>
             <CButton
               color="info"
-              class="tablebutton active"
+              class="datatablebutton active"
               @click="addTableModal = true"
             >
               <span>
@@ -81,7 +81,7 @@
               />
             </CModal>
             <CButton
-              class="tablebutton active"
+              class="datatablebutton active"
               color="warning"
               variant="outline"
               @click="addSearchTableModal = true"
@@ -108,7 +108,7 @@
               />
             </CModal>
             <CButton
-              class="tablebutton active"
+              class="datatablebutton active"
               color="danger"
               variant="outline"
               @click="addDataSetTableModal = true"
@@ -244,6 +244,7 @@
               >
                 <CDropdown
                   ref=""
+                  title="Display Field"
                   :toggler-text="selectedDisplayField"
                 >
                   <CDropdownItem
@@ -282,7 +283,7 @@
                 </span>
               </CButton>
               <CModal
-                title="Add Table"
+                title="Add Column"
                 color="info"
                 :show.sync="addTableColumnModal"
               >
@@ -366,17 +367,22 @@ export default {
   created () {
   },
   methods: {
-    formatDatabaseName () {
-      const r = /^[0-9]+_/gi
-      return this.database.replace(r, '')
-    },
-    getTableColor (t) {
+    getTableButtonColor (t) {
       if (t === 'search') {
         return 'warning'
       } else if (t === 'dataset') {
         return 'danger'
       } else {
         return 'info'
+      }
+    },
+    getTableButtonClass (t) {
+      if (t === 'search') {
+        return 'searchtablebutton'
+      } else if (t === 'dataset') {
+        return 'datasettablebutton'
+      } else {
+        return 'datatablebutton'
       }
     },
     editTableColumn (i) {
@@ -492,10 +498,12 @@ export default {
     },
     deleteTable () {
       var vm = this
+      console.log(this.selectedTable)
       this.$axios.get(this.$SERVER_URI + '/api/deleteTable', {
         params: {
           database: vm.database,
-          table: vm.selectedTable.tablename
+          table: vm.selectedTable.tablename,
+          type: vm.selectedTable.type
         }
       })
         .then(function (response) {
@@ -563,10 +571,20 @@ h2 {
   color: #39b2d5;
   background-color: #fff;
 }
-.tablebutton {
+.datatablebutton {
   color: #2c3e50;
   background-color: #efefef;
-  margin: 10px;
+  margin: 5px;
+}
+.searchtablebutton {
+  color: #2c3e50;
+  background-color: #fff0c1;
+  margin: 5px;
+}
+.datasettablebutton {
+  color: #2c3e50;
+  background-color: #ffeeee;
+  margin: 5px;
 }
 .container {
     padding: 0px;

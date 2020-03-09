@@ -206,10 +206,8 @@ console.log("promises finished in " + totaltime + "ms");
    */
   addDatabase(user, database, callback) {
 
-    var pg_db = user + '_' + database;
-
     var query = "CREATE DATABASE \""
-      + pg_db
+      + database
       + "\" WITH owner postgres"
       + " ENCODING 'UTF8'"
       + " LC_COLLATE = 'en_US.UTF-8'"
@@ -221,7 +219,7 @@ console.log("promises finished in " + totaltime + "ms");
         callback(e, r);
       } else {
         var query = "INSERT INTO databases(database,owner,reader,writer) VALUES($1,$2,$2,$2);"
-        vm.execute(query, [pg_db, user], function(e,r) {
+        vm.execute(query, [database, user], function(e,r) {
             callback(e, r);
         });
       }
@@ -241,7 +239,7 @@ console.log("promises finished in " + totaltime + "ms");
   /*
    * Create database
    */
-  createTable(user, database, table, column, datatype, callback) {
+  createTable(database, table, column, datatype, callback) {
 
     var query = "CREATE TABLE \""
       + table
@@ -259,7 +257,7 @@ console.log("promises finished in " + totaltime + "ms");
   /*
    * Create search table
    */
-  createSearchTable(user, database, table, callback) {
+  createSearchTable(database, table, callback) {
 
     var query = "CREATE TABLE \""
       + table
@@ -300,7 +298,8 @@ console.log("promises finished in " + totaltime + "ms");
   /*
    * 
    */
-  unregisterTable(database, table, type, callback) {
+  unregisterTable(user, database, table, type, callback) {
+    /*
     var query = "DELETE FROM tables WHERE tablename = \'"
       + table
       + "\'"
@@ -309,21 +308,23 @@ console.log("promises finished in " + totaltime + "ms");
       + "\' AND type = \'"
       + type
       + "\';"
-    this.execute(query, null, function(e,r) {
+      */
+    var query = "DELETE FROM tables WHERE tablename = $1 AND database = $2 AND type = $3 AND OWNER = $4;"
+    this.execute(query, [table, database, type, user], function(e,r) {
         callback(e, r);
     });
   }
 
-  getTable(database, tablename, callback) {
-    var query = "SELECT tablename, type, data FROM tables WHERE database = $1 and tablename = $2;"
-    this.execute(query, [database, tablename], function(e,r) {
+  getTable(user, database, tablename, callback) {
+    var query = "SELECT tablename, type, data FROM tables WHERE database = $1 and tablename = $2 AND owner = $3;"
+    this.execute(query, [database, tablename, user], function(e,r) {
       callback(e,r);
     });
   }
 
-  getTables(database, callback) {
-    var query = "SELECT tablename, type, data FROM tables WHERE database = $1;"
-    this.execute(query, [database], function(e,r) {
+  getTables(user, database, callback) {
+    var query = "SELECT tablename, type, data FROM tables WHERE database = $1 AND owner = $2;"
+    this.execute(query, [database, user], function(e,r) {
       callback(e,r);
     });
   }
@@ -335,9 +336,9 @@ console.log("promises finished in " + totaltime + "ms");
     });
   }
 
-  getTableMeta(database, table, callback) {
-    var query = "SELECT _column AS column_name, display_field from text_tables_index WHERE database = $1 AND _table = $2"
-    this.execute(query, [database,table], function(e,r) {
+  getTableMeta(user_id, database, table, callback) {
+    var query = "SELECT _column AS column_name, display_field from text_tables_index WHERE id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $3)"
+    this.execute(query, [database,table,user_id], function(e,r) {
       callback(e,r);
     });
   }
@@ -405,7 +406,7 @@ console.log("promises finished in " + totaltime + "ms");
       + table
       + "\" DROP COLUMN \""
       + column
-      + "\";"
+      + ";"
 
     this.execute(query, null, function(e,r) {
       callback(e, r);
@@ -415,9 +416,9 @@ console.log("promises finished in " + totaltime + "ms");
   /*
    * Delete a text table column
    */
-  deleteTextColumn(database, table, column, callback) {
-    var query = "DELETE FROM text_tables_index WHERE database = $1 AND _table = $2 AND _column = $3"
-    this.execute(query, [database, table, column], function(e,r) {
+  deleteTextColumn(user_id, database, table, column, callback) {
+    var query = "DELETE FROM text_tables_index WHERE column = $3 AND id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $4)"
+    this.execute(query, [database, table, column, user_id], function(e,r) {
       callback(e, r);
     });
   }
@@ -425,9 +426,9 @@ console.log("promises finished in " + totaltime + "ms");
   /*
    * Delete text tables
    */
-  deleteTextTable(database, table, callback) {
-    var query = "DELETE FROM text_tables_index WHERE database = $1 AND _table = $2"
-    this.execute(query, [database, table], function(e,r) {
+  deleteTextTable(user_id, database, table, callback) {
+    var query = "DELETE FROM text_tables_index WHERE id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $3)"
+    this.execute(query, [database, table, user_id], function(e,r) {
       callback(e, r);
     });
   }
@@ -540,7 +541,7 @@ console.log("promises finished in " + totaltime + "ms");
   /*
    * Delete database
    */
-  deleteDatabase(database, callback) {
+  deleteDatabase(user_id, database, callback) {
 
     var disable = "UPDATE pg_database SET datallowconn = 'false' WHERE datname = $1;"
     var disconnect = "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1;"
@@ -561,16 +562,16 @@ console.log("promises finished in " + totaltime + "ms");
                 callback(e, r);
           } else {
             this__.execute(drop, null, function(e,r) {
-              var query = "DELETE FROM text_tables_index WHERE database = $1"
+              var query = "DELETE FROM text_tables_index WHERE id = (SELECT id FROM tables where database = $1 AND owner = $2)"
               var this___ = this__;
-              this__.execute(query, [database], function(e,r) {
+              this__.execute(query, [database, user_id], function(e,r) {
                 if (e) {
                   console.log(e);
                   callback(e, r);
                 } else {
                   this__.execute(drop, null, function(e,r) {
-                    var query = "DELETE FROM databases WHERE database = $1"
-                    this___.execute(query, [database], function(e,r) {
+                    var query = "DELETE FROM databases WHERE database = $1 AND owner = $2"
+                    this___.execute(query, [database, user_id], function(e,r) {
                       callback(e, r);
                     });
                   });
@@ -780,14 +781,15 @@ console.log("promises finished in " + totaltime + "ms");
     }
   }
 
-  setFTS(d,t,c,b,callback) {
-    var query = "INSERT INTO text_tables_index(database,_table,_column,enable) VALUES($1,$2,$3,$4)"
-      + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column_key DO UPDATE SET "
+  setFTS(u,d,t,c,b,callback) {
+    var query = "INSERT INTO text_tables_index(id,database,_table,_column,enable) VALUES(did,$1,$2,$3,$4)"
+      + " WITH SELECT id FROM tables WHERE database = $1 AND tablename = $2 AND owner = $9 AS did"
+      + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column_key DO UPDATE SET"
       + " database = $5,"
       + " _table = $6,"
       + " _column = $7,"
       + " enable = $8;";
-    var values = [d,t,c,b,d,t,c,b]
+    var values = [d,t,c,b,d,t,c,b,u]
 
     this.execute(query, values, function(e,r) {
       console.log(e);
@@ -796,9 +798,10 @@ console.log("promises finished in " + totaltime + "ms");
     });
   }
 
-  setFTSDisplayField(d,t,df,callback) {
-    var query = "UPDATE text_tables_index SET display_field = $3 WHERE database = $1 and _table = $2;"
-    var values = [d,t,df]
+  setFTSDisplayField(u, d,t,df,callback) {
+    var query = "UPDATE text_tables_index SET display_field = $3 WHERE id = (SELECT id FROM tables where database = $1 AND table = $2 AND owner = $4)"
+
+    var values = [d,t,df,u]
 
     this.execute(query, values, function(e,r) {
       console.log(e);
