@@ -17,7 +17,7 @@
       </flex-col>
       <div>
         <button
-          class="btn"
+          class="dropdownbtn"
           @click="toggle()"
         >
           {{ togglerText }}
@@ -141,8 +141,10 @@ export default {
   scrollbar-highlight-color:;
   scrollbar-shadow-color:
 }
-.btn {
+.dropdownbtn {
   min-width: 100px;
+  min-height: 35px;
+  border: 1px solid #efefef;
   border-radius: 4px;
   color: #151515;
   background-color: #efefef;

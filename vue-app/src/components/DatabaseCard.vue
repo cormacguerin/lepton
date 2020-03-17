@@ -203,16 +203,12 @@
             :columns="columns"
           >
             <td>
-              <CButton
-                color="primary"
-                class="blue"
-                variant="outline"
-                square
-                size="sm"
+              <div
+                class="action"
                 @click="editTableColumn(item)"
               >
                 Edit
-              </CButton>
+              </div>
             </td>
           </template>
           <template
@@ -340,12 +336,9 @@ export default {
   },
   data () {
     return {
-      columns: [
-      ],
-      fields: [
-      ],
-      details: [
-      ],
+      columns: [],
+      fields: [],
+      details: [],
       selectedTable: {},
       selectedDataset: '',
       collapse: false,
@@ -450,6 +443,7 @@ export default {
       })
         .then(function (response) {
           if (response.data) {
+            vm.selectedDisplayField = c
           }
         })
     },
@@ -469,7 +463,7 @@ export default {
               return
             }
             for (var i in vm.columns) {
-              if (vm.columns[i].fts === true) {
+              if (vm.columns[i].fts) {
                 vm.selectedDisplayField = vm.columns[i].display_field
                 break
               }
@@ -562,6 +556,11 @@ h2 {
 .buttons {
   margin-left: 10px;
   margin-right: 10px;
+}
+.action {
+    color: #39b2d5;
+    text-decoration: underline;
+    cursor: pointer;
 }
 .btn {
   color: white;

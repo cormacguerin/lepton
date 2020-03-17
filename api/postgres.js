@@ -238,6 +238,8 @@ console.log("promises finished in " + totaltime + "ms");
 
   /*
    * Create database
+   * We also add a unique internal uuid to each table
+   * This can uniquely identify an item and also be used as a shard key
    */
   createTable(database, table, column, datatype, callback) {
 
@@ -245,9 +247,9 @@ console.log("promises finished in " + totaltime + "ms");
       + table
       + "\" (\""
       + column
-      + "\" "
+      + "\""
       + getDataType(datatype)
-      + " PRIMARY KEY);"
+      + " PRIMARY KEY, lt_uuid uuid);"
 
     this.execute(query, null, function(e,r) {
       callback(e,r);
@@ -256,21 +258,43 @@ console.log("promises finished in " + totaltime + "ms");
 
   /*
    * Create search table
+   * lt_ tables are for internal use
+   * we assume documents are text
+   * TODO we also wanna be able to upload other tpyes of docs, word etc
+   * in this case I suggest customer sends json as document say with structure like this
+   * {
+   *  data: <data here>
+   *  encoding: base64
+   * }
+   * internally we scan , is first char '{'
+   * if so can we json parse it?
+   * does it contain data and encoding?
+   * if yes decode and index
+   * if no index as normal text
    */
   createSearchTable(database, table, callback) {
 
     var query = "CREATE TABLE \""
       + table
-      + "\" ("
-      + "id SERIAL PRIMARY KEY,"
-      + "url VARCHAR(2048) NOT NULL UNIQUE,"
+      + "\" (url VARCHAR(2048) NOT NULL UNIQUE,"
+      + "language VARCHAR(2),"
+      + "title VARCHAR(2048),"
+      + "status VARCHAR(64),"
+      + "last_modified TIMESTAMP,"
+      + "document text,"
+      + "metadata text,"
+      + "lt_id SERIAL PRIMARY KEY,"
+      + "lt_uuid uuid,"
+      + "lt_docscore real,"
+      + "lt_tdscore real,"
+      + "lt_atf real,"
+      + "lt_crawl_date TIMESTAMP,"
+      + "lt_index_date TIMESTAMP,"
+      + "lt_update BOOL,"
+      + "lt_segmented_grams jsonb);"
+
+    /*
       + "feed jsonb,"
-      + "docscore real,"
-      + "tdscore real,"
-      + "atf real,"
-      + "lang VARCHAR(2),"
-      + "crawl_date TIMESTAMP,"
-      + "index_date TIMESTAMP,"
       + "raw_text text[],"
       + "unigrams text[],"
       + "bigrams text[],"
@@ -278,7 +302,7 @@ console.log("promises finished in " + totaltime + "ms");
       + "unigram_positions text[],"
       + "bigram_positions text[],"
       + "trigram_positions text[],"
-      + "segmented_grams jsonb);"
+    */
 
     this.execute(query, null, function(e,r) {
       callback(e,r);
@@ -336,8 +360,15 @@ console.log("promises finished in " + totaltime + "ms");
     });
   }
 
+  getTablesByUserId(user_id, callback) {
+    var query ="SELECT database, tablename FROM tables WHERE owner = $1 ORDER BY database;"
+    this.execute(query, [user_id], function(e,r) {
+      callback(e,r);
+    });
+  }
+
   getTableMeta(user_id, database, table, callback) {
-    var query = "SELECT _column AS column_name, display_field from text_tables_index WHERE id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $3)"
+    var query = "SELECT _column AS column_name, display_field, enable as fts from text_tables_index WHERE id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $3)"
     this.execute(query, [database,table,user_id], function(e,r) {
       callback(e,r);
     });
@@ -406,7 +437,7 @@ console.log("promises finished in " + totaltime + "ms");
       + table
       + "\" DROP COLUMN \""
       + column
-      + ";"
+      + "\"";
 
     this.execute(query, null, function(e,r) {
       callback(e, r);
@@ -417,7 +448,7 @@ console.log("promises finished in " + totaltime + "ms");
    * Delete a text table column
    */
   deleteTextColumn(user_id, database, table, column, callback) {
-    var query = "DELETE FROM text_tables_index WHERE column = $3 AND id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $4)"
+    var query = "DELETE FROM text_tables_index WHERE _column = $3 AND id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $4)"
     this.execute(query, [database, table, column, user_id], function(e,r) {
       callback(e, r);
     });
@@ -434,6 +465,8 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   addTableData(table, data, callback) {
+    console.log('table ' + table)
+    console.log('data ' + data)
     var it = new Date().getTime();
     console.log("ADD TABLE DATA " + table);
     var pkey = "SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS data_type"
@@ -782,14 +815,21 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   setFTS(u,d,t,c,b,callback) {
-    var query = "INSERT INTO text_tables_index(id,database,_table,_column,enable) VALUES(did,$1,$2,$3,$4)"
-      + " WITH SELECT id FROM tables WHERE database = $1 AND tablename = $2 AND owner = $9 AS did"
+    var query = "INSERT INTO text_tables_index(id,database,_table,_column,enable)"
+      + " SELECT t.id, r.db, r.t, r.c, r.e::boolean FROM"
+      + " (SELECT id FROM tables WHERE database = $1 AND tablename = $2 AND owner = $5) t,"
+      + " (SELECT * FROM (VALUES ($1, $2, $3, $4)) AS v (db,t,c,e)) r"
       + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column_key DO UPDATE SET"
-      + " database = $5,"
-      + " _table = $6,"
-      + " _column = $7,"
-      + " enable = $8;";
-    var values = [d,t,c,b,d,t,c,b,u]
+      + " database = $1,"
+      + " _table = $2,"
+      + " _column = $3,"
+      + " enable = $4::boolean";
+    /*
+    var query = "SELECT t.id, r.db, r.t, r.c, r.e::boolean FROM"
+      + " (SELECT id FROM tables WHERE database = $1 AND tablename = $2 AND owner = $5) t,"
+      + " (SELECT * FROM (VALUES ($1, $2, $3, $4)) AS v (db,t,c,e)) r"
+    */
+    var values = [d,t,c,b,u]
 
     this.execute(query, values, function(e,r) {
       console.log(e);
@@ -799,9 +839,45 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   setFTSDisplayField(u, d,t,df,callback) {
-    var query = "UPDATE text_tables_index SET display_field = $3 WHERE id = (SELECT id FROM tables where database = $1 AND table = $2 AND owner = $4)"
+    var query = "UPDATE text_tables_index SET display_field = $3 WHERE id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $4)"
 
     var values = [d,t,df,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  getApiKeys(u, callback) {
+    var query = "SELECT id, name, concat(LEFT(key,5),'...') AS key FROM api_keys WHERE owner = $1"
+
+    var values = [u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  addApiKey(u, n, k, callback) {
+    var query = "INSERT INTO api_keys(key,name,owner) VALUES ($1,$2,$3)"
+
+    var values = [k,n,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  addApiScope(k, a, d, t, callback) {
+    var query = "INSERT INTO api_scopes(id,api,database,_table) VALUES ($1,$2,$3,$4)"
+
+    var values = [k,a,d,t]
 
     this.execute(query, values, function(e,r) {
       console.log(e);

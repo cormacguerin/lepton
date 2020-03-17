@@ -82,11 +82,6 @@ export default {
 }
 </script>
 <style scoped>
-.home {
-    max-width: 1000px;
-    height: 100vh;
-    background: white;
-}
 h2 {
     padding: 15px 0px 0px 0px;
     margin: 0px;

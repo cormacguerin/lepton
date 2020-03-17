@@ -28,12 +28,6 @@ export default {
   created () {
   },
   methods: {
-    showModal () {
-      this.$refs.myModalRef.show()
-    },
-    hideModal () {
-      this.$refs.myModalRef.hide()
-    },
     save () {
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/addDatabase', {

@@ -5,7 +5,7 @@
       class="cards"
     >
       <div class="flexgrow" />
-      <div class="addchart">
+      <div class="addarea">
         <CButton
           class="btn active"
           color="info"
@@ -92,9 +92,10 @@ export default {
 
 <style scoped>
 .dashboard {
-    width: 100%;
+  width: 100%;
 }
 .cards {
+    width: 80%;
     max-width: 1000px;
     margin-left: auto;
     margin-right: auto;
@@ -106,7 +107,7 @@ export default {
     margin-top: 50px;
     margin-left: 10px;
 }
-.addchart {
+.addarea {
     margin-top: 50px;
     margin-right: 10px;
 }
@@ -119,18 +120,6 @@ h2 {
 .databaseTab {
 }
 .searchTab {
-}
-.tabs {
-    background-color: #171f24;
-    width: 1000px;
-    margin-left: auto;
-    margin-right: auto;
-}
-.nav-tabs {
-    border: 0px;
-}
-.tabsContainer {
-    background-color: #171f24;
 }
 .hidden {
 }

@@ -106,15 +106,13 @@ exports.getTableSchema = function(user_id, d, table, c) {
               for (var i in s) {
                 var s_ = {};
                 s_.column_name = s[i].column_name; 
-                console.log('m');
-                console.log(m);
-                console.log('s_.column_name')
-                console.log(s_.column_name)
                 for (var j in m) {
                   if (m[j].column_name === s_.column_name) {
-                    console.log('m[j]')
-                    console.log(m[j])
-                    s_.fts = true;
+                    if (m[j].fts ===  true) {
+                      s_.fts = true;
+                    } else {
+                      s_.fts = false;
+                    }
                     s_.display_field = m[j].display_field;
                     break;
                   }
@@ -138,8 +136,6 @@ exports.getTableSchema = function(user_id, d, table, c) {
                 }
                 response.push(s_);
               }
-              console.log('response');
-              console.log(response);
               c(response);
             }
           });
@@ -212,7 +208,7 @@ exports.createSearchTable = function(u,d,t,callback) {
     callback({status:'failed'})
   }
   const db = u + '_' + d;
-  initDB(d, function() {
+  initDB(db, function() {
     db_pg[db].createSearchTable(db,t,function(err,r) {
       if (err){
         console.log("unable to create search table");
@@ -319,15 +315,15 @@ exports.addTableColumn = function(u,d,t,c,dt,callback) {
   });
 }
 
-exports.updateTableColumn = function(u, d,t,c,ec,dt,edt,callback) {
+exports.updateTableColumn = function(u,d,t,c,ec,dt,edt,callback) {
   if (!(d&&t&&c&&ec&&dt&&edt)) {
     return callback({status:'failed'})
   }
+  const db = u + '_' + d;
   initDB(db, function() {
     var status;
     var promises = [];
     const promisePush = async function() {
-      const db = u + '_' + d;
       var column;
       if (c !== ec) {
         db_pg[db].renameTableColumn(t, c, ec, function(err,r) {
@@ -385,8 +381,9 @@ exports.setFTS = function(u,d,t,c,b,callback) {
   if (!(d&&t&&c&&b)) {
     return callback({status:'failed'})
   }
+  const db = u + '_' + d;
   initDB('admin', function() {
-    db_pg['admin'].setFTS(u, d, t, c, b, function(err, r) {
+    db_pg['admin'].setFTS(u, db, t, c, b, function(err, r) {
       if (err) {
         console.log("unable to retrieve user_clients")
         console.log(err)
@@ -409,16 +406,14 @@ exports.setFTSDisplayField = function(u,d,t,df,callback) {
   if (!(d&&t&&df)) {
     return callback({status:'failed'})
   }
+  const db = u + '_' + d;
   initDB('admin', function() {
-    db_pg['admin'].setFTSDisplayField(u, d, t, df, function(err, r) {
+    db_pg['admin'].setFTSDisplayField(u, db, t, df, function(err, r) {
       if (err) {
         console.log("unable to retrieve user_clients")
         console.log(err)
         callback({status:'failed', error:err})
       } else {
-        console.log(r)
-        console.log('r.length')
-        console.log(r.length)
         if (r.length === 0) {
           callback(r)
         } else {
@@ -471,6 +466,7 @@ exports.addTableData = function(u,d,t,data,callback) {
   const db = u + '_' + d;
   initDB(db, function() {
     if (Array.isArray(data)) {
+      console.log('array data');
       if (typeof t !== 'string') {
         return callback('no table provided');
       }
@@ -484,6 +480,7 @@ exports.addTableData = function(u,d,t,data,callback) {
         }
       });
     } else if (typeof data === 'object') {
+      console.log('object data');
       var results = [];
       Object.keys(data).forEach(function(table) {
         db_pg[db].addTableData(table,data[table],function(err,r) {
@@ -524,18 +521,8 @@ exports.deleteTable = function(u, d, t, ty, c) {
                   console.log(err);
                   c({status:'failed',error:err})
                 } else {
-                  console.log(r);
-                  console.log('r.length');
-                  console.log(r.length);
                   if (r.length === 0) {
-                    db_pg['admin'].unregisterTable(db,t,ty, function(e,r) {
-                      if (e) {
-                        console.log(e);
-                        c({status:'failed'})
-                      } else {
-                        c({status:'success'})
-                      }
-                    });
+                    c({status:'success'})
                   } else {
                     c({status:'failed'})
                   }
@@ -653,6 +640,64 @@ exports.getChartById = function(id,callback) {
   }
   initDB('admin', function() {
     db_pg['admin'].getChartById(id, function(err,r) {
+      if (err){
+        console.log(err);
+        callback({status:'failed', error:err, message:err.message})
+      } else {
+        callback({status:'success', message:r})
+      }
+    });
+  });
+}
+
+/*
+ * get an API key
+ */
+exports.addApiKey = function(user_id,n,k,callback) {
+  if (!(n&&k)) {
+    return callback({status:'failed'})
+  }
+  initDB('admin', function() {
+    db_pg['admin'].addApiKey(user_id,n,k,function(err,r) {
+      if (err){
+        console.log(err);
+        callback({status:'failed', error:err, message:err.message})
+      } else {
+        callback({status:'success', message:r})
+      }
+    });
+  });
+}
+
+/*
+ * add api scope
+ */
+exports.addApiScope = function(user_id,k,a,d,t,callback) {
+  if (!(k&&a&&d)) {
+    return callback({status:'failed'})
+  }
+  initDB('admin', function() {
+    db_pg['admin'].addApiScope(k,a,d,t,function(err,r) {
+      if (err){
+        console.log(err);
+        callback({status:'failed', error:err, message:err.message})
+      } else {
+        db_pg['admin'].getTablesByUserId(user_id, function(e_,user_tables) {
+          console.log('user_tables');
+          console.log(user_tables);
+          callback({status:'success', message:r})
+        });
+      }
+    });
+  });
+}
+
+/*
+ * get api keys for a user
+ */
+exports.getApiKeys = function(user_id,callback) {
+  initDB('admin', function() {
+    db_pg['admin'].getApiKeys(user_id,function(err,r) {
       if (err){
         console.log(err);
         callback({status:'failed', error:err, message:err.message})

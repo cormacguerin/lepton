@@ -97,6 +97,15 @@ var genRandStr = function() {
 	return Math.round(Math.pow(36, 10)*Math.random()).toString(36);
 }
 
+exports.genApiKey = function() {
+  const e1 = Buffer.from(genRandStr()).toString('base64').substr(0,8).toUpperCase();
+  const e2 = Buffer.from(genRandStr()).toString('base64').substr(0,8).toUpperCase();
+  const e3 = Buffer.from(genRandStr()).toString('base64').substr(0,8).toUpperCase();
+  const e4 = Buffer.from(genRandStr()).toString('base64').substr(0,8).toUpperCase();
+  console.log(e1)
+  return `${e1}-${e2}-${e3}-${e4}`;
+}
+
 /*
  * Function to authorize user requests based 
  * on a cookie/stored signed token.

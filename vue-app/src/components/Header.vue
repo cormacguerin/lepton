@@ -88,6 +88,10 @@
       id="insights"
       hidden
     />
+    <div
+      id="configure"
+      hidden
+    />
   </flex-col>
 </template>
 

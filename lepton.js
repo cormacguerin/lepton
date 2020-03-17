@@ -192,7 +192,7 @@ app.get('/api/updateTableColumn', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.updateTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, queryData.displayfield, function(r) {
+	data.updateTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, function(r) {
     res.json(r);
   });
 });
@@ -267,6 +267,55 @@ app.get('/api/getChartById', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
+
+/*
+ * Function to generate an API key
+ */
+app.get('/api/generateApiKey', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  const key = user.genApiKey();
+  res.status(200);
+  res.send(key);
+});
+/*
+ * Function to get a users api keys
+ */
+app.get('/api/getApiKeys', user.authorize, function(req, res, next) {
+	data.getApiKeys(req.user_id, function(r) {
+    res.json(r);
+  });
+});
+/*
+ * Function to add an API key
+ */
+app.get('/api/addApiKey', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.key_name && queryData.key)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.addApiKey(req.user_id, queryData.key_name, queryData.key, function(r) {
+    res.json(r);
+  });
+});
+/*
+ * Function toan API key scope
+ */
+app.get('/api/addApiScope', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.key_id && queryData.api && queryData.database)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.addApiScope(req.user_id, queryData.key_id, queryData.api, queryData.database, queryData.table, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/deleteApiKey', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+});
+/*
+ *	A table definition. example data
 /*
  *	A table definition. example data
  * 	{
@@ -304,23 +353,11 @@ app.get('/api/getChartById', user.authorize, function(req, res, next) {
  *
  */
 app.post('/addTableData', function(req, res, next) {
-  var field_types = [
-    'serial',
-    'bigserial',
-    'int',
-    'bigint',
-    'decimal',
-    'bigdecimal',
-    'real',
-    'date',
-    'varchar_64',
-    'varchar_2048',
-    'text'
-  ]
 	var table_name;
 	var fields=[];
   var data_;
 	var queryData = url.parse(req.url, true).query;
+  console.log(' - addTableData');
   console.log(queryData)
   if (!queryData.database) {
     return res.json({});
@@ -336,6 +373,8 @@ app.post('/addTableData', function(req, res, next) {
         return res.json({});
       }
     }
+    console.log('database : ' + queryData.database)
+    console.log('table : ' + queryData.table)
     data.addTableData(queryData.database, queryData.table, data_, function(d) {
        res.json({d});
     });
@@ -351,7 +390,7 @@ app.post('/addData', function(req, res, next) {
 		if (req.body) {
 			var docs = req.body;
 			var hasError = false;
-			//multi = client.multi();
+ 
 			for (var i in docs) {
 				if (docs.hasOwnProperty(i)) {
 					var doc_feed_lang;
@@ -489,7 +528,7 @@ app.post('/addDocument', function(req, res, next) {
 });
 
 /*
- * A function to add a document(s) to our corpus.
+ * Search for a document
  */
 app.get('/search', function(req, res, next) {
 	try {

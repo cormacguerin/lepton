@@ -109,12 +109,6 @@ export default {
     }
   },
   methods: {
-    showModal () {
-      this.$refs.myModalRef.show()
-    },
-    hideModal () {
-      this.$refs.myModalRef.hide()
-    },
     selectDataType (dt) {
       this.$refs.dataTypeDropDown.hide()
       this.dataType = dt

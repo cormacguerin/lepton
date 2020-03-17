@@ -46,7 +46,7 @@
 <script>
 
 export default {
-  name: 'AddTable',
+  name: 'AddScope',
   components: {
   },
   props: {
@@ -65,10 +65,12 @@ export default {
   },
   data () {
     return {
-      dataTypes: [
-        'serial', 'bigserial', 'int', 'bigint', 'decimal', 'bigdecimal', 'real', 'date', 'varchar_64', 'varchar_2048'
+      scopeTypes: [
+        'database', 'chart', 'search'
       ],
-      dataType: 'serial'
+      databases: [],
+      selectedType: '',
+      selectedSource: ''
     }
   },
   created () {
@@ -80,7 +82,7 @@ export default {
     },
     save () {
       var vm = this
-      this.$axios.get(this.$SERVER_URI + '/api/createTable', {
+      this.$axios.get(this.$SERVER_URI + '/api/saveScope', {
         params: {
           database: vm.database,
           table: vm.tableName,
