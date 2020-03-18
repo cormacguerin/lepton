@@ -676,17 +676,41 @@ exports.addApiScope = function(user_id,k,a,d,t,callback) {
   if (!(k&&a&&d)) {
     return callback({status:'failed'})
   }
+  const db = user_id + '_' + d;
   initDB('admin', function() {
-    db_pg['admin'].addApiScope(k,a,d,t,function(err,r) {
-      if (err){
-        console.log(err);
-        callback({status:'failed', error:err, message:err.message})
-      } else {
-        db_pg['admin'].getTablesByUserId(user_id, function(e_,user_tables) {
-          console.log('user_tables');
-          console.log(user_tables);
-          callback({status:'success', message:r})
+    // get a list of all the users databases and tables for validation
+    db_pg['admin'].getTablesByUserId(user_id, function(e_,r) {
+      // format the keys and scope in a json object
+      var sources = {}
+      for (var i in r) {
+        if (!sources[r[i].database]) {
+          sources[r[i].database] = {}
+          sources[r[i].database].tables = []
+        }
+        sources[r[i].database].tables.push(r[i].tablename)
+      }
+      // now we have a list lets check our database
+      if (Object.keys(sources).includes(db)) {
+        // if there is a table scope check that
+        if (t) {
+          console.log('sources')
+          console.log(sources)
+          console.log('sources[db]')
+          console.log(sources[db])
+          if (!(sources[db].tables.includes(t))) {
+            return callback({status:'failed', message:'invalid table scope'})
+          }
+        }
+        db_pg['admin'].addApiScope(k,a,db,t,function(err,r) {
+          if (err) {
+            console.log(err);
+            callback({status:'failed', error:err, message:err.message})
+          } else {
+            callback({status:'success', message:sources})
+          }
         });
+      } else {
+        callback({status:'failed', message:'invalid database scope'})
       }
     });
   });
@@ -698,14 +722,95 @@ exports.addApiScope = function(user_id,k,a,d,t,callback) {
 exports.getApiKeys = function(user_id,callback) {
   initDB('admin', function() {
     db_pg['admin'].getApiKeys(user_id,function(err,r) {
-      if (err){
+      if (err) {
         console.log(err);
         callback({status:'failed', error:err, message:err.message})
       } else {
-        callback({status:'success', message:r})
+        // format the keys and scope in a json object
+        console.log(r)
+        const re = /^[0-9]+_/gi;
+        var keys = {}
+        for (var i in r) {
+          if (!keys[r[i].name]) {
+            keys[r[i].name] = {}
+            keys[r[i].name].scope = []
+          }
+          if (r[i].api && r[i].database) {
+            var scope = {}
+            scope.api = r[i].api
+            scope.database = r[i].database.replace(re,'')
+            scope.table = r[i].table
+            keys[r[i].name].scope.push(scope)
+          }
+          keys[r[i].name].id = r[i].id
+          keys[r[i].name].key = r[i].concat
+          keys[r[i].name].name = r[i].name
+        }
+        // convert to array for use with vue table
+        var arr = []
+        for (var j in keys) {
+          arr.push(keys[j])
+        }
+        console.log('keys')
+        console.log(keys)
+        callback({status:'success', message:arr})
       }
     });
   });
+}
+
+/*
+ * delete api key
+ */
+exports.deleteApiKey = function(user_id,k,callback) {
+  if (!k) {
+    return callback({status:'failed'})
+  }
+  initDB('admin', function() {
+    db_pg['admin'].deleteApiKey(user_id, k, function(e,r) {
+      if (e) {
+        console.log(e)
+        callback({status:'failed',error:e});
+      } else {
+        callback({status:'success',message:r});
+      }
+    })
+  })
+}
+
+/*
+ * delete api scope
+ */
+exports.deleteApiScope = function(user_id,k,a,d,t,callback) {
+  if (!(k&&a&&d)) {
+    return callback({status:'failed'})
+  }
+  const db = user_id + '_' + d;
+  initDB('admin', function() {
+    // get the keys to make sure this user is the owner (TODO need to have reader perms here also probably)
+    db_pg['admin'].getApiKeys(user_id,function(err,r) {
+      var isOwner = false
+      for (var i in r) {
+        console.log('user_id : ' + user_id)
+        console.log(r[i])
+        if (r[i].owner === user_id) {
+          isOwner = true
+        }
+      }
+      if (isOwner === true) {
+        db_pg['admin'].deleteApiScope(k,a,db,t, function(e,r) {
+          if (e) {
+            console.log(e)
+            callback({status:'failed',error:e});
+          } else {
+            callback({status:'success',message:r});
+          }
+        })
+      } else {
+        callback({status:'failed',error:'permission denied'})
+      }
+    })
+  })
 }
 
 function initDB(database, callback) {

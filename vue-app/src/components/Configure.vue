@@ -48,7 +48,7 @@
               class="action"
               @click="toggleScope(index)"
             >
-              {{ scopes.includes(index) ? 'Hide' : 'Show' }}
+              {{ scopes.includes(index) ? 'Close' : 'Open' }}
             </div>
           </td>
         </template>
@@ -57,25 +57,38 @@
             :show="scopes.includes(index)"
           >
             <flex-row class="scopeContainer">
-              <div class="scopes">
-                <CButton
-                  size="sm"
-                  color="info"
-                  class=""
-                >
-                  scope info here
-                </CButton>
-                <CButton
-                  size="sm"
-                  color="danger"
-                  class="ml-1"
-                >
-                  Delete
-                </CButton>
+              <div
+                v-for="scope in item.scope"
+                :key="scope"
+                class="scope"
+              >
+                <flex-row>
+                  <div class="scopeApi">
+                    {{ scope.api }}
+                  </div>
+                  <div class="scopeDatabase">
+                    {{ scope.database }}
+                  </div>
+                  <div
+                    v-if="scope.table"
+                    class="scopeTable"
+                  >
+                    {{ scope.table }}
+                  </div>
+                  <div
+                    class="scopeDelete"
+                    @click="deleteApiScope(item.id, scope)"
+                  >
+                    <i
+                      class="fa fa-minus"
+                      aria-hidden="true"
+                    />
+                  </div>
+                </flex-row>
               </div>
               <div>
                 <CButton
-                  class="squarebtn active"
+                  class="active addScope"
                   color="info"
                   size="sm"
                   @click="addApiScopeModal = true"
@@ -84,6 +97,7 @@
                     class="fa fa-plus"
                     aria-hidden="true"
                   />
+                  Add Scope
                 </CButton>
               </div>
             </flex-row>
@@ -93,8 +107,11 @@
           #delete="{item}"
         >
           <td>
-            <div class="action">
-              delete
+            <div
+              class="action"
+              @click="deleteApiKey(item.id)"
+            >
+              Delete
             </div>
           </td>
         </template>
@@ -169,6 +186,35 @@ export default {
     this.getDatabases()
   },
   methods: {
+    deleteApiKey (id) {
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/deleteApiKey', {
+        params: {
+          key_id: id
+        }
+      })
+        .then(function (response) {
+          if (response.data.status === 'success') {
+            vm.getApiKeys()
+          }
+        })
+    },
+    deleteApiScope (id, scope) {
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/deleteApiScope', {
+        params: {
+          key_id: id,
+          api_scope: scope.api,
+          api_database: scope.database,
+          api_table: scope.table
+        }
+      })
+        .then(function (response) {
+          if (response.data.status === 'success') {
+            vm.getApiKeys()
+          }
+        })
+    },
     getApiKeys () {
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/getApiKeys', {
@@ -176,6 +222,7 @@ export default {
         .then(function (response) {
           if (response.data.status === 'success') {
             vm.columns = response.data.message
+            console.log(vm.columns)
           }
         })
     },
@@ -183,8 +230,6 @@ export default {
       const position = this.scopes.indexOf(index)
       position !== -1 ? this.scopes.splice(position, 1) : this.scopes.push(index)
       this.selectedKey = this.columns[index].id
-      console.log('this.selectedKey')
-      console.log(this.selectedKey)
     },
     getDatabases () {
       var vm = this
@@ -213,8 +258,38 @@ export default {
     margin-left: auto;
     margin-right: auto;
 }
+.scope {
+  margin: 10px;
+  border-radius: 3px;
+}
+.addScope {
+  margin: 10px;
+}
+.scopeApi {
+  font-weight: bold;
+  padding: 3px;
+  background-color: #5f5f5f;
+  color: white;
+}
+.scopeDatabase {
+  font-weight: bold;
+  padding: 3px;
+  background-color: #efefef;
+  color: #5f5f5f;
+}
+.scopeTable {
+  padding: 3px;
+  background-color: #efefef;
+  color: #5f5f5f;
+}
+.scopeDelete {
+  color: white;
+  padding: 3px;
+  background-color: #f86c6b;
+  cursor: pointer;
+}
 .scopeContainer {
-    min-height: 50px;
+  min-height: 50px;
 }
 .tableContainer {
     margin: 10px;
@@ -226,10 +301,6 @@ export default {
     color: #39b2d5;
     text-decoration: underline;
     cursor: pointer;
-}
-.squarebtn {
-    width: 30px;
-    height: 30px;
 }
 h2 {
     padding: 15px 0px 0px 0px;

@@ -851,7 +851,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   getApiKeys(u, callback) {
-    var query = "SELECT id, name, concat(LEFT(key,5),'...') AS key FROM api_keys WHERE owner = $1"
+    var query = "SELECT api_keys.id, owner, name, concat(LEFT(key,5),'...'), api_scopes.api, api_scopes.database, api_scopes._table AS table FROM api_keys FULL OUTER JOIN api_scopes ON api_keys.id = api_scopes.id WHERE owner = $1;"
 
     var values = [u]
 
@@ -878,6 +878,36 @@ console.log("promises finished in " + totaltime + "ms");
     var query = "INSERT INTO api_scopes(id,api,database,_table) VALUES ($1,$2,$3,$4)"
 
     var values = [k,a,d,t]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  deleteApiKey(u, k, callback) {
+    var query = "WITH del AS (DELETE FROM api_keys WHERE id = $1 AND owner = $2 RETURNING id) DELETE FROM api_scopes WHERE id = (SELECT id FROM del)"
+
+    var values = [k,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  deleteApiScope(k, a, d, t, callback) {
+    var query;
+    var values;
+    if (t) {
+      query = "DELETE FROM api_scopes WHERE id = $1 AND api = $2 AND database = $3 AND _table = $4"
+      var values = [k,a,d,t]
+    } else {
+      query = "DELETE FROM api_scopes WHERE id = $1 AND api = $2 AND database = $3"
+      var values = [k,a,d]
+    }
 
     this.execute(query, values, function(e,r) {
       console.log(e);

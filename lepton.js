@@ -313,9 +313,25 @@ app.get('/api/addApiScope', user.authorize, function(req, res, next) {
 });
 app.get('/api/deleteApiKey', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
+  if (!(queryData.key_id)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.deleteApiKey(req.user_id, queryData.key_id, function(r) {
+    res.json(r);
+  });
 });
-/*
- *	A table definition. example data
+app.get('/api/deleteApiScope', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.key_id && queryData.api_scope && queryData.api_database)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.deleteApiScope(req.user_id, queryData.key_id, queryData.api_scope, queryData.api_database, queryData.api_table, function(r) {
+    res.json(r);
+  });
+});
+
 /*
  *	A table definition. example data
  * 	{

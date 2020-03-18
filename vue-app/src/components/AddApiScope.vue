@@ -106,7 +106,22 @@ export default {
   created () {
   },
   methods: {
+    validateSave () {
+      if (this.selectedApi === 'select') {
+        return false
+      }
+      if (this.selectedDatabase === 'select') {
+        return false
+      }
+      if (this.selectedTable === 'select') {
+        this.selectedTable = ''
+      }
+      return true
+    },
     save () {
+      if (this.validateSave() === false) {
+        return
+      }
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/addApiScope', {
         params: {
@@ -135,7 +150,7 @@ export default {
       this.selectedApi = a
     },
     selectDatabase (d) {
-      console.log(d)
+      this.tables = []
       if (d.key) {
         this.selectedDatabase = d.key
         for (var t in d.tables) {
