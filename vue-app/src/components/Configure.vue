@@ -155,6 +155,10 @@ export default {
       columns: [],
       fields: [
         {
+          key: 'id',
+          _style: 'width:15%'
+        },
+        {
           key: 'name',
           _style: 'width:40%'
         },

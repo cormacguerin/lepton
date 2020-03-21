@@ -1,8 +1,9 @@
-
 var postgres = require('./postgres.js');
 pg = new postgres({database:'admin'});
 
 var async = require('async');
+
+var crypto = require("crypto");
 
 const url = require('url');
 
@@ -220,6 +221,159 @@ exports.authorize = function(req, res, next) {
 		}
 	}
 };
+
+/*
+ * Function to authorize api requests based 
+ * on an api key
+ */
+exports.authorizeApi = function(req, res, next) {
+  var parsedurl = url.parse(req.url, true);
+  const auth_re = /^LT-HMAC-SHA256 /gi;
+  const cred_re = /^Credential=/gi;
+  const head_re = /^SignedHeaders=/gi;
+  const sig_re = /^Signature=/gi;
+  var errors = []
+  var authorization_header = req.headers.authorization;
+  var authcsv, autharr, credential, signed_headers, client_signature
+  var key_id, key_datestamp, key_scope
+
+  if (authorization_header.match(auth_re)) {
+    authcsv = authorization_header.replace(auth_re,'')
+  }
+  var autharr = authcsv.split(',')
+  if (autharr[0].match(cred_re,'')) {
+    credential = autharr[0].replace(cred_re,'').split('/')
+    if (credential.length !== 4) {
+      errors.push('expected 4 components in credential ' + credential.length + ' found )');
+    } else {
+      key_id = credential[0]
+      key_datestamp = credential[1]
+      key_scope = credential[2]
+    }
+  } else {
+    errors.push('credential not present in authorization header');
+  }
+  if (autharr[1].match(head_re,'')) {
+    signed_headers = autharr[1].replace(head_re,'').split(';')
+    if (!(signed_headers.includes('content-type') && signed_headers.includes('date') && signed_headers.includes('host'))) {
+      errors.push('signed headers must include at least "content-type", "date" and "host"');
+    }
+  } else {
+    errors.push('signed headers not present in authorization header');
+  }
+  if (autharr[2].match(sig_re,'')) {
+    client_signature = autharr[2].replace(sig_re,'')
+  } else {
+    errors.push('signature not present in authorization header');
+  }
+  // process the method
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    errors.push('only POST or GET is supported but neither was found in the request')
+  }
+  // process headers (afaik javascript sorts objects by default in unicode points so no sorting to do.)
+  var header_keys = Object.keys(req.headers)
+  var signed_headers_str = '';
+  for (var i in signed_headers.sort()) {
+    if (header_keys.includes(signed_headers[i]) === true) {
+      var h = signed_headers[i] + ':' + req.headers[signed_headers[i]].toLowerCase() + '\n'
+      signed_headers_str += h
+    } else {
+      errors.push('signed header ' + signed_headers[i] + 'listed in the authorization header not found')
+    }
+  }
+  // process the request parameters
+  var query_parameters = '';
+  for (var i in parsedurl.query) {
+    var v = i + '=' + parsedurl.query[i] + '&';
+    query_parameters += v;
+  }
+  query_parameters = query_parameters.replace(/&$/, '')
+
+  // at this point we should be sure that the host header is present
+  var host = req.headers.host
+  // get the path and check that it maches the one sent in credentials
+  if (!parsedurl.pathname) {
+    errors.push('bad path found, expected /<path> but found "' + parsedurl.pathname + '"')
+  }
+  if (errors.length > 0) {
+    res.status(403)
+    return res.json({error:errors})
+  } else {
+    errors = []
+  }
+
+  // now build the signing string from the above information
+  signing_string = req.method + "\n"
+                 + req.headers.host + "\n"
+                 + parsedurl.pathname + "\n"
+                 + query_parameters + "\n"
+                 + signed_headers_str
+
+  if (parsedurl.pathname === 'testApiKey') {
+    console.log('API debug info');
+    console.log(' - credential key id')
+    console.log(key_id)
+    console.log(' - credential key datestamp')
+    console.log(key_datestamp)
+    console.log(' - credential key scope')
+    console.log(key_scope)
+    console.log(' - signing string');
+    console.log(signing_string)
+  }
+  console.log(' - signing string');
+  console.log(signing_string)
+  // TODO add datetime window auth logic
+
+  // get the key details from the backend and authorize the request
+	pg.getApiKeyById(key_id, function (e, apiKey) {
+		if (e) {
+      res.status(403)
+      return res.json({error:errors})
+		} else {
+      const signing_key = getSigningKey(apiKey.key, key_datestamp, apiKey.name, key_scope)
+      const request_signature = hmac(signing_key, signing_string, 'hex')
+      if (request_signature !== client_signature) {
+        res.status(403)
+        return res.json({error:errors})
+      } else {
+        // TODO add scope checking
+        next()
+      }
+      /*
+      console.log('signing_key hex')
+      console.log(Buffer.from(signing_key, 'utf8').toString('hex'))
+      console.log('request_signature')
+      console.log(request_signature)
+      console.log('client_signature')
+      console.log(client_signature)
+      */
+		}
+  })
+}
+
+function getSigningKey(key_secret, key_datestamp, key_name, key_scope) {
+  console.log(key_secret)
+  console.log(key_datestamp)
+  console.log(key_name)
+  console.log(key_scope)
+  console.log('XXX')
+  console.log("LT" + key_secret)
+  console.log(key_datestamp)
+  var kDate = hmac("LT" + key_secret, key_datestamp);
+  console.log(Buffer.from(kDate, 'utf8').toString('hex'))
+  var kName = hmac(kDate, key_name);
+  var kScope = hmac(kName, key_scope);
+  var kSigning = hmac(kScope, "lt_request");
+  return kSigning;
+}
+
+function hmac(key, string, encoding) {
+  return crypto.createHmac('sha256', key).update(string, 'utf8').digest(encoding)
+}
+
+function hash(string, encoding) {
+  return crypto.createHash('sha256').update(string, 'utf8').digest(encoding)
+}
 
 /*
  * Helper function to check if a value exists.

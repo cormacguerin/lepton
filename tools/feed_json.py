@@ -6,13 +6,12 @@ import datetime
 
 from os import path
 from argparse import ArgumentParser
-from hashlib import sha1
+from hashlib import sha256
 from base64 import b64encode
 
-def hmacSha1(secret, string):
-    string_to_sign = string.encode('utf-8')
-    cmac = hmac.new(secret, string_to_sign, sha1)
-    return cmac
+def hmacSha256(secret, msg):
+    cmac = hmac.new(secret, msg.encode('utf-8'), sha256)
+    return cmac.digest()
 
 parser = ArgumentParser()
 parser.add_argument("-f", "--filename",
@@ -50,59 +49,61 @@ Datestamp = Date.strftime('%Y%m%d')
 KeyId = '8'
 KeyName = 'cormacskey'
 ApiScope = 'chart'
-SecretKey = b'xyz'
+SecretKey = 'AJRJYZGX-CW11YNDJ-BTVIZHJ5-BDFQEHCY'
 Method = 'POST'
-Host = '127.0.0.1'
-Path = '/testApiKey'
+Host = 'cormac.io'
+Path = '/addTableData'
 
-# required headers (for signing) are date, content-tpye and host
-HeadersToSign = ['content-type', 'host', 'date']
-Headers = { 'Content-Type': 'application/json', 'Accept-Charset': 'UTF-8', 'Host': Host, 'Date': Timestamp }
-
-# format headers into one lowercase string
-def formatSigningHeaders():
-    headerStr = ''
-    for h in Headers.keys():
-        if h.lower() in HeadersToSign:
-            headerStr += h.lower()
-            headerStr += ':'
-            headerStr += Headers[h]
-            headerStr += "\n"
-    return headerStr
-        
-print(' - SigningHeaders ' + formatSigningHeaders())
+# note params need to be sorted by code point
+params = {'database':database,'table':table}
+QueryParameters = urllib.parse.urlencode(params)
 
 # credential is a / separated string of the key id, key name, datestamp and apiscope as created on the control panel
 Credential = KeyId + '/' + Datestamp + '/' + ApiScope + '/lt_request'
 print(' - Credential ' + Credential)
 
+# required headers (for signing) are date, content-tpye and host (note headers need to be sorted by code point)
+HeadersToSign = ['content-type', 'date', 'host']
+Headers = { 'Content-Type': 'application/json', 'Accept-Charset': 'UTF-8', 'Date': Timestamp, 'Host': Host }
+
+# format headers into one lowercase string (make sure everything is lowercase)
+def formatSigningHeaders():
+    headerStr = ''
+    for h in Headers.keys(): 
+        if h.lower() in HeadersToSign:
+            headerStr += h.lower()
+            headerStr += ':'
+            headerStr += Headers[h].lower()
+            headerStr += "\n"
+    return headerStr
+
 # generate the signing key from the same data in the credential
 def genSigningKey():
-    keyDate = hmacSha1("LT" + SecretKey, Datestamp)
-    KeyName = hmacSha1(keyDate, KeyName)
-    keyScope = hmacSha1(keyName, ApiScope)
-    keySigning = hmacSha1(keyService, 'lt_request')
+    keyDate = hmacSha256(bytes("LT" + SecretKey,'utf-8'), Datestamp)
+    keyName = hmacSha256(keyDate, KeyName)
+    keyScope = hmacSha256(keyName, ApiScope)
+    keySigning = hmacSha256(keyScope, 'lt_request')
     return keySigning
 
-# Headers = 'content-type:application/json' + '\n' + 'accept-charset:utf-8' + '\n' + 'host:' + Host + '\n' + Date + '\n'
+def genSignature():
 
-params = {'database':database,'table':table}
-QueryParameters = urllib.parse.urlencode(params)
+    SigningString = Method + "\n" + Host + "\n" + Path + "\n" + QueryParameters + "\n" + formatSigningHeaders()
 
-SigningString = Method + "\n" + Host + "\n" + Path + "\n" + QueryParameters + "\n" + formatSigningHeaders()
+    print(' - SigningString ')
+    print(SigningString)
+    print(' - SigningKey hex')
+    print(genSigningKey().hex())
 
-print(' - SigningString ')
-print(SigningString)
+    Signature = hmac.new(genSigningKey(), SigningString.encode('utf-8'), sha256).hexdigest()
+    print(' - Signature ' + Signature)
 
-SigningKey = hmacSha1(SecretKey, Credential).hexdigest()
-print(' - SigningKey ' + SigningKey)
-HMACSignature = hmacSha1(SigningKey.encode('utf-8'), SigningString).hexdigest()
-print(' - HMACSignature ' + HMACSignature)
-Signature = b64encode(HMACSignature.encode('utf-8')).decode('utf-8')
-print(' - Signature ' + Signature)
+    # construct authorization header and add into headers
+    return 'LT-HMAC-SHA256 Credential=' + Credential + ',SignedHeaders=' + ';'.join(str(i) for i in HeadersToSign) + ',Signature=' + Signature
 
-AuthorizationHeader = 'Authorization: LT-HMAC-SHA256 Credential=' + Credential + ',SignedHeaders=' + ';'.join(str(i) for i in HeadersToSign) + ',Signature=' + Signature
-print(AuthorizationHeader)
+Headers['Authorization']  = genSignature()
+
+print(' - Headers')
+print(Headers)
 
 base_url = 'https://35.239.29.200/addTableData?'
 url = base_url + urllib.parse.urlencode(params)

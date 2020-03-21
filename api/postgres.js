@@ -862,6 +862,19 @@ console.log("promises finished in " + totaltime + "ms");
     });
   }
 
+  // used for API authorization
+  getApiKeyById(id, callback) {
+    var query = "SELECT api_keys.id, owner, name, key, api_scopes.api, api_scopes.database, api_scopes._table AS table FROM api_keys FULL OUTER JOIN api_scopes ON api_keys.id = api_scopes.id WHERE api_keys.id = $1;"
+
+    var values = [id]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r[0]);
+    });
+  }
+
   addApiKey(u, n, k, callback) {
     var query = "INSERT INTO api_keys(key,name,owner) VALUES ($1,$2,$3)"
 

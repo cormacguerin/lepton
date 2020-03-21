@@ -368,7 +368,7 @@ app.get('/api/deleteApiScope', user.authorize, function(req, res, next) {
  *	i.e KEY_VALUE is a non nestible field type.
  *
  */
-app.post('/addTableData', function(req, res, next) {
+app.post('/addTableData', user.authorizeApi, function(req, res, next) {
 	var table_name;
 	var fields=[];
   var data_;
