@@ -361,7 +361,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   getTablesByUserId(user_id, callback) {
-    var query ="SELECT database, tablename FROM tables WHERE owner = $1 ORDER BY database;"
+    var query = "SELECT databases.database, tablename FROM tables INNER JOIN databases ON databases.id = tables.database WHERE databases.owner = $1 ORDER BY database;"
     this.execute(query, [user_id], function(e,r) {
       callback(e,r);
     });
@@ -851,7 +851,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   getApiKeys(u, callback) {
-    var query = "SELECT api_keys.id, owner, name, concat(LEFT(key,5),'...'), api_scopes.api, api_scopes.database, api_scopes._table AS table FROM api_keys FULL OUTER JOIN api_scopes ON api_keys.id = api_scopes.id WHERE owner = $1;"
+    var query = "SELECT api_keys.id, owner, name, concat(LEFT(key,5),'...'), api_scopes.api, (SELECT database FROM databases WHERE id = api_scopes.database), (SELECT tablename FROM tables WHERE id = api_scopes._table) AS table FROM api_keys FULL OUTER JOIN api_scopes ON api_keys.id = api_scopes.id WHERE owner = $1;"
 
     var values = [u]
 
@@ -864,7 +864,7 @@ console.log("promises finished in " + totaltime + "ms");
 
   // used for API authorization
   getApiKeyById(id, callback) {
-    var query = "SELECT api_keys.id, owner, name, key, api_scopes.api, api_scopes.database, api_scopes._table AS table FROM api_keys FULL OUTER JOIN api_scopes ON api_keys.id = api_scopes.id WHERE api_keys.id = $1;"
+    var query = "SELECT api_keys.id, owner, name, key, api_scopes.api, (SELECT database FROM databases WHERE id = api_scopes.database), (SELECT tablename FROM tables WHERE id = api_scopes._table) AS table FROM api_keys FULL OUTER JOIN api_scopes ON api_keys.id = api_scopes.id WHERE api_keys.id = $1;"
 
     var values = [id]
 
@@ -887,10 +887,16 @@ console.log("promises finished in " + totaltime + "ms");
     });
   }
 
-  addApiScope(k, a, d, t, callback) {
-    var query = "INSERT INTO api_scopes(id,api,database,_table) VALUES ($1,$2,$3,$4)"
-
-    var values = [k,a,d,t]
+  addApiScope(k, a, d, t, u, callback) {
+    var query;
+    var values;
+    if (t) {
+      query = "INSERT INTO api_scopes(id,api,database,_table) VALUES ($1,$2,(SELECT id from databases WHERE database = $3 AND owner = $5),(SELECT id FROM tables WHERE tablename = $4))"
+      values = [k,a,d,t,u]
+    } else {
+      query = "INSERT INTO api_scopes(id,api,database) VALUES ($1,$2,(SELECT id from databases WHERE database = $3 AND owner = $4))"
+      values = [k,a,d,u]
+    }
 
     this.execute(query, values, function(e,r) {
       console.log(e);
@@ -915,10 +921,10 @@ console.log("promises finished in " + totaltime + "ms");
     var query;
     var values;
     if (t) {
-      query = "DELETE FROM api_scopes WHERE id = $1 AND api = $2 AND database = $3 AND _table = $4"
+      query = "DELETE FROM api_scopes WHERE id = $1 AND api = $2 AND database = (SELECT id FROM databases WHERE database = $3) AND _table = (SELECT id from tables WHERE tablename = $4)"
       var values = [k,a,d,t]
     } else {
-      query = "DELETE FROM api_scopes WHERE id = $1 AND api = $2 AND database = $3"
+      query = "DELETE FROM api_scopes WHERE id = $1 AND api = $2 AND database = (SELECT id FROM databases WHERE database = $3)"
       var values = [k,a,d]
     }
 

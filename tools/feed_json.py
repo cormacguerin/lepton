@@ -46,10 +46,10 @@ Datestamp = Date.strftime('%Y%m%d')
 # In addition to key and scope information you also need to provide the 
 # Request Method, Host and Path. Path is the api endpoint including leading forward slash
 
-KeyId = '8'
-KeyName = 'cormacskey'
-ApiScope = 'chart'
-SecretKey = 'AJRJYZGX-CW11YNDJ-BTVIZHJ5-BDFQEHCY'
+KeyId = '2'
+KeyName = 'wikipieda'
+ApiScope = 'data'
+SecretKey = 'ZDH3A2H4-EJLMAMLZ-ZZG5Y243-A3G2CJN3'
 Method = 'POST'
 Host = 'cormac.io'
 Path = '/addTableData'

@@ -689,6 +689,10 @@ exports.addApiScope = function(user_id,k,a,d,t,callback) {
         }
         sources[r[i].database].tables.push(r[i].tablename)
       }
+      console.log('Object.keys(sources)')
+      console.log(Object.keys(sources))
+      console.log('db')
+      console.log(db)
       // now we have a list lets check our database
       if (Object.keys(sources).includes(db)) {
         // if there is a table scope check that
@@ -701,7 +705,7 @@ exports.addApiScope = function(user_id,k,a,d,t,callback) {
             return callback({status:'failed', message:'invalid table scope'})
           }
         }
-        db_pg['admin'].addApiScope(k,a,db,t,function(err,r) {
+        db_pg['admin'].addApiScope(k,a,db,t,user_id,function(err,r) {
           if (err) {
             console.log(err);
             callback({status:'failed', error:err, message:err.message})

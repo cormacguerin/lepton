@@ -96,7 +96,7 @@ DROP TABLE IF EXISTS api_scopes CASCADE;
 CREATE TABLE api_scopes (
     id INT REFERENCES api_keys(id) ON DELETE CASCADE,
     api VARCHAR (64) NOT NULL,
-    database INT REFERENCES tables (id) ON DELETE CASCADE NOT NULL,
-    _table INT REFERENCES tables (id) ON DELETE CASCADE NOT NULL
+    database INT REFERENCES databases (id) ON DELETE CASCADE NOT NULL,
+    _table INT REFERENCES tables (id) ON DELETE CASCADE
 );
 

@@ -332,6 +332,14 @@ exports.authorizeApi = function(req, res, next) {
 		} else {
       const signing_key = getSigningKey(apiKey.key, key_datestamp, apiKey.name, key_scope)
       const request_signature = hmac(signing_key, signing_string, 'hex')
+      
+      console.log('signing_key hex')
+      console.log(Buffer.from(signing_key, 'utf8').toString('hex'))
+      console.log('request_signature')
+      console.log(request_signature)
+      console.log('client_signature')
+      console.log(client_signature)
+      
       if (request_signature !== client_signature) {
         res.status(403)
         return res.json({error:errors})
@@ -339,14 +347,6 @@ exports.authorizeApi = function(req, res, next) {
         // TODO add scope checking
         next()
       }
-      /*
-      console.log('signing_key hex')
-      console.log(Buffer.from(signing_key, 'utf8').toString('hex'))
-      console.log('request_signature')
-      console.log(request_signature)
-      console.log('client_signature')
-      console.log(client_signature)
-      */
 		}
   })
 }
