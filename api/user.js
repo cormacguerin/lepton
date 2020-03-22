@@ -352,15 +352,7 @@ exports.authorizeApi = function(req, res, next) {
 }
 
 function getSigningKey(key_secret, key_datestamp, key_name, key_scope) {
-  console.log(key_secret)
-  console.log(key_datestamp)
-  console.log(key_name)
-  console.log(key_scope)
-  console.log('XXX')
-  console.log("LT" + key_secret)
-  console.log(key_datestamp)
   var kDate = hmac("LT" + key_secret, key_datestamp);
-  console.log(Buffer.from(kDate, 'utf8').toString('hex'))
   var kName = hmac(kDate, key_name);
   var kScope = hmac(kName, key_scope);
   var kSigning = hmac(kScope, "lt_request");

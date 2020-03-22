@@ -313,7 +313,7 @@ console.log("promises finished in " + totaltime + "ms");
    * After adding a table above, if successful we register it here.
    */
   registerTable(user, database, table, type, data, callback) {
-    var query = "INSERT INTO tables(database,tablename,type,owner,data) VALUES($1,$2,$3,$4,$5) ON CONFLICT ON CONSTRAINT tables_database_tablename_owner_key DO UPDATE SET database=$1, type=$3, owner=$4, data=$5 WHERE tables.tablename=$2;"
+    var query = "INSERT INTO tables(database,tablename,type,owner,data) VALUES((SELECT id FROM databases WHERE database = $1),$2,$3,$4,$5) ON CONFLICT ON CONSTRAINT tables_database_tablename_owner_key DO UPDATE SET database=(SELECT id FROM databases WHERE database = $1), type=$3, owner=$4, data=$5 WHERE tables.tablename=$2;"
     this.execute(query, [database, table, type, user, data], function(e,r) {
         callback(e, r);
     });
@@ -333,21 +333,21 @@ console.log("promises finished in " + totaltime + "ms");
       + type
       + "\';"
       */
-    var query = "DELETE FROM tables WHERE tablename = $1 AND database = $2 AND type = $3 AND OWNER = $4;"
+    var query = "DELETE FROM tables WHERE tablename = $1 AND database = (SELECT id FROM databases WHERE database = $2) AND type = $3 AND OWNER = $4;"
     this.execute(query, [table, database, type, user], function(e,r) {
         callback(e, r);
     });
   }
 
   getTable(user, database, tablename, callback) {
-    var query = "SELECT tablename, type, data FROM tables WHERE database = $1 and tablename = $2 AND owner = $3;"
+    var query = "SELECT tablename, type, data FROM tables WHERE database = (SELECT id FROM databases WHERE database = $1) and tablename = $2 AND owner = $3;"
     this.execute(query, [database, tablename, user], function(e,r) {
       callback(e,r);
     });
   }
 
   getTables(user, database, callback) {
-    var query = "SELECT tablename, type, data FROM tables WHERE database = $1 AND owner = $2;"
+    var query = "SELECT tablename, type, data FROM tables WHERE database = (SELECT id FROM databases WHERE database = $1) AND owner = $2;"
     this.execute(query, [database, user], function(e,r) {
       callback(e,r);
     });
@@ -368,7 +368,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   getTableMeta(user_id, database, table, callback) {
-    var query = "SELECT _column AS column_name, display_field, enable as fts from text_tables_index WHERE id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $3)"
+    var query = "SELECT _column AS column_name, display_field, enable as fts from text_tables_index WHERE id = (SELECT id FROM tables where database = (SELECT id FROM databases WHERE database = $1) AND _table = (SELECT id FROM tables WHERE tablename = $2) AND owner = $3)"
     this.execute(query, [database,table,user_id], function(e,r) {
       callback(e,r);
     });
@@ -448,7 +448,7 @@ console.log("promises finished in " + totaltime + "ms");
    * Delete a text table column
    */
   deleteTextColumn(user_id, database, table, column, callback) {
-    var query = "DELETE FROM text_tables_index WHERE _column = $3 AND id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $4)"
+    var query = "DELETE FROM text_tables_index WHERE _column = $3 AND id = (SELECT id FROM databases WHERE database = $1 AND owner = $4) AND _table = (SELECT id FROM tables WHERE tablename = $2)"
     this.execute(query, [database, table, column, user_id], function(e,r) {
       callback(e, r);
     });
@@ -456,9 +456,10 @@ console.log("promises finished in " + totaltime + "ms");
 
   /*
    * Delete text tables
+   * TODO : this function looks wrong. is it even used?
    */
   deleteTextTable(user_id, database, table, callback) {
-    var query = "DELETE FROM text_tables_index WHERE id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $3)"
+    var query = "DELETE FROM text_tables_index WHERE database = (SELECT id FROM databases WHERE database = $1 AND owner = $3) AND _table = (SELECT id FROM tables WHERE tablename = $2)"
     this.execute(query, [database, table, user_id], function(e,r) {
       callback(e, r);
     });
@@ -595,7 +596,7 @@ console.log("promises finished in " + totaltime + "ms");
                 callback(e, r);
           } else {
             this__.execute(drop, null, function(e,r) {
-              var query = "DELETE FROM text_tables_index WHERE id = (SELECT id FROM tables where database = $1 AND owner = $2)"
+              var query = "DELETE FROM text_tables_index WHERE database = (SELECT id FROM databases where database = $1 AND owner = $2)"
               var this___ = this__;
               this__.execute(query, [database, user_id], function(e,r) {
                 if (e) {
@@ -622,7 +623,7 @@ console.log("promises finished in " + totaltime + "ms");
    */
   addChart(user_id, database, dataset, name, chart, chartdata, callback) {
 
-    var query = "INSERT INTO charts(name,database,dataset,chart,data,owner) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT ON CONSTRAINT charts_name_owner_key DO UPDATE SET database=$2, dataset=$3, chart=$4, data=$5 WHERE charts.name=$1 and charts.owner=$6;"
+    var query = "INSERT INTO charts(name,database,dataset,chart,data,owner) VALUES($1,(SELECT id FROM databases WHERE database = $2),(SELECT id FROM tables WHERE tablename = $3),$4,$5,$6) ON CONFLICT ON CONSTRAINT charts_name_owner_key DO UPDATE SET database=(SELECT id FROM databases WHERE database = $2), dataset=(SELECT id FROM tables WHERE tablename = $3), chart=$4, data=$5 WHERE charts.name=$1 and charts.owner=$6;"
 
     console.log(query);
 
@@ -815,13 +816,12 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   setFTS(u,d,t,c,b,callback) {
-    var query = "INSERT INTO text_tables_index(id,database,_table,_column,enable)"
-      + " SELECT t.id, r.db, r.t, r.c, r.e::boolean FROM"
-      + " (SELECT id FROM tables WHERE database = $1 AND tablename = $2 AND owner = $5) t,"
-      + " (SELECT * FROM (VALUES ($1, $2, $3, $4)) AS v (db,t,c,e)) r"
+    var query = "INSERT INTO text_tables_index(database,_table,_column,enable)"
+      + " SELECT r.db, r.t, r.c, r.e::boolean FROM"
+      + " (SELECT * FROM (VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $5), (SELECT id FROM tables where tablename = $2), $3, $4)) AS v (db,t,c,e)) r"
       + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column_key DO UPDATE SET"
-      + " database = $1,"
-      + " _table = $2,"
+      + " database = (SELECT id from databases where database = $1 AND owner = $5),"
+      + " _table = (SELECT id FROM tables where tablename = $2),"
       + " _column = $3,"
       + " enable = $4::boolean";
     /*

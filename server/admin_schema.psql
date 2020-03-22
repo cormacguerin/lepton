@@ -20,7 +20,7 @@ CREATE TABLE users (
 
 DROP TABLE IF EXISTS user_clients CASCADE;
 CREATE TABLE user_clients (
-    user_id INT4 NOT NULL REFERENCES users (id),
+    user_id INT4 NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     client_id VARCHAR(16),
     success VARCHAR(16),
     created_date BIGINT,
@@ -42,20 +42,20 @@ DROP TABLE IF EXISTS databases CASCADE;
 CREATE TABLE databases (
     id serial PRIMARY KEY,
     database VARCHAR (64) NOT NULL,
-    owner INT REFERENCES users (id),
-    reader INT REFERENCES users (id),
-    writer INT REFERENCES users (id),
+    owner INT REFERENCES users (id) ON DELETE CASCADE,
+    reader INT REFERENCES users (id) ON DELETE CASCADE,
+    writer INT REFERENCES users (id) ON DELETE CASCADE,
     UNIQUE (database, owner)
 );
 
 DROP TABLE IF EXISTS tables CASCADE;
 CREATE TABLE tables (
     id serial PRIMARY KEY,
-    database VARCHAR (64) NOT NULL,
+    database INT REFERENCES databases (id) ON DELETE CASCADE NOT NULL,
     tablename VARCHAR (64) NOT NULL,
     type VARCHAR (32) NOT NULL,
     data text,
-    owner INT REFERENCES users (id),
+    owner INT REFERENCES users (id) ON DELETE CASCADE,
     last_fed DATE,
     last_processed DATE,
     UNIQUE (database, tablename, owner)
@@ -63,9 +63,9 @@ CREATE TABLE tables (
 
 DROP TABLE IF EXISTS text_tables_index CASCADE;
 CREATE TABLE text_tables_index (
-    id INT REFERENCES tables (id) PRIMARY KEY,
-    database VARCHAR (64) NOT NULL,
-    _table VARCHAR (64) NOT NULL,
+    id serial PRIMARY KEY,
+    database INT REFERENCES databases(id) ON DELETE CASCADE NOT NULL,
+    _table INT REFERENCES tables (id) ON DELETE CASCADE NOT NULL,
     _column VARCHAR (64) NOT NULL,
     display_field VARCHAR(64) DEFAULT 'url',
     enable BOOLEAN,
@@ -76,11 +76,11 @@ DROP TABLE IF EXISTS charts CASCADE;
 CREATE TABLE charts (
     id serial PRIMARY KEY,
     name VARCHAR (64) NOT NULL,
-    database VARCHAR (64) NOT NULL,
-    dataset VARCHAR (64) NOT NULL,
+    database INT REFERENCES databases(id) ON DELETE CASCADE NOT NULL,
+    dataset INT REFERENCES tables (id) ON DELETE CASCADE NOT NULL,
     chart text NOT NULL,
     data text,
-    owner INT REFERENCES users (id),
+    owner INT REFERENCES users (id) ON DELETE CASCADE NOT NULL,
     UNIQUE (name, owner)
 );
 
@@ -89,14 +89,14 @@ CREATE TABLE api_keys (
     id serial PRIMARY KEY,
     key VARCHAR (64) NOT NULL,
     name VARCHAR (64) NOT NULL,
-    owner INT REFERENCES users (id)
+    owner INT REFERENCES users (id) ON DELETE CASCADE NOT NULL
 );
 
 DROP TABLE IF EXISTS api_scopes CASCADE;
 CREATE TABLE api_scopes (
-    id INT REFERENCES api_keys(id),
+    id INT REFERENCES api_keys(id) ON DELETE CASCADE,
     api VARCHAR (64) NOT NULL,
-    database VARCHAR (64) NOT NULL,
-    _table VARCHAR (64) NOT NULL
+    database INT REFERENCES tables (id) ON DELETE CASCADE NOT NULL,
+    _table INT REFERENCES tables (id) ON DELETE CASCADE NOT NULL
 );
 
