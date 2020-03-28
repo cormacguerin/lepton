@@ -27,9 +27,9 @@ exports.loadExistingSessions = function() {
 			console.log(err);
 		}
 		for (i in clients) {
-            if (!userClients[clients[i].user_id]) {
-                userClients[clients[i].user_id] = {};
-            }
+      if (!userClients[clients[i].user_id]) {
+          userClients[clients[i].user_id] = {};
+      }
 			userClients[clients[i].user_id][clients[i].client_id] = clients[i];
 		}
 	});
@@ -223,8 +223,13 @@ exports.authorize = function(req, res, next) {
 };
 
 /*
- * Function to authorize api requests based 
- * on an api key
+ * Function to authorize api requests based on the api key and header signature.
+ * This function retrieves scopes and adds them into the request but it does not
+ * do any scope checking.
+ * initially I thought it would be nice to do all the scope checking here but
+ * I found that it makes it less versitile as different endpoints may want to do 
+ * different things. Instead it's the endpoints responsibility to refute if 
+ * req.scope is not satisfied.
  */
 exports.authorizeApi = function(req, res, next) {
   var parsedurl = url.parse(req.url, true);
@@ -325,13 +330,17 @@ exports.authorizeApi = function(req, res, next) {
   // TODO add datetime window auth logic
 
   // get the key details from the backend and authorize the request
-	pg.getApiKeyById(key_id, function (e, apiKey) {
-		if (e) {
+	pg.getApiKeyById(key_id, function (errors, apiKey) {
+		if (errors) {
       res.status(403)
       return res.json({error:errors})
 		} else {
       const signing_key = getSigningKey(apiKey.key, key_datestamp, apiKey.name, key_scope)
       const request_signature = hmac(signing_key, signing_string, 'hex')
+
+      console.log(3)
+      // add the key into the request
+      req.scope = apiKey.scope;
       
       console.log('signing_key hex')
       console.log(Buffer.from(signing_key, 'utf8').toString('hex'))
@@ -340,11 +349,11 @@ exports.authorizeApi = function(req, res, next) {
       console.log('client_signature')
       console.log(client_signature)
       
+      console.log(3)
       if (request_signature !== client_signature) {
         res.status(403)
         return res.json({error:errors})
       } else {
-        // TODO add scope checking
         next()
       }
 		}

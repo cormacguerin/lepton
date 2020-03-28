@@ -642,11 +642,7 @@ h2 {
 #dataset {
     display: block;
 }
-.checkbox {
-  display: block;
-  position: relative;
-  padding-left: 35px;
-  margin-bottom: 12px;
+label.checkbox {
   cursor: pointer;
   -webkit-user-select: none;
   -moz-user-select: none;

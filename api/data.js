@@ -456,14 +456,13 @@ exports.deleteTableColumn = function(u,d,t,c,callback) {
   });
 }
 
-exports.addTableData = function(u,d,t,data,callback) {
-  if (!(d&&data)) {
+exports.addTableData = function(db,t,data,callback) {
+  if (!(db&&t&&data)) {
     return callback({status:'failed'})
   }
-  if (d.length > 63) {
+  if (db.length > 63) {
     return callback({status:'failed'})
   }
-  const db = u + '_' + d;
   initDB(db, function() {
     if (Array.isArray(data)) {
       console.log('array data');

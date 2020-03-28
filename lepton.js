@@ -135,8 +135,6 @@ app.get('/api/createTable', user.authorize, function(req, res, next) {
     return;
   }
 	data.createTable(req.user_id, queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
-    console.log('r');
-    console.log(r);
     res.json(r);
   });
 });
@@ -147,8 +145,6 @@ app.get('/api/createSearchTable', user.authorize, function(req, res, next) {
     return;
   }
 	data.createSearchTable(req.user_id, queryData.database, queryData.table, function(r) {
-    console.log('r');
-    console.log(r);
     res.json(r);
   });
 });
@@ -159,8 +155,6 @@ app.get('/api/createDataSetTable', user.authorize, function(req, res, next) {
     return;
   }
 	data.createDataSetTable(req.user_id, queryData.database, queryData.table, queryData.query, function(r) {
-    console.log('r');
-    console.log(r);
     res.json(r);
   });
 });
@@ -171,8 +165,6 @@ app.get('/api/deleteDataSetTable', user.authorize, function(req, res, next) {
     return;
   }
 	data.deleteDataSetTable(req.user_id, queryData.database, queryData.table, function(r) {
-    console.log('r');
-    console.log(r);
     res.json(r);
   });
 });
@@ -243,15 +235,11 @@ app.get('/api/addChart', user.authorize, function(req, res, next) {
     return;
   }
 	data.addChart(req.user_id, queryData.database, queryData.dataset, queryData.name, queryData.chart, queryData.data, function(r) {
-    console.log('r');
-    console.log(r);
     res.json(r);
   });
 });
 app.get('/api/getMyCharts', user.authorize, function(req, res, next) {
 	data.getMyCharts(req.uer_id, function(r) {
-    console.log('r');
-    console.log(r);
     res.json(r);
   });
 });
@@ -262,8 +250,6 @@ app.get('/api/getChartById', user.authorize, function(req, res, next) {
     return;
   }
 	data.getChartById(req.user_id, queryData.chart_id, function(r) {
-    console.log('r');
-    console.log(r);
     res.json(r);
   });
 });
@@ -372,28 +358,48 @@ app.post('/addTableData', user.authorizeApi, function(req, res, next) {
 	var table_name;
 	var fields=[];
   var data_;
+  var database;
 	var queryData = url.parse(req.url, true).query;
-  console.log(' - addTableData');
-  console.log(queryData)
   if (!queryData.database) {
+    res.status(403);
     return res.json({});
   }
-  if (req.body) {
-    if (typeof req.body === 'object') {
-      data_ = req.body;
-    } else {
-      try {
-        data_ = JSON.parse(req.body);
-      } catch(e) {
-        console.log(e);
-        return res.json({});
+  // authorize scope
+  var access = false;
+  for (var i in req.scope) {
+    if (queryData.database === req.scope[i].database) {
+      if (req.scope[i].table) {
+        if (queryData.table === req.scope[i].table) {
+          access = true;
+          database = req.scope[i]._database;
+        }
+      } else {
+        access = true;
+        database = req.scope[i]._database;
       }
     }
-    console.log('database : ' + queryData.database)
-    console.log('table : ' + queryData.table)
-    data.addTableData(queryData.database, queryData.table, data_, function(d) {
-       res.json({d});
-    });
+  }
+  if (access === true) {
+    if (req.body) {
+      if (typeof req.body === 'object') {
+        data_ = req.body;
+      } else {
+        try {
+          data_ = JSON.parse(req.body);
+        } catch(e) {
+          console.log(e);
+          return res.json({});
+        }
+      }
+      console.log('database : ' + database)
+      console.log('table : ' + queryData.table)
+      data.addTableData(database, queryData.table, data_, function(d) {
+         res.json({d});
+      });
+    }
+  } else {
+    res.status(403);
+    return res.json({});
   }
 });
 

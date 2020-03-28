@@ -11,7 +11,7 @@
               >
             </div>
             <flex-col class="logo">
-              loptech
+              compudeep
             </flex-col>
           </flex-row>
         </div>
@@ -98,7 +98,7 @@ export default {
   justify-content: flex-end;
 }
 .layout {
-  width:300px;
+  width:350px;
   margin-left: auto;
   margin-right: auto;
 }

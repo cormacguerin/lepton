@@ -45,28 +45,44 @@
         >
           <flex-row>
             <div
-              class="tab"
-              @click="showTab('schema')"
+              class="navtab"
+              @click="gotoTab('schema')"
             >
-              <h2>Schema |</h2>
+              <h2
+                class="nav-h2"
+              >
+                Schema |
+              </h2>
             </div>
             <div
-              class="tab"
-              @click="showTab('dashboard')"
+              class="navtab"
+              @click="gotoTab('dashboard')"
             >
-              <h2>Dashboard |</h2>
+              <h2
+                class="nav-h2"
+              >
+                Dashboard |
+              </h2>
             </div>
             <div
-              class="tab"
-              @click="showTab('insights')"
+              class="navtab"
+              @click="gotoTab('insights')"
             >
-              <h2>Insights |</h2>
+              <h2
+                class="nav-h2"
+              >
+                Insights |
+              </h2>
             </div>
             <div
-              class="tab"
-              @click="showTab('configure')"
+              class="navtab"
+              @click="gotoTab('configure')"
             >
-              <h2>Configure |</h2>
+              <h2
+                class="nav-h2"
+              >
+                Configure |
+              </h2>
             </div>
           </flex-row>
         </flex-col>
@@ -113,7 +129,7 @@ export default {
   created () {
   },
   methods: {
-    showTab (t) {
+    gotoTab (t) {
       console.log(t)
       console.log(this.$refs[this.selectedTab])
       console.log(document.getElementById(this.selectedTab))
@@ -154,22 +170,22 @@ export default {
 .desktopLogo {
   margin: 10px;
 }
-.tab {
-  font-family: 'Comfortaa', cursive;
+.navtab {
+/*  font-family: 'Comfortaa', cursive;*/
   margin-left: 10px;
   font-size: 1em;
   color: white;
   cursor: pointer;
 }
-.nav-tabs {
-  margin-bottom: 0px;
-}
-.tabsContainer {
+.navtabsContainer {
   justify-content: flex-end;
 }
 ul.sidebar-panel-nav {
   list-style-type: none;
   text-align: left;
+}
+h2.nav-h2 {
+  font-size: 1em;
 }
 ul.sidebar-panel-nav > li > a {
   color: #fff;
@@ -178,8 +194,5 @@ ul.sidebar-panel-nav > li > a {
   font-size: 1.5rem;
   display: block;
   padding-bottom: 0.5em;
-}
-h2 {
-  font-size: 1em;
 }
 </style>
