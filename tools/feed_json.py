@@ -56,7 +56,9 @@ Path = '/addTableData'
 
 # note params need to be sorted by code point
 params = {'database':database,'table':table}
-QueryParameters = urllib.parse.urlencode(params)
+QueryParameters = urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
+print('QueryParameters')
+print(QueryParameters)
 
 # credential is a / separated string of the key id, key name, datestamp and apiscope as created on the control panel
 Credential = KeyId + '/' + Datestamp + '/' + ApiScope + '/lt_request'
@@ -106,7 +108,7 @@ print(' - Headers')
 print(Headers)
 
 base_url = 'https://35.239.29.200/addTableData?'
-url = base_url + urllib.parse.urlencode(params)
+url = base_url + urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
 
 FormattedHeaders = ([':'.join((k,v)) for k, v in Headers.items()])
 

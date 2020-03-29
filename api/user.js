@@ -15,6 +15,8 @@ var secret = new Buffer('secret', 'base64');
 
 var userClients = {};
 
+var qs = require('querystring');
+
 exports.clients = userClients;
 
 /*
@@ -289,10 +291,12 @@ exports.authorizeApi = function(req, res, next) {
   // process the request parameters
   var query_parameters = '';
   for (var i in parsedurl.query) {
-    var v = i + '=' + parsedurl.query[i] + '&';
+    var v = i + '=' + encodeURIComponent(parsedurl.query[i]) + '&';
     query_parameters += v;
   }
   query_parameters = query_parameters.replace(/&$/, '')
+  console.log('query_parameters')
+  console.log(query_parameters)
 
   // at this point we should be sure that the host header is present
   var host = req.headers.host

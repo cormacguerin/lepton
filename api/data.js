@@ -375,6 +375,21 @@ exports.updateTableColumn = function(u,d,t,c,ec,dt,edt,callback) {
 }
 
 /*
+ * checks for table existence, 
+ * d must be the full table name including owner suffix
+ */
+exports.checkTableExists = function(d,t,callback) {
+  db_pg['admin'].checkTableExists(d,t, function(e,r) {
+    if (e) {
+      console.log(e);
+      callback(false)
+    } else {
+      callback(r[0].exists)
+    }
+  });
+}
+
+/*
  * Updates the table where we track which table/column
  */
 exports.setFTS = function(u,d,t,c,b,callback) {

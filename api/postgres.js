@@ -374,6 +374,13 @@ console.log("promises finished in " + totaltime + "ms");
     });
   }
 
+  checkTableExists(database, table, callback) {
+    var query = "SELECT EXISTS (SELECT FROM tables WHERE database = (SELECT id FROM databases WHERE database = $1) AND tablename = $2)"
+    this.execute(query, [database,table], function(e,r) {
+      callback(e,r);
+    });
+  }
+
   /*
    * Add database
    */

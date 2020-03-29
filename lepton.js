@@ -380,23 +380,32 @@ app.post('/addTableData', user.authorizeApi, function(req, res, next) {
     }
   }
   if (access === true) {
-    if (req.body) {
-      if (typeof req.body === 'object') {
-        data_ = req.body;
-      } else {
-        try {
-          data_ = JSON.parse(req.body);
-        } catch(e) {
-          console.log(e);
-          return res.json({});
+    data.checkTableExists(database, queryData.table, function(r) {
+      console.log('checkTableExists : ' + r)
+      console.log(r)
+      if (r === true) {
+        if (req.body) {
+          if (typeof req.body === 'object') {
+            data_ = req.body;
+          } else {
+            try {
+              data_ = JSON.parse(req.body);
+            } catch(e) {
+              console.log(e);
+              return res.json({});
+            }
+          }
+          console.log('database : ' + database)
+          console.log('table : ' + queryData.table)
+          data.addTableData(database, queryData.table, data_, function(d) {
+             res.json({d});
+          });
         }
+      } else {
+        res.status(404);
+        return res.json({'message':'table not found'});
       }
-      console.log('database : ' + database)
-      console.log('table : ' + queryData.table)
-      data.addTableData(database, queryData.table, data_, function(d) {
-         res.json({d});
-      });
-    }
+    });
   } else {
     res.status(403);
     return res.json({});
