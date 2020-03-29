@@ -18,26 +18,6 @@ user.loadExistingSessions();
 
 const url = require('url');
 
-const { Pool } = require('pg')
-
-const pool = new Pool({
-	user: 'postgres',
-	host: 'localhost',
-	database: 'index',
-	password: 'kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw=',
-	port: 5432,
-})
-
-pool.on('error', (err, client) => {
-  console.error('Unexpected error on idle client', err)
-  process.exit(-1)
-})
-
-pool.query('SELECT NOW()', (err, res) => {
-	console.log(err, res)
-	//pool.end()
-})
-
 app.use(cookieParser());
 app.use(bodyParser.json({limit: '100mb'}));
 app.use(bodyParser.urlencoded({limit: '100mb', extended: true, parameterLimit: 1000000})); // for parsing application/x-www-form-urlencoded
@@ -140,11 +120,11 @@ app.get('/api/createTable', user.authorize, function(req, res, next) {
 });
 app.get('/api/createSearchTable', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
-  if (!(queryData.database && queryData.table)) {
+  if (!(queryData.database && queryData.table && queryData.column && queryData.datatype)) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.createSearchTable(req.user_id, queryData.database, queryData.table, function(r) {
+	data.createSearchTable(req.user_id, queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
     res.json(r);
   });
 });
@@ -389,16 +369,24 @@ app.post('/addTableData', user.authorizeApi, function(req, res, next) {
             data_ = req.body;
           } else {
             try {
+              console.log('req.body')
+              console.log(req.body)
               data_ = JSON.parse(req.body);
+              console.log('AAA')
             } catch(e) {
+              console.log('BBB')
               console.log(e);
               return res.json({});
             }
           }
           console.log('database : ' + database)
           console.log('table : ' + queryData.table)
-          data.addTableData(database, queryData.table, data_, function(d) {
-             res.json({d});
+          data.addTableData(database, queryData.table, data_, function(e,r) {
+            if (e) {
+              res.json({'message':e.message,'error':e});
+            } else {
+              res.json({r});
+            }
           });
         }
       } else {
@@ -412,151 +400,6 @@ app.post('/addTableData', user.authorizeApi, function(req, res, next) {
   }
 });
 
-/*
- * A function to add a document(s) to our corpus.
- */
-app.post('/addData', function(req, res, next) {
-	var queryData = url.parse(req.url, true).query;
-	if (queryData.type == "content") {
-		if (req.body) {
-			var docs = req.body;
-			var hasError = false;
- 
-			for (var i in docs) {
-				if (docs.hasOwnProperty(i)) {
-					var doc_feed_lang;
-					var doc_id_lang;
-					if (docs[i].crawl_language == "en") {
-						doc_feed_lang = "en";
-						doc_id_lang = "en";
-					} else if (docs[i].crawl_language == "ja") {
-						doc_feed_lang = "ja";
-						doc_id_lang = "ja";
-					} else if (docs[i].crawl_language == "zh") {
-						doc_feed_lang = "zh";
-						doc_id_lang = "zh";
-					} else {
-						break;
-					}
-					var docs_table = "docs_" + doc_feed_lang;
-					var docs_table_constraint = "docs_" + doc_feed_lang + "_url_key";
-					(async () => {
-						const client = await pool.connect()
-						try {
-							var insert_doc = "INSERT INTO " + docs_table + "(url, feed, lang, crawl_date)"
-								+ " VALUES("
-								+ "\'" + i + "\',"
-								+ "\'" + JSON.stringify(docs[i]) + "\',"
-								+ "\'" + docs[i].crawl_language + "\',"
-								+ "NOW()) ON CONFLICT ON CONSTRAINT " + docs_table_constraint + " DO UPDATE SET feed = "
-								+ "\'" + JSON.stringify(docs[i]) + "\', lang = "
-								+ "\'" + docs[i].crawl_language + "\', crawl_date = NOW() WHERE " + docs_table + ".url = "
-								+ "\'" + i + "\';";
-							// console.log(insert_doc);
-							const reply = await client.query(insert_doc);
-							for (r in reply) {
-								console.log("r : " + r);
-							}
-							console.log("i : " + i);
-						} finally {
-							client.release()
-						}
-					})().catch(
-						e => {
-							console.log(e.stack);
-							hasError = true;
-					})
-				}
-			}
-			if (hasError) {
-				res.status(503);
-				return res.json({
-						"status":"failed",
-						"error":e.stack
-				});
-			} else {
-				res.status(200);
-				res.json({
-						"status":"successful"
-				});
-			}
-		}
-	}
-});
-
-
-/*
- * A function to add a document(s) to our corpus.
- */
-app.post('/addDocument', function(req, res, next) {
-	var queryData = url.parse(req.url, true).query;
-	if (queryData.type == "content") {
-    print(req)
-		if (req.body) {
-			var docs = req.body;
-			var hasError = false;
-			//multi = client.multi();
-			for (var i in docs) {
-				if (docs.hasOwnProperty(i)) {
-					var doc_feed_lang;
-					var doc_id_lang;
-					if (docs[i].crawl_language == "en") {
-						doc_feed_lang = "en";
-						doc_id_lang = "en";
-					} else if (docs[i].crawl_language == "ja") {
-						doc_feed_lang = "ja";
-						doc_id_lang = "ja";
-					} else if (docs[i].crawl_language == "zh") {
-						doc_feed_lang = "zh";
-						doc_id_lang = "zh";
-					} else {
-						break;
-					}
-					var docs_table = "docs_" + doc_feed_lang;
-					var docs_table_constraint = "docs_" + doc_feed_lang + "_url_key";
-					(async () => {
-						const client = await pool.connect()
-						try {
-							var insert_doc = "INSERT INTO " + docs_table + "(url, feed, lang, crawl_date)"
-								+ " VALUES("
-								+ "\'" + i + "\',"
-								+ "\'" + JSON.stringify(docs[i]) + "\',"
-								+ "\'" + docs[i].crawl_language + "\',"
-								+ "NOW()) ON CONFLICT ON CONSTRAINT " + docs_table_constraint + " DO UPDATE SET feed = "
-								+ "\'" + JSON.stringify(docs[i]) + "\', lang = "
-								+ "\'" + docs[i].crawl_language + "\', crawl_date = NOW() WHERE " + docs_table + ".url = "
-								+ "\'" + i + "\';";
-							// console.log(insert_doc);
-							const reply = await client.query(insert_doc);
-							for (r in reply) {
-								console.log("r : " + r);
-							}
-							console.log("i : " + i);
-						} finally {
-							client.release()
-						}
-					})().catch(
-						e => {
-							console.log(e.stack);
-							hasError = true;
-					})
-				}
-			}
-			if (hasError) {
-				res.status(503);
-				return res.json({
-						"status":"failed",
-						"error":e.stack
-				});
-			} else {
-				res.status(200);
-				res.json({
-						"status":"successful"
-				});
-			}
-		}
-	}
-});
 
 /*
  * Search for a document

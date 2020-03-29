@@ -478,7 +478,8 @@ console.log("promises finished in " + totaltime + "ms");
 
   addTableData(table, data, callback) {
     console.log('table ' + table)
-    console.log('data ' + data)
+    console.log('data ')
+    console.log(data)
     var it = new Date().getTime();
     console.log("ADD TABLE DATA " + table);
     var pkey = "SELECT constraint_name FROM information_schema.table_constraints WHERE table_name = $1 AND constraint_type = 'PRIMARY KEY'"
@@ -536,7 +537,6 @@ console.log("promises finished in " + totaltime + "ms");
         + " ON CONFLICT ON CONSTRAINT \""
         + primary_key
         + "\" DO UPDATE SET "
-//      + " ON CONFLICT DO UPDATE SET "
         + values_prep 
         + ";"
 

@@ -499,11 +499,12 @@ exports.addTableData = function(db,t,data,callback) {
         }
       });
     } else if (typeof data === 'object') {
+      // TODO : we need to remove or do some work on this. maybe a separate endpoint
       console.log('object data');
       var results = [];
       var errors = [];
-      Object.keys(data).forEach(function(table) {
-        db_pg[db].addTableData(table,data[table],function(err,r) {
+      // Object.keys(data).forEach(function(table) {
+        db_pg[db].addTableData(t,[data],function(err,r) {
           if (err){
             console.log(err);
             errors.push(err);
@@ -511,7 +512,7 @@ exports.addTableData = function(db,t,data,callback) {
             results.push(r);
           }
         });
-      });
+      // });
       callback(errors,results)
     }
   });

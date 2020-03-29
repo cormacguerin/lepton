@@ -4,7 +4,7 @@ import datetime
 import json
 import pycurl
 import re
-import requests
+# import requests
 import threading
 import urllib
 from io import BytesIO
@@ -12,29 +12,103 @@ from io import StringIO
 from bs4 import BeautifulSoup
 from bs4.element import Comment
 from multiprocessing.dummy import Pool as ThreadPool
-
-#from urllib.parse import urlparse
+import hmac
+import datetime
+from os import path
+from argparse import ArgumentParser
+from hashlib import sha256
+from base64 import b64encode
 try:
     from urllib.parse import urlparse
 except ImportError:
      from urlparse import urlparse
 
-headers = {'content-type': 'application/json'}
+
+def hmacSha256(secret, msg):
+    cmac = hmac.new(secret, msg.encode('utf-8'), sha256)
+    return cmac.digest()
+
+parser = ArgumentParser()
+parser.add_argument("-d", "--database",
+                    help="database name")
+parser.add_argument("-t", "--table",
+                    help="table name")
+
+args = parser.parse_args()
+
+if (args.table):
+    table = args.table
+else:
+    table = ''
+database = args.database
+
+Params = {'database':database,'table':table}
+
 starturls = []
 urlpatterns = []
 geturls = set([])
 goturls = set([])
-num_threads = 10
+num_threads = 5
 
-def main():
-    for line in open('patterns.urls', 'r').readlines():
-        urlpatterns.append(line);
-        
-    for line in open('start.urls', 'r').readlines():
-        line = line.split("#")[0]
-        starturls.append(line.strip());
-    crawl()
+# The following values are used in the request authorization signing process
+# Please update as necessary (ie create an api key on the frontend and copy
+# the key, value, scope below) There is also a /testApiKey Path endpoing you can
+# use for debugging api key issues.
+#
+# In addition to key and scope information you also need to provide the 
+# Request Method, Host and Path. Path is the api endpoint including leading forward slash
 
+KeyId = '2'
+KeyName = 'wikipieda'
+ApiScope = 'data'
+SecretKey = 'ZDH3A2H4-EJLMAMLZ-ZZG5Y243-A3G2CJN3'
+Method = 'POST'
+Host = 'cormac.io'
+Path = '/addTableData'
+HeadersToSign = ['content-type', 'date', 'host']
+
+def encodeParams():
+    # note params need to be sorted by code point
+    QueryParameters = urllib.parse.urlencode(Params, quote_via=urllib.parse.quote)
+    return QueryParameters
+
+# format headers into one lowercase string (make sure everything is lowercase)
+def formatSigningHeaders(Headers):
+    headerStr = ''
+    for h in Headers.keys(): 
+        if h.lower() in HeadersToSign:
+            headerStr += h.lower()
+            headerStr += ':'
+            headerStr += Headers[h].lower()
+            headerStr += "\n"
+    return headerStr
+
+# generate the signing key from the same data in the credential
+def genSigningKey(Datestamp):
+    keyDate = hmacSha256(bytes("LT" + SecretKey,'utf-8'), Datestamp)
+    keyName = hmacSha256(keyDate, KeyName)
+    keyScope = hmacSha256(keyName, ApiScope)
+    keySigning = hmacSha256(keyScope, 'lt_request')
+    return keySigning
+
+def genSignature(Headers, Datestamp):
+
+    SigningString = Method + "\n" + Host + "\n" + Path + "\n" + encodeParams() + "\n" + formatSigningHeaders(Headers)
+
+    print(' - SigningString ')
+    print(SigningString)
+    print(' - SigningKey hex')
+    print(genSigningKey(Datestamp).hex())
+
+    Signature = hmac.new(genSigningKey(Datestamp), SigningString.encode('utf-8'), sha256).hexdigest()
+    print(' - Signature ' + Signature)
+
+    # credential is a / separated string of the key id, key name, datestamp and apiscope as created on the control panel
+    Credential = KeyId + '/' + Datestamp + '/' + ApiScope + '/lt_request'
+    print(' - Credential ' + Credential)
+
+    # construct authorization header and add into headers
+    return 'LT-HMAC-SHA256 Credential=' + Credential + ',SignedHeaders=' + ';'.join(str(i) for i in HeadersToSign) + ',Signature=' + Signature
 
 def crawl():
     if not geturls:
@@ -83,15 +157,43 @@ def runCrawl(url):
             if url in geturls:
                 geturls.remove(url);
 
-            # would be better to do this with curl maybe
+            # UTC date
+            Date = datetime.datetime.utcnow()
+            Timestamp = Date.strftime('%Y%m%dT%H%M%SZ')
+            Datestamp = Date.strftime('%Y%m%d')
+
+            # required headers (for signing) are date, content-tpye and host (note headers need to be sorted by code point)
+            Headers = { 'Content-Type': 'application/json', 'Accept-Charset': 'UTF-8', 'Date': Timestamp, 'Host': Host }
+
+            Headers['Authorization']  = genSignature(Headers, Datestamp)
+
+            print(' - Headers')
+            print(Headers)
+
+            base_url = 'https://35.239.29.200/addTableData?'
+            post_url = base_url + urllib.parse.urlencode(Params, quote_via=urllib.parse.quote)
+
+            FormattedHeaders = ([':'.join((k,v)) for k, v in Headers.items()])
+            # headers = {'content-type': 'application/json'}
+            print(post_url)
+            print(data)
+
+            c = pycurl.Curl()
+            c.setopt(c.URL, post_url)
+            c.setopt(c.SSL_VERIFYPEER, 0)
+            c.setopt(c.SSL_VERIFYHOST, 0)
+            c.setopt(c.HTTPHEADER, FormattedHeaders)
+            # c.setopt(c.POSTFIELDS, json.dumps(data))
+            c.setopt(c.POSTFIELDS, data)
+
             try:
-                r = requests.post("http://127.0.0.1:3000/addDocument?type=content", data=data, headers=headers)
-                print(r);
+                c.perform()
+                # r = requests.post(post_url, data=data, headers=FormattedHeaders, verify=false)
             except Exception:
                 print('error unable to post to server.. server down?')
                 return
-            print("url " + r.url + " : " + r.text)
-
+            c.close()
+            # quit()
 
 
 def urlMatch(url):
@@ -167,21 +269,22 @@ def buildPayload(url, soup, head):
         return None
 
     urldata = {}
-    urldata["display_url"] = url
-    urldata["shell"] = ""
-    urldata["tags"] = ""
-    urldata["title"] = title
+    urldata["url"] = url
+    # urldata["shell"] = ""
+    # urldata["tags"] = ""
+    urldata["title"] = title.strip()
     urldata["metadata"] = ""
-    urldata["last_modified"] = last_modified
-    urldata["crawl_date"] = ""
-    urldata["fetch_status"] = ""
-    urldata["crawl_language"] = lang
-    urldata["content_language"] = content_language
-    urldata["content_type"] = content_type
-    urldata["encoding"] = "base64"
-    urldata["body"] = base64_string
-    data = {url:urldata}
-    json_data = json.dumps(data)
+    urldata["last_modified"] = last_modified.strip()
+    # urldata["crawl_date"] = ""
+    # urldata["fetch_status"] = ""
+    # urldata["crawl_language"] = lang
+    urldata["language"] = content_language.strip()
+    # urldata["content_type"] = content_type
+    # urldata["encoding"] = "base64"
+    # urldata["body"] = base64_string
+    urldata["document"] = data.strip()
+    # data = {url:urldata}
+    json_data = json.dumps(urldata)
     return json_data
 
 
@@ -248,6 +351,14 @@ class UrlData(object):
         self.body = body
         self.head = head
 
-main()
+def main():
+    for line in open('patterns.urls', 'r').readlines():
+        urlpatterns.append(line);
+        
+    for line in open('start.urls', 'r').readlines():
+        line = line.split("#")[0]
+        starturls.append(line.strip());
+    crawl()
 
+main()
 #def writeJson(url, data):

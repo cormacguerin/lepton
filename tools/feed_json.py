@@ -113,7 +113,6 @@ url = base_url + urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
 FormattedHeaders = ([':'.join((k,v)) for k, v in Headers.items()])
 
 c = pycurl.Curl()
-c.setopt(c.URL, 'https://35.239.29.200/addTableData?' + QueryParameters)
 c.setopt(c.URL,  url)
 c.setopt(c.SSL_VERIFYPEER, 0)
 c.setopt(c.SSL_VERIFYHOST, 0)
