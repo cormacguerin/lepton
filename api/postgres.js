@@ -272,18 +272,22 @@ console.log("promises finished in " + totaltime + "ms");
    * if yes decode and index
    * if no index as normal text
    */
-  createSearchTable(database, table, callback) {
+  createSearchTable(database, table, column, datatype, callback) {
 
     var query = "CREATE TABLE \""
       + table
-      + "\" (url VARCHAR(2048) NOT NULL UNIQUE,"
+      + "\" (\""
+      + column
+      + "\" "
+      + getDataType(datatype)
+      + " PRIMARY KEY,"
       + "language VARCHAR(2),"
       + "title VARCHAR(2048),"
       + "status VARCHAR(64),"
       + "last_modified TIMESTAMP,"
       + "document text,"
       + "metadata text,"
-      + "lt_id SERIAL PRIMARY KEY,"
+      + "lt_id SERIAL,"
       + "lt_uuid uuid,"
       + "lt_docscore real,"
       + "lt_tdscore real,"
@@ -477,21 +481,18 @@ console.log("promises finished in " + totaltime + "ms");
     console.log('data ' + data)
     var it = new Date().getTime();
     console.log("ADD TABLE DATA " + table);
-    var pkey = "SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS data_type"
-      + " FROM pg_index i"
-      + " JOIN pg_attribute a ON a.attrelid = i.indrelid"
-      + " AND a.attnum = ANY(i.indkey)"
-      + " WHERE i.indrelid = $1::regclass"
-      + " AND i.indisprimary;"
+    var pkey = "SELECT constraint_name FROM information_schema.table_constraints WHERE table_name = $1 AND constraint_type = 'PRIMARY KEY'"
     var this_ = this;
-    this.execute(pkey, ['"' + table + '"'], function(e,r) {
+    this.execute(pkey, [table], function(e,r) {
       if (e) {
         console.log(e);
         return callback(e);
       }
+      console.log('pkey')
+      console.log(r)
       var primary_key;
       if (r[0]) {
-        primary_key = r[0].attname;
+        primary_key = r[0].constraint_name;
       } else {
         return callback('unknown primary key, please provide a primary key.');
       }
@@ -522,6 +523,8 @@ console.log("promises finished in " + totaltime + "ms");
           values_prep += ', ';
         }
       }
+      console.log('insert_prep : ' + insert_prep);
+      console.log('values_prep : ' + values_prep);
       var quotedKeys = "\"" + keys.join("\",\"") + "\"";
       var statement = "INSERT INTO \""
         + table
@@ -530,9 +533,9 @@ console.log("promises finished in " + totaltime + "ms");
         + ") VALUES("
         + insert_prep
         + ")"
-        + " ON CONFLICT ("
+        + " ON CONFLICT ON CONSTRAINT \""
         + primary_key
-        + ") DO UPDATE SET "
+        + "\" DO UPDATE SET "
 //      + " ON CONFLICT DO UPDATE SET "
         + values_prep 
         + ";"
@@ -560,7 +563,7 @@ console.log("promises finished in " + totaltime + "ms");
         var et = new Date().getTime();
         var totaltime = et-it;
         console.log("total time taken for " + table + " is " + totaltime + "ms");
-        return callback(null, result);
+        return callback(e, result);
       });
     });
   }
@@ -2142,10 +2145,16 @@ function getDataType(dt) {
       return 'REAL';
     case 'date': 
       return 'DATE';
+    case 'varchar_2': 
+      return 'VARCHAR(2)';
+    case 'varchar_8': 
+      return 'VARCHAR(8)';
     case 'varchar_64': 
       return 'VARCHAR(64)';
     case 'varchar_2048': 
       return 'VARCHAR(2048)';
+    case 'varchar_8192': 
+      return 'VARCHAR(8192)';
     case 'text': 
       return 'TEXT';
     default:

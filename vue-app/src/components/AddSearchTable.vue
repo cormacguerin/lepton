@@ -1,6 +1,6 @@
 <template>
   <div class="input">
-    <flex-row>
+    <flex-col>
       <div class="margin">
         <input
           v-model="tableName"
@@ -8,16 +8,39 @@
           placeholder="table name"
         >
       </div>
-      <div class="margin">
-        <CButton
-          class="active left"
-          color="info"
-          @click="save"
-        >
-          Save
-        </CButton>
-      </div>
-    </flex-row>
+      <flex-row>
+        <div class="margin">
+          <input
+            v-model="columnName"
+            placeholder="primary key"
+          >
+        </div>
+        <div class="margin nopadding">
+          <CDropdown
+            ref="dataTypeDropDown"
+            :toggler-text="dataType"
+            title="data type"
+          >
+            <CDropdownItem
+              v-for="dt in dataTypes"
+              :key="dt"
+              @click.native="selectDataType(dt)"
+            >
+              {{ dt }}
+            </CDropdownItem>
+          </CDropdown>
+        </div>
+        <div class="margin">
+          <CButton
+            class="active"
+            color="info"
+            @click="save"
+          >
+            Save
+          </CButton>
+        </div>
+      </flex-row>
+    </flex-col>
   </div>
 </template>
 <script>
@@ -37,7 +60,7 @@ export default {
     },
     columnName: {
       type: String,
-      default: ''
+      default: 'url'
     }
   },
   data () {
@@ -45,7 +68,7 @@ export default {
       dataTypes: [
         'serial', 'bigserial', 'int', 'bigint', 'decimal', 'bigdecimal', 'real', 'date', 'varchar_64', 'varchar_2048'
       ],
-      dataType: 'serial'
+      dataType: 'varchar_2048'
     }
   },
   created () {

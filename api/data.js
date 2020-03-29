@@ -118,12 +118,18 @@ exports.getTableSchema = function(user_id, d, table, c) {
                   }
                 }
                 if (s[i].data_type === "character varying") {
-                  if (s[i].character_maximum_length === 64) {
+                  if (s[i].character_maximum_length === 2) {
+                    s_.data_type = "varchar_2"
+                  } else if (s[i].character_maximum_length === 8) {
+                    s_.data_type = "varchar_8"
+                  } else if (s[i].character_maximum_length === 64) {
                     s_.data_type = "varchar_64"
                   } else if (s[i].character_maximum_length === 256) {
                     s_.data_type = "varchar_256"
                   } else if (s[i].character_maximum_length === 2048) {
                     s_.data_type = "varchar_2048"
+                  } else if (s[i].character_maximum_length === 8192) {
+                    s_.data_type = "varchar_8192"
                   } else {
                     s_.data_type = null
                   }
@@ -200,7 +206,7 @@ exports.createTable = function(u,d,t,c,dt,callback) {
   });
 }
 
-exports.createSearchTable = function(u,d,t,callback) {
+exports.createSearchTable = function(u,d,t,c,dt,callback) {
   if (!d) {
     callback({status:'failed'})
   }
@@ -209,7 +215,7 @@ exports.createSearchTable = function(u,d,t,callback) {
   }
   const db = u + '_' + d;
   initDB(db, function() {
-    db_pg[db].createSearchTable(db,t,function(err,r) {
+    db_pg[db].createSearchTable(db,t,c,dt,function(err,r) {
       if (err){
         console.log("unable to create search table");
         console.log(err);
@@ -486,28 +492,27 @@ exports.addTableData = function(db,t,data,callback) {
       }
       db_pg[db].addTableData(t,data,function(err,r) {
         if (err) {
-          console.log("unable to retrieve user_clients");
           console.log(err);
-          callback({r,error:err})
+          callback(err)
         } else {
-          callback({r})
+          callback(null,r)
         }
       });
     } else if (typeof data === 'object') {
       console.log('object data');
       var results = [];
+      var errors = [];
       Object.keys(data).forEach(function(table) {
         db_pg[db].addTableData(table,data[table],function(err,r) {
           if (err){
-            console.log("unable to retrieve user_clients");
             console.log(err);
-            results.push(err);
+            errors.push(err);
           } else {
             results.push(r);
           }
         });
       });
-      callback(results)
+      callback(errors,results)
     }
   });
 }
@@ -518,7 +523,6 @@ exports.deleteTable = function(u, d, t, ty, c) {
     const db = u + '_' + d;
     db_pg['admin'].deleteTextTable(u, db, t, function(err,r) {
       if (err){
-        console.log("unable to retrieve user_clients");
         console.log(err);
         callback({status:'failed', error:err})
       } else {
