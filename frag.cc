@@ -8,7 +8,7 @@
 
 rapidjson::Document serialized_frag;
 
-Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id) : prefix_type(), frag_id(), fragment_id()
+Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id, std::string p) : prefix_type(), frag_id(), fragment_id(), path()
 {
 	std::cout << "A fragment_id " << fragment_id << std::endl;
 	std::cout << "A _fragment_id " << _fragment_id << std::endl;
@@ -17,6 +17,7 @@ Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id) : prefix_type(), fra
 	fragment_id = _fragment_id;
 	std::cout << "B fragment_id " << fragment_id << std::endl;
 	std::cout << "B _fragment_id " << _fragment_id << std::endl;
+  path = p;
 	load();
 }
 
@@ -27,11 +28,11 @@ Frag::~Frag()
 void Frag::load() {
 	std::string filename;
 	if (prefix_type==Frag::Type::UNIGRAM){
-		filename = "index/unigram_";
+		filename = path + "unigram_";
 	} else if (prefix_type==Frag::Type::BIGRAM){
-		filename = "index/bigram_";
+		filename = path + "bigram_";
 	} else if (prefix_type==Frag::Type::TRIGRAM){
-		filename = "index/trigram_";
+		filename = path + "trigram_";
 	} else {
 		return;
 	}
@@ -151,11 +152,11 @@ void Frag::writeIndex() {
 	time_t beforetime = time(0);
 	std::string filename;
 	if (prefix_type==Frag::Type::UNIGRAM){
-		filename = "index/unigram_";
+		filename = path + "unigram_";
 	} else if (prefix_type==Frag::Type::BIGRAM){
-		filename = "index/bigram_";
+		filename = path + "bigram_";
 	} else if (prefix_type==Frag::Type::TRIGRAM){
-		filename = "index/trigram_";
+		filename = path + "trigram_";
 	} else {
 		return;
 	}
@@ -193,11 +194,11 @@ void Frag::write() {
 	time_t beforetime = time(0);
 	std::string filename;
 	if (prefix_type==Frag::Type::UNIGRAM){
-		filename = "index/unigram_";
+		filename = path + "unigram_";
 	} else if (prefix_type==Frag::Type::BIGRAM){
-		filename = "index/bigram_";
+		filename = path + "bigram_";
 	} else if (prefix_type==Frag::Type::TRIGRAM){
-		filename = "index/trigram_";
+		filename = path + "trigram_";
 	} else {
 		return;
 	}
@@ -291,11 +292,11 @@ std::vector<std::string> Frag::getItemKeys() {
  * standard calculation for this is the item frequency times the idf(inverse document frequency).
  * idf is usually calculated as log(no. docs in corpus/no. of documents that contain the item)
  */
-void Frag::addWeights(int num_docs) {
+void Frag::addWeights(int num_docs, std::string database) {
 	pqxx::connection* C;
 
 	try {
-		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = " + database + " user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
 		if (C->is_open()) {
 			std::cout << "Opened database successfully: " << C->dbname() << std::endl;
 		} else {

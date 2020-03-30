@@ -19,16 +19,17 @@ IndexServer::IndexServer()
 {
 	q = 0;
 	x = 0;
-	init();
+  // todo, you need to enable service here
+	init("something");
 }
 
 IndexServer::~IndexServer()
 {
 }
 
-void IndexServer::init() {
+void IndexServer::init(std::string database) {
 	try {
-		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = " + database + " user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
 		if (C->is_open()) {
 			cout << "Opened database successfully: " << C->dbname() << endl;
 		} else {
@@ -218,7 +219,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 	std::cout << "index_server.cc sort and resize " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
 
 	beforeload = indexServer->getTime();
-	indexServer->getResultInfo(result);
+	indexServer->getResultInfo(result, "table");
 	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc getResultInfo " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
@@ -229,7 +230,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 /*
  * Get the snippet, metadata, topics etc.
  */
-void IndexServer::getResultInfo(Result& result) {
+void IndexServer::getResultInfo(Result& result, std::string table) {
 	/*
 	if (result.items.empty()) {
 		return;
@@ -269,9 +270,8 @@ void IndexServer::getResultInfo(Result& result) {
 		return;
 	}
 
-
 	pqxx::work txn(*C);
-	C->prepare("get_docinfo_deep", "SELECT id, topics, (WITH S AS (SELECT jsonb_array_elements_text(segmented_grams->'raw_text') AS snippet FROM docs_en WHERE id=D.id OFFSET 50 ROWS LIMIT 100) SELECT string_agg(snippet, ' ') FROM S) FROM docs_en AS D WHERE id = $1");
+	C->prepare("get_docinfo_deep", "SELECT id, topics, (WITH S AS (SELECT jsonb_array_elements_text(segmented_grams->'raw_text') AS snippet FROM " + table + "WHERE id=D.id OFFSET 50 ROWS LIMIT 100) SELECT string_agg(snippet, ' ') FROM S) FROM " + table + " AS D WHERE id = $1");
 	for (std::vector<Result::Item>::iterator tit = result.items.begin(); tit != result.items.end(); ++tit) {
 		pqxx::result r = txn.prepared("get_docinfo_deep")(tit->url_id).exec();
 		const pqxx::field i = r.back()[0];

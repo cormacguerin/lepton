@@ -13,45 +13,46 @@ using namespace std;
 using namespace pqxx;
 
 
-IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t) : unigramFragManager(u), bigramFragManager(b), trigramFragManager(t) {
+IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string db, std::string tb) : unigramFragManager(u,db,tb), bigramFragManager(b,db,tb), trigramFragManager(t,db,tb) {
+  database = db;
+  table = tb;
 }
 
 IndexManager::~IndexManager()
 {
 }
 
-void IndexManager::init() {
-
+void IndexManager::init(std::string database) {
 
 	strcpy(SPS, "\xe2\x96\x81");
 	SPC = "~`!@#$%^&*()_-+=|\\}]{[\"':;?/>.<, ";
-	//char SPC = {'~', '`', '!', '@', '#' , '$', '%', '^', '&', '*', '(', ')', '_', '+', '|', '\\', '{', '}', ':', '"', '|', '<', '>', '?', '/', '.', ',', '\'', ';', ']', '[', '-', '='};
+	// char SPC = {'~', '`', '!', '@', '#' , '$', '%', '^', '&', '*', '(', ')', '_', '+', '|', '\\', '{', '}', ':', '"', '|', '<', '>', '?', '/', '.', ',', '\'', ';', ']', '[', '-', '='};
 	// spp.init();
-	seg.init();
+	seg.init(database);
 
 	// this is a redis connection (were replacing this with postgres for the index)
 	//	client.connect();
 	// postgres connection
 	try {
-		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
-    	if (C->is_open()) {
-    	   cout << "Opened database successfully: " << C->dbname() << endl;
-    	} else {
-    	   cout << "Can't open database" << endl;
-    	}
+		C = new pqxx::connection("dbname = " + database + " user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+    if (C->is_open()) {
+       cout << "Opened database successfully: " << C->dbname() << endl;
+    } else {
+       cout << "Can't open database" << endl;
+    }
 	} catch (const std::exception &e) {
 		cerr << e.what() << std::endl;
 		exit;
 	}
 }
 
-void IndexManager::processFeeds(std::string lang) {
+void IndexManager::processFeeds(std::string table) {
 	int num_docs;
 	int max_doc_id;
 	int batch_size;
 	int base_batch_size = 10000;
-	getNumDocs(num_docs, lang);
-	getMaxDocId(max_doc_id, lang);
+	getNumDocs(num_docs, table);
+	getMaxDocId(max_doc_id, table);
 	std::cout << "indexManager.cc : num_docs : " << num_docs << std::endl;
 	std::cout << "indexManager.cc : max_doc_id : " << max_doc_id << std::endl;
 	int num_batches = num_docs/base_batch_size;
@@ -63,7 +64,7 @@ void IndexManager::processFeeds(std::string lang) {
 	}
 	std::cout << "indexManager.cc : batch_size " << batch_size << std::endl;
 	std::cout << "indexManager.cc : num_batches : " << num_batches << std::endl;
-	std::string statement = "SELECT id,url,feed FROM docs_" + lang + " WHERE id BETWEEN $1 AND $2";
+	std::string statement = "SELECT lt_id,url,document,language FROM \"" + table + "\" WHERE lt_id BETWEEN $1 AND $2";
 
 	int batch_position = 0;
 
@@ -73,14 +74,15 @@ void IndexManager::processFeeds(std::string lang) {
 		pqxx::work txn(*C);
 		C->prepare("process_docs_batch", statement);
 
-		std::cout << "indexManager.cc : process feeds for batch " << i << " " << batch_position << " " << lang << std::endl;
+		std::cout << "indexManager.cc : process documents for batch " << i << " " << batch_position << " " << table << std::endl;
 		pqxx::result r = txn.prepared("process_docs_batch")(i)(batch_position).exec();
 		txn.commit();
 
 		for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
 			const pqxx::field id = (row)[0];
 			const pqxx::field url = (row)[1];
-			const pqxx::field feed = (row)[2];
+			const pqxx::field document = (row)[2];
+			const pqxx::field lang = (row)[3];
 			std::cout << " - - - - - " << std::endl;
 			std::cout << "url : " << url.c_str() << std::endl;
 			std::cout << "lang : " << lang.c_str() << std::endl;
@@ -88,15 +90,15 @@ void IndexManager::processFeeds(std::string lang) {
 				std::cout << "skip : url is null" << std::endl;;
 				continue;
 			}
-			if (feed.is_null()) {
-				std::cout << "skip : feed is null" << std::endl;;
+			if (document.is_null()) {
+				std::cout << "skip : document is null" << std::endl;;
 				continue;
 			}
-			if (lang.empty()) {
+			if (lang.is_null()) {
 				std::cout << "skip : lang is null" << std::endl;;
 				continue;
 			}
-			indexDocument(id.c_str(), url.c_str(), feed.c_str(), lang);
+			indexDocument(id.c_str(), url.c_str(), document.c_str(), lang.c_str());
 		}
 		i = batch_position;
 	}
@@ -107,9 +109,9 @@ void IndexManager::processFeeds(std::string lang) {
 	trigramFragManager.syncFrags();
 	// merge frag fragments into frag.
 	// atually just running one merges all, todo, split it up.
-	unigramFragManager.mergeFrags(num_docs, lang);
-	bigramFragManager.mergeFrags(num_docs, lang);
-	trigramFragManager.mergeFrags(num_docs, lang);
+	unigramFragManager.mergeFrags(num_docs, table);
+	bigramFragManager.mergeFrags(num_docs, table);
+	trigramFragManager.mergeFrags(num_docs, table);
 }
 
 /*
@@ -120,32 +122,33 @@ void IndexManager::processFeeds(std::string lang) {
  * corpus so we need to index the corpus first.
  * We could do other processing here eg. ML stuff etc
  */
-void IndexManager::processDocInfo(std::string lang) {
+void IndexManager::processDocInfo(std::string table) {
 
 	// this statement calculates the idf
 	std::cout << "index_manager.cc processDocInfo" << std::endl;
 	
 	std::vector<std::string> unibitri{"trigrams","bigrams","unigrams"};
 
-	std::string update_doc_idf = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN unigrams_en AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE docs_en SET docscore = (SELECT score/freq FROM v) WHERE id = $1";
+	std::string update_doc_idf = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE d.id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_unigrams AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE " + table + " SET lt_docscore = (SELECT score/freq FROM v) WHERE id = $1";
 
-	std::string update_doc_topics = "UPDATE docs_en SET topics = $1 WHERE id = $2";
+	std::string update_doc_topics = "UPDATE " + table + " SET topics = $1 WHERE id = $2";
 
-	std::vector<int> b = GetDocscoreBatch(lang);
+	std::vector<int> b = GetDocscoreBatch(table);
 
 	while (b.size() > 0) {
 		std::cout << "b.size() " << b.size()  << std::endl;
 		pqxx::work txn(*C);
 		for (std::vector<int>::iterator it_ = b.begin(); it_ != b.end(); it_++) {
-			C->prepare("process_docscore_batch", update_doc_idf);
 			C->prepare("process_topics_batch", update_doc_topics);
+
+			C->prepare("process_docscore_batch", update_doc_idf);
 			pqxx::result rds = txn.prepared("process_docscore_batch")(*it_).exec();
 
 			std::vector<std::pair<std::string,float>> grams;
 			std::map<std::string,std::vector<std::pair<std::string,float>>> unigrams;
 			float multiplier = 3.0;
 			for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
-				std::string gram_terms = "SELECT d.id, key, (CHAR_LENGTH(value)- CHAR_LENGTH(REPLACE(value, ',', '')))*" + *it + "_en.idf AS i FROM docs_en d, jsonb_each_text(d.segmented_grams->'"+*it+"') docterms INNER JOIN "+*it+"_en ON docterms.key="+*it+"_en.gram WHERE d.id = $1 ORDER BY i DESC LIMIT 30";
+				std::string gram_terms = "SELECT d.id, key, (CHAR_LENGTH(value)- CHAR_LENGTH(REPLACE(value, ',', '')))*" + *it + ".idf AS i FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms INNER JOIN "+*it+" ON docterms.key="+*it+".gram WHERE d.id = $1 ORDER BY i DESC LIMIT 30";
 				C->prepare("process_"+*it+"_batch", gram_terms);
 				pqxx::result rgt = txn.prepared("process_"+*it+"_batch")(*it_).exec();
 				for (pqxx::result::const_iterator row = rgt.begin(); row != rgt.end(); ++row) {
@@ -194,7 +197,7 @@ void IndexManager::processDocInfo(std::string lang) {
 		}
 		txn.commit();
 		b.clear();
-		b = GetDocscoreBatch(lang);
+		b = GetDocscoreBatch(table);
 	}
 }
 
@@ -205,7 +208,7 @@ void IndexManager::processDocInfo(std::string lang) {
  * - base64 decode the encoded contents.
  * - segment the body
  */
-void IndexManager::indexDocument(string id, string dockey, string rawdoc, string lang) {
+void IndexManager::indexDocument(string id, string display_field, string rawdoc, string lang) {
 	// create main json doc and load rawdoc into it.
 	rapidjson::Document doc;
 	const char *cstr = rawdoc.c_str();
@@ -236,7 +239,7 @@ void IndexManager::indexDocument(string id, string dockey, string rawdoc, string
 	std::map<std::string, Frag::Item> doc_unigram_map;
 	std::map<std::string, Frag::Item> doc_bigram_map;
 	std::map<std::string, Frag::Item> doc_trigram_map;
-	seg.parse(id, dockey, lang, decoded_doc_body, 
+	seg.parse(id, display_field, lang, decoded_doc_body, 
 		doc_unigram_map, doc_bigram_map, doc_trigram_map);
 	unigramFragManager.addTerms(doc_unigram_map);
 	bigramFragManager.addTerms(doc_bigram_map);
@@ -254,9 +257,9 @@ bool IndexManager::isSPS(char firstchar) {
 }
 
 void IndexManager::exportVocab(std::string lang) {
-	C->prepare("export_vocab", "select gram, incidence from ngrams WHERE gram NOT LIKE '% %' ORDER BY gram");
+	C->prepare("export_vocab", "SELECT gram, incidence FROM ngrams WHERE lang = $1 AND gram NOT LIKE '% %' ORDER BY gram");
 	pqxx::work txn(*C);
-	pqxx::result r = txn.prepared("export_vocab").exec();
+	pqxx::result r = txn.prepared("export_vocab")(lang).exec();
 	txn.commit();
 
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
@@ -271,8 +274,8 @@ void IndexManager::exportVocab(std::string lang) {
  * This is all very messy but it works.
  */
 
-void IndexManager::getNumDocs(int &count, std::string lang) {
-	prepare_doc_count(*C, lang);
+void IndexManager::getNumDocs(int &count, std::string table) {
+	prepare_doc_count(*C, table);
 	pqxx::work txn(*C);
 	pqxx::result r = txn.prepared("doc_count").exec();
 	txn.commit();
@@ -314,9 +317,8 @@ void IndexManager::getMaxNgramId(int &num, std::string gram, std::string lang) {
 	num = atoi(c.c_str());
 }
 
-
-void IndexManager::getMaxDocId(int &num, std::string lang) {
-	prepare_max_doc_id(*C, lang);
+void IndexManager::getMaxDocId(int &num, std::string table) {
+	prepare_max_doc_id(*C, table);
 	pqxx::work txn(*C);
 	pqxx::result r = txn.prepared("max_doc_id").exec();
 	txn.commit();
@@ -324,8 +326,8 @@ void IndexManager::getMaxDocId(int &num, std::string lang) {
 	num = atoi(c.c_str());
 }
 
-std::vector<int> IndexManager::GetDocscoreBatch(std::string lang) {
-	prepare_docscore_batch(*C, lang);
+std::vector<int> IndexManager::GetDocscoreBatch(std::string table) {
+	prepare_docscore_batch(*C, table);
 	pqxx::work txn(*C);
 	pqxx::result r = txn.prepared("docscore_batch").exec();
 	txn.commit();
@@ -338,40 +340,40 @@ std::vector<int> IndexManager::GetDocscoreBatch(std::string lang) {
 	return b;
 }
 
-void IndexManager::prepare_docscore_batch(pqxx::connection_base &c, std::string lang) {
-	c.prepare("docscore_batch", "SELECT id FROM docs_" + lang + " WHERE segmented_grams IS NOT NULL AND topics IS NULL LIMIT 1000");
+void IndexManager::prepare_docscore_batch(pqxx::connection_base &c, std::string table) {
+	c.prepare("docscore_batch", "SELECT lt_id, lang FROM \"" + table + "\" WHERE lt_segmented_grams IS NOT NULL AND topics IS NULL LIMIT 1000");
 }
 
-void IndexManager::prepare_max_doc_id(pqxx::connection_base &c, std::string lang) {
-	c.prepare("max_doc_id", "SELECT MAX(id) FROM docs_" + lang);
+void IndexManager::prepare_max_doc_id(pqxx::connection_base &c, std::string table) {
+	c.prepare("max_doc_id", "SELECT MAX(lt_id) FROM \"" + table +"\"");
 }
 
 void IndexManager::prepare_max_unigram_id(pqxx::connection_base &c, std::string lang) {
-	c.prepare("max_unigram_id", "SELECT MAX(id) FROM unigrams_" + lang);
+	c.prepare("max_unigram_id", "SELECT MAX(id) FROM unigrams WHERE lang = " + lang);
 }
 
 void IndexManager::prepare_max_bigram_id(pqxx::connection_base &c, std::string lang) {
-	c.prepare("max_bigram_id", "SELECT MAX(id) FROM bigrams_" + lang);
+	c.prepare("max_bigram_id", "SELECT MAX(id) FROM bigrams WHERE lang = " + lang);
 }
 
 void IndexManager::prepare_max_trigram_id(pqxx::connection_base &c, std::string lang) {
-	c.prepare("max_trigram_id", "SELECT MAX(id) FROM trigrams_" + lang);
+	c.prepare("max_trigram_id", "SELECT MAX(id) FROM trigrams WHERE lang = " + lang);
 }
 
-void IndexManager::prepare_doc_count(pqxx::connection_base &c, std::string lang) {
-	c.prepare("doc_count", "SELECT COUNT(*) FROM docs_" + lang);
+void IndexManager::prepare_doc_count(pqxx::connection_base &c, std::string table) {
+	c.prepare("doc_count", "SELECT COUNT(*) FROM \"" + table + "\"");
 }
 
 void IndexManager::prepare_unigram_count(pqxx::connection_base &c, std::string lang) {
-	c.prepare("unigram_count", "SELECT COUNT(*) FROM unigrams_" + lang);
+	c.prepare("unigram_count", "SELECT COUNT(*) FROM unigrams WHERE lang = " + lang);
 }
 
 void IndexManager::prepare_bigram_count(pqxx::connection_base &c, std::string lang) {
-	c.prepare("bigram_count", "SELECT COUNT(*) FROM bigrams_" + lang);
+	c.prepare("bigram_count", "SELECT COUNT(*) FROM bigrams WHERE lang = " + lang);
 }
 
 void IndexManager::prepare_trigram_count(pqxx::connection_base &c, std::string lang) {
-	c.prepare("trigram_count", "SELECT COUNT(*) FROM trigrams_" + lang);
+	c.prepare("trigram_count", "SELECT COUNT(*) FROM trigrams WHERE lang = " + lang);
 }
 
 bool IndexManager::hasDigit(const std::string& s)

@@ -18,7 +18,7 @@ class IndexServer {
 	public:
 		IndexServer();
 		~IndexServer();
-		void init();
+		void init(std::string database);
 		void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates);
 		void execute(std::string lang, std::string query, std::promise<std::string> promiseObj);
 		static void search(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryParser);
@@ -34,7 +34,7 @@ class IndexServer {
 		std::vector<std::string> getDocInfo(int url_id);
 		std::map<std::string,std::vector<int>> getTermPositions(int url_id, std::vector<std::string> terms);
 		Result getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates);
-		void getResultInfo(Result& result);
+		void getResultInfo(Result& result, std::string table);
 		pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
 		void loadIndex(std::string gram, std::string lang);
 		QueryBuilder queryBuilder;

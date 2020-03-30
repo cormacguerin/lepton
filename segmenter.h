@@ -40,7 +40,7 @@ class Segmenter {
 	public:
 		Segmenter();
 		~Segmenter();
-		void init();
+		void init(std::string database);
 		void parse(std::string id, std::string url, std::string lang, std::string str_in,
 				   std::map<std::string, Frag::Item> &doc_unigram_map,
 				   std::map<std::string, Frag::Item> &doc_bigram_map,

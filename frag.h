@@ -24,11 +24,12 @@ class Frag {
 		enum Type { UNIGRAM=0, BIGRAM=1, TRIGRAM=2 };
 		Type prefix_type;
 
-		Frag(Type type, int _frag_id, int _fragment_id=0);
+		Frag(Type type, int _frag_id, int _fragment_id=0, std::string p="");
 		~Frag();
 
 		int frag_id;
 		int fragment_id;
+    std::string path;
 
 		struct Item {
 			int url_id;
@@ -47,7 +48,7 @@ class Frag {
 		size_t size();
 		void insert(std::string s, std::map<int,Frag::Item> m);
 		void update(std::string s, std::map<int,Frag::Item> m);
-		void addWeights(int num_docs);
+		void addWeights(int num_docs, std::string database);
 		void load();
 		void loadJsonFrag(std::string filename);
 		void loadRawFrag(std::string filename);

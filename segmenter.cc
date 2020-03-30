@@ -15,7 +15,7 @@ Segmenter::~Segmenter()
 {
 }
 
-void Segmenter::init() {
+void Segmenter::init(std::string database) {
 	
 	//sentencepiece::Segmenter processor;
 	//spec = processor.model_proto().normalizer_spec();
@@ -26,7 +26,7 @@ void Segmenter::init() {
 	std::ifstream en_stop_words_dict("data/english_stop_words.txt");
 
 	try {
-		C = new pqxx::connection("dbname = index user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = " + database + " user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
 	if (C->is_open()) {
 		  std::cout << "Opened database successfully: " << C->dbname() << std::endl;
 	} else {
@@ -489,7 +489,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	docngrams.Accept(writer);
 
 	std::string docstable = "docs_" + lang;
-	std::string update = "UPDATE " + docstable + " SET (index_date, segmented_grams, tdscore) = (NOW(), "
+	std::string update = "UPDATE " + docstable + " SET (lt_index_date, lt_segmented_grams, lt_tdscore) = (NOW(), "
 		+ "$escape$" + (std::string)buffer.GetString() + "$escape$, " 
 		+ std::to_string(tdscore) +") WHERE url='" + url 
 		+ "';";

@@ -3,14 +3,13 @@
  */
 
 const { Pool } = require('pg');
+var fs = require('fs')
 
 class Postgres {
 
   constructor(db) {
 
     if (db) {
-
-      var fs = require('fs')
 
       if (db.database === 'admin') {
 
@@ -226,6 +225,40 @@ console.log("promises finished in " + totaltime + "ms");
     });
   }
 
+  addNgramTables(callback) {
+    var vm = this;
+    var promises = [];
+    const promisePush = async function() {
+      var tables = ['unigrams','bigrams','trigrams']
+      for (var t in tables) {
+        promises.push(new Promise((pr, pe) => {
+          var query = "CREATE TABLE "
+            + tables[t]
+            + " (id SERIAL PRIMARY KEY,"
+            + " gram VARCHAR(256) NOT NULL UNIQUE,"
+            + " lang VARCHAR(2) NOT NULL,"
+            + " idf real);"
+          vm.execute(query, null, function(e,r) {
+            if (e) {
+              pe(e)
+            } else {
+              pr(r)
+            }
+          });
+        }));
+      }
+      await Promise.all(promises)
+      .then((r)=> {
+        callback(null, r);
+      })
+      .catch((e) => {
+        console.log('error pushing statements')
+        callback(e)
+      })
+    }
+    promisePush();
+  }
+
   getDatabases(user, callback) {
     // var query = "SELECT datname FROM pg_database WHERE datistemplate = false;"
     var query = "SELECT database FROM databases WHERE reader = $1;"
@@ -309,6 +342,20 @@ console.log("promises finished in " + totaltime + "ms");
     */
 
     this.execute(query, null, function(e,r) {
+      if (r) {
+        var i_dir = "index/"
+        if (!fs.existsSync(i_dir)){
+          fs.mkdirSync(i_dir);
+        }
+        var id_dir = "index/" + database
+        if (!fs.existsSync(id_dir)){
+          fs.mkdirSync(id_dir);
+        }
+        var idt_dir = "index/" + database + "/" + table
+        if (!fs.existsSync(idt_dir)){
+          fs.mkdirSync(idt_dir);
+        }
+      }
       callback(e,r);
     });
   }
@@ -477,11 +524,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   addTableData(table, data, callback) {
-    console.log('table ' + table)
-    console.log('data ')
-    console.log(data)
     var it = new Date().getTime();
-    console.log("ADD TABLE DATA " + table);
     var pkey = "SELECT constraint_name FROM information_schema.table_constraints WHERE table_name = $1 AND constraint_type = 'PRIMARY KEY'"
     var this_ = this;
     this.execute(pkey, [table], function(e,r) {
@@ -489,15 +532,13 @@ console.log("promises finished in " + totaltime + "ms");
         console.log(e);
         return callback(e);
       }
-      console.log('pkey')
-      console.log(r)
       var primary_key;
       if (r[0]) {
         primary_key = r[0].constraint_name;
       } else {
         return callback('unknown primary key, please provide a primary key.');
       }
-      console.log('primary_key : ' + primary_key);
+      // console.log('primary_key : ' + primary_key);
       var result = {
         status:'',
         errors: [],
@@ -505,8 +546,6 @@ console.log("promises finished in " + totaltime + "ms");
       }
 
       var keys = Object.keys(data[0]);
-      console.log('keys')
-      console.log(keys)
       var insert_prep = '';
       for (var i=1; i<=keys.length; i++) {
         insert_prep += '$' + i.toString();
@@ -524,8 +563,8 @@ console.log("promises finished in " + totaltime + "ms");
           values_prep += ', ';
         }
       }
-      console.log('insert_prep : ' + insert_prep);
-      console.log('values_prep : ' + values_prep);
+      // console.log('insert_prep : ' + insert_prep);
+      // console.log('values_prep : ' + values_prep);
       var quotedKeys = "\"" + keys.join("\",\"") + "\"";
       var statement = "INSERT INTO \""
         + table

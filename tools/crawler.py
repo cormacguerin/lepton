@@ -95,17 +95,17 @@ def genSignature(Headers, Datestamp):
 
     SigningString = Method + "\n" + Host + "\n" + Path + "\n" + encodeParams() + "\n" + formatSigningHeaders(Headers)
 
-    print(' - SigningString ')
-    print(SigningString)
-    print(' - SigningKey hex')
-    print(genSigningKey(Datestamp).hex())
+    # print(' - SigningString ')
+    # print(SigningString)
+    # print(' - SigningKey hex')
+    # print(genSigningKey(Datestamp).hex())
 
     Signature = hmac.new(genSigningKey(Datestamp), SigningString.encode('utf-8'), sha256).hexdigest()
-    print(' - Signature ' + Signature)
+    # print(' - Signature ' + Signature)
 
     # credential is a / separated string of the key id, key name, datestamp and apiscope as created on the control panel
     Credential = KeyId + '/' + Datestamp + '/' + ApiScope + '/lt_request'
-    print(' - Credential ' + Credential)
+    # print(' - Credential ' + Credential)
 
     # construct authorization header and add into headers
     return 'LT-HMAC-SHA256 Credential=' + Credential + ',SignedHeaders=' + ';'.join(str(i) for i in HeadersToSign) + ',Signature=' + Signature
@@ -167,16 +167,16 @@ def runCrawl(url):
 
             Headers['Authorization']  = genSignature(Headers, Datestamp)
 
-            print(' - Headers')
-            print(Headers)
+            # print(' - Headers')
+            # print(Headers)
 
             base_url = 'https://35.239.29.200/addTableData?'
             post_url = base_url + urllib.parse.urlencode(Params, quote_via=urllib.parse.quote)
 
             FormattedHeaders = ([':'.join((k,v)) for k, v in Headers.items()])
             # headers = {'content-type': 'application/json'}
-            print(post_url)
-            print(data)
+            # print(post_url)
+            # print(data)
 
             c = pycurl.Curl()
             c.setopt(c.URL, post_url)

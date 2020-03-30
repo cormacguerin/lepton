@@ -24,11 +24,14 @@
 class FragManager {
 	private:
 		Frag::Type frag_type;
+    std::string database;
+    std::string table;
 		// hash map of term strings to frag ids
 		// std::map<std::string, int> gram_frag_term_index;
 		phmap::parallel_flat_hash_map<std::string, int> gram_frag_term_index;
 		// hash map of term strings to a map of doc ids term data
 		std::map<std::string, std::map<int, Frag::Item>> grams_terms;
+    std::string path;
 		int FRAG_SIZE=10000;
 		int BATCH_SIZE=100000;
 		void loadLastFrag();
@@ -41,13 +44,13 @@ class FragManager {
 
 	public:
 
-		FragManager(Frag::Type type);
+		FragManager(Frag::Type type, std::string db, std::string tb);
 		~FragManager();
 
 		std::map<int,std::unique_ptr<Frag>> frags;
 		void addTerms(std::map<std::string, Frag::Item> doc_grams);
 		void syncFrags();
-		void mergeFrags(int num_docs, std::string lang);
+		void mergeFrags(int num_docs, std::string database);
 
 };
 

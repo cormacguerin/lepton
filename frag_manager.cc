@@ -10,10 +10,12 @@
 #include <unordered_set>
 #include "dirent.h"
 
-FragManager::FragManager(Frag::Type type) : frag_type()
+FragManager::FragManager(Frag::Type type, std::string db, std::string tb) : frag_type()
 {
 	frag_type = type;
+  path = "index/" + db + "/" + tb + "/";
 	loadFragIndex();
+  std::cout << "path : " << path << std::endl;
 }
 
 FragManager::~FragManager()
@@ -82,14 +84,14 @@ void FragManager::syncFrags() {
  * In fact the problem is loading & parsing the json that is slow.. writing is faster (a lot faster). 
  * This function is some of the logic I had for merging frags. maybe we can run it as a separate process, to clean up the frags
  */
-void FragManager::mergeFrags(int num_docs, std::string lang) {
+void FragManager::mergeFrags(int num_docs, std::string database) {
 
 	int syncsize = grams_terms.size();
 	time_t beforetime = time(0);
 
 	std::cout << "frag_manager.cc : begin mergeFrags " << beforetime << std::endl;
 
-	std::vector<std::string> index_files = getFiles("index/",".frag");
+	std::vector<std::string> index_files = getFiles(path,".frag");
 	if (index_files.empty()) {
 		std::cout << "no index files to merge." << std::endl;
 		return;
@@ -104,7 +106,7 @@ void FragManager::mergeFrags(int num_docs, std::string lang) {
 
 			if (this_frag_id!=frag_id) {
 				if (this_frag_id != 0) {
-					main_frag.get()->addWeights(num_docs);
+					main_frag.get()->addWeights(num_docs, database);
 					main_frag.get()->write();
 					std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
 				}
@@ -189,7 +191,7 @@ void FragManager::mergeFrags(int num_docs, std::string lang) {
 
 
 void FragManager::loadFrags() {
-	std::vector<std::string> index_files = getFiles("index/",".frag.");
+	std::vector<std::string> index_files = getFiles(path,".frag.");
 
 	if (index_files.empty()) {
 		std::cout << "no index files create new frag" << std::endl;
@@ -235,7 +237,7 @@ void FragManager::saveFrags() {
 void FragManager::loadFragIndex() {
 
 	std::cout << "load frag index" << std::endl;
-	std::vector<std::string> index_files = getFiles("index/",".idx");
+	std::vector<std::string> index_files = getFiles(path,".idx");
 
 	std::sort(index_files.begin(),index_files.end());
 	if (index_files.empty()) {
@@ -244,7 +246,7 @@ void FragManager::loadFragIndex() {
 	} else {
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
 
-			std::string filename = "index/";
+			std::string filename = path;
 			filename.append(*it);
 			std::cout << filename << std::endl;
 
