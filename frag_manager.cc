@@ -65,7 +65,7 @@ void FragManager::syncFrags() {
 				frags[last_frag_id].get()->writeIndex();
 				// increment the last/latest frag id and create a new frag for it.
 				last_frag_id = last_frag_id+1;
-				frags[last_frag_id] = std::make_unique<Frag>(frag_type, last_frag_id, 1);
+				frags[last_frag_id] = std::make_unique<Frag>(frag_type, last_frag_id, 1, path);
 			}
 			frags[last_frag_id].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
 			grams_terms.erase(grams_terms.begin());
@@ -111,12 +111,12 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 					std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
 				}
 				std::cout << "frag_manager.cc : main frag id : " << frag_id << std::endl;
-				main_frag = std::make_unique<Frag>(frag_type,frag_id);
+				main_frag = std::make_unique<Frag>(frag_type,frag_id,0,path);
 			}
 			if (frag_string.find(".frag.")!=std::string::npos) {
 				int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
 				std::cout << "frag_manager.cc : frag " << frag_id << " : " << frag_part_id << " : " << *it << std::endl;
-				std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type,frag_id,frag_part_id);
+				std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type,frag_id,frag_part_id,path);
 				for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
 					main_frag.get()->update(it->first, it->second);
 				}
@@ -195,7 +195,7 @@ void FragManager::loadFrags() {
 
 	if (index_files.empty()) {
 		std::cout << "no index files create new frag" << std::endl;
-		frags[1] = std::make_unique<Frag>(frag_type,1,1);
+		frags[1] = std::make_unique<Frag>(frag_type,1,1,path);
 		last_frag_id = 1;
 	} else {
 		// frag is .frag, frag_part is .0000* file
@@ -213,13 +213,13 @@ void FragManager::loadFrags() {
 			std::cout << "frag_id " << frag_id << std::endl;
 			std::cout << "frag_part_id " << frag_part_id << std::endl;
 			if (this_frag_id!=frag_id) {
-				frags[this_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1);
+				frags[this_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1,path);
 			}
 			this_frag_id=frag_id;
 			this_frag_part_id=frag_part_id;
 		}
 		last_frag_id=this_frag_id;
-		frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id+1,this_frag_part_id+1);
+		frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id+1,this_frag_part_id+1,path);
 	}
 }
 

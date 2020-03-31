@@ -73,7 +73,7 @@ void Segmenter::init(std::string database) {
 }
 
 
-void Segmenter::parse(std::string id, std::string url, std::string lang, std::string str_in,
+void Segmenter::parse(std::string id, std::string pkey, std::string lang, std::string str_in, std::string table, std::string display_field,
 				   std::map<std::string, Frag::Item> &doc_unigram_map,
 				   std::map<std::string, Frag::Item> &doc_bigram_map,
 				   std::map<std::string, Frag::Item> &doc_trigram_map) {
@@ -102,7 +102,7 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	// this is a redis connection (were replacing this with postgres for the index)
 	// client.connect();
 	// postgres connection
-	std::cout << "INFO : Start parsing for " << url << std::endl;
+	std::cout << "INFO : Start parsing for " << pkey << std::endl;
 
 	/*
 	std::ifstream input("input.txt");
@@ -488,67 +488,21 @@ void Segmenter::parse(std::string id, std::string url, std::string lang, std::st
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
 
-	std::string docstable = "docs_" + lang;
-	std::string update = "UPDATE " + docstable + " SET (lt_index_date, lt_segmented_grams, lt_tdscore) = (NOW(), "
-		+ "$escape$" + (std::string)buffer.GetString() + "$escape$, " 
-		+ std::to_string(tdscore) +") WHERE url='" + url 
-		+ "';";
-	txn.exec(update);
+  std::cout << " DEBUG : segmenter.cc  table " << table << std::endl;
+
+	C->prepare("update_segmented_grams", 
+    "UPDATE \"" + table + "\" SET (lt_index_date, lt_segmented_grams, lt_tdscore) = (NOW(), $1, $2) WHERE \""
+    + display_field + "\" = $3");
+
+	// reset any existing content
+//	pqxx::result a_ = txn.prepared("delete_doc_text")(id).exec();
+
+	pqxx::result e_ = txn.prepared("update_segmented_grams")((std::string)buffer.GetString())(std::to_string(tdscore))(pkey).exec();
 
 	txn.commit();
 
 }
 
-
-
-/* 
- * prepared CTE function to insert the gram into ngrams table
- * returning the gram id value for updating the docngrams tables 
- * The returning gives about 70% overall performance gain compared with separate insert/select.
- * The prepare gives about 30% overall performance.
- * CTE gives slight performance gain.
- * So basically this improved speed from about 3 docs per second to 6.5 docs per second.
- */
-/*
-void Segmenter::prepare_insert_unigram(pqxx::connection_base &c, std::string lang) {
-	std::string unigramtable = "unigrams_" + lang;
-	std::string unigramtable_constraint = "unigrams_" + lang + "_gram_key";
-	std::string docunigramtable = "docunigrams_" + lang;
-	std::string docunigramtable_constraint = "docunigrams_" + lang + "_pkey";
-	c.prepare("insert_unigrams",
-		"WITH t as (INSERT INTO " + unigramtable + " (gram) VALUES ($1) "
-		"ON CONFLICT ON CONSTRAINT " + unigramtable_constraint + " DO UPDATE SET gram = $1 RETURNING " + unigramtable + ".id) "
-		"INSERT INTO " + docunigramtable + " (url_id, gram_id, tf) VALUES ($2, (SELECT id FROM t), $3) "
-		"ON CONFLICT ON CONSTRAINT " + docunigramtable_constraint + " DO UPDATE SET tf = $3 "
-		"WHERE " + docunigramtable + ".url_id = $2 AND " + docunigramtable + ".gram_id = (SELECT id FROM t)");
-}
-
-void Segmenter::prepare_insert_bigram(pqxx::connection_base &c, std::string lang) {
-	std::string bigramtable = "bigrams_" + lang;
-	std::string bigramtable_constraint = "bigrams_" + lang + "_gram_key";
-	std::string docbigramtable = "docbigrams_" + lang;
-	std::string docbigramtable_constraint = "docbigrams_" + lang + "_pkey";
-	c.prepare("insert_bigrams",
-		"WITH t as (INSERT INTO " + bigramtable + " (gram) VALUES ($1) "
-		"ON CONFLICT ON CONSTRAINT " + bigramtable_constraint + " DO UPDATE SET gram = $1 RETURNING " + bigramtable + ".id) "
-		"INSERT INTO " + docbigramtable + " (url_id, gram_id, tf) VALUES ($2, (SELECT id FROM t), $3) "
-		"ON CONFLICT ON CONSTRAINT " + docbigramtable_constraint + " DO UPDATE SET tf = $3 "
-		"WHERE " + docbigramtable + ".url_id = $2 AND " + docbigramtable + ".gram_id = (SELECT id FROM t)");
-}
-
-void Segmenter::prepare_insert_trigram(pqxx::connection_base &c, std::string lang) {
-	std::string trigramtable = "trigrams_" + lang;
-	std::string trigramtable_constraint = "trigrams_" + lang + "_gram_key";
-	std::string doctrigramtable = "doctrigrams_" + lang;
-	std::string doctrigramtable_constraint = "doctrigrams_" + lang + "_pkey";
-	c.prepare("insert_trigrams",
-		"WITH t as (INSERT INTO " + trigramtable + " (gram) VALUES ($1) "
-		"ON CONFLICT ON CONSTRAINT " + trigramtable_constraint + " DO UPDATE SET gram = $1 RETURNING " + trigramtable + ".id) "
-		"INSERT INTO " + doctrigramtable + " (url_id, gram_id, tf) VALUES ($2, (SELECT id FROM t), $3) "
-		"ON CONFLICT ON CONSTRAINT " + doctrigramtable_constraint + " DO UPDATE SET tf = $3 "
-		"WHERE " + doctrigramtable + ".url_id = $2 AND " + doctrigramtable + ".gram_id = (SELECT id FROM t)");
-}
-*/
 void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {
 }
 

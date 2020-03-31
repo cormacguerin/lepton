@@ -229,7 +229,7 @@ console.log("promises finished in " + totaltime + "ms");
     var vm = this;
     var promises = [];
     const promisePush = async function() {
-      var tables = ['unigrams','bigrams','trigrams']
+      var tables = ['lt_unigrams','lt_bigrams','lt_trigrams']
       for (var t in tables) {
         promises.push(new Promise((pr, pe) => {
           var query = "CREATE TABLE "
@@ -324,6 +324,7 @@ console.log("promises finished in " + totaltime + "ms");
       + "lt_uuid uuid,"
       + "lt_docscore real,"
       + "lt_tdscore real,"
+      + "lt_entities text,"
       + "lt_atf real,"
       + "lt_crawl_date TIMESTAMP,"
       + "lt_index_date TIMESTAMP,"

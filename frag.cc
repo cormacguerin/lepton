@@ -10,15 +10,16 @@ rapidjson::Document serialized_frag;
 
 Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id, std::string p) : prefix_type(), frag_id(), fragment_id(), path()
 {
-	std::cout << "A fragment_id " << fragment_id << std::endl;
-	std::cout << "A _fragment_id " << _fragment_id << std::endl;
 	prefix_type = type;
 	frag_id = _frag_id;
 	fragment_id = _fragment_id;
-	std::cout << "B fragment_id " << fragment_id << std::endl;
-	std::cout << "B _fragment_id " << _fragment_id << std::endl;
   path = p;
+	std::cout << "path " << path << std::endl;
 	load();
+	// std::cout << "A fragment_id " << fragment_id << std::endl;
+	// std::cout << "A _fragment_id " << _fragment_id << std::endl;
+	// std::cout << "B fragment_id " << fragment_id << std::endl;
+	// std::cout << "B _fragment_id " << _fragment_id << std::endl;
 }
 
 Frag::~Frag()
@@ -56,21 +57,21 @@ void Frag::load() {
 
 	if (ifs.good()) {
 		// loadJsonFrag(filename);
-		std::cout << "DEBUG load frag " << filename << std::endl;
+		// std::cout << "DEBUG load frag " << filename << std::endl;
 		loadRawFrag(filename);
 
 		time_t aftertime = time(0);
 		double seconds = difftime(aftertime, beforetime);
 		if (fragment_id==0) {
-			std::cout << "frag.cc : Frag " << frag_id << " loaded with size : " << frag_map.size() << " in " << seconds << " seconds." << std::endl;
+			// std::cout << "frag.cc : Frag " << frag_id << " loaded with size : " << frag_map.size() << " in " << seconds << " seconds." << std::endl;
 		} else {
-			std::cout << "frag.cc : Frag " << frag_id << "." << fragment_id << " loaded with size : " << frag_map.size() << " in " << seconds << " seconds." << std::endl;
+			// std::cout << "frag.cc : Frag " << frag_id << "." << fragment_id << " loaded with size : " << frag_map.size() << " in " << seconds << " seconds." << std::endl;
 		}
 	} else {
 		if (fragment_id==0) {
-			std::cout << "frag.cc : Creating Frag << " << frag_id << " " << std::endl;
+			// std::cout << "frag.cc : Creating Frag << " << frag_id << " " << std::endl;
 		} else {
-			std::cout << "frag.cc : Creating Frag << " << frag_id << "." << fragment_id << " " << std::endl;
+			// std::cout << "frag.cc : Creating Frag << " << frag_id << "." << fragment_id << " " << std::endl;
 		}
 		return;
 	}
@@ -99,9 +100,9 @@ void Frag::loadJsonFrag(std::string filename) {
 
 	if (d.HasParseError()) {
 		if (fragment_id==0) {
-			std::cout << "frag.cc : failed to parse JSON in frag << " << frag_id << ", frag will be automatically discarded" << std::endl;
+			// std::cout << "frag.cc : failed to parse JSON in frag << " << frag_id << ", frag will be automatically discarded" << std::endl;
 		} else {
-			std::cout << "frag.cc : failed to parse JSON in frag << " << frag_id << "." << fragment_id << ", frag will be automatically discarded" << std::endl;
+			// std::cout << "frag.cc : failed to parse JSON in frag << " << frag_id << "." << fragment_id << ", frag will be automatically discarded" << std::endl;
 		}
 		// wipe the frag and write it.
 		frag_map.clear();
@@ -257,7 +258,7 @@ void Frag::serializeJSON(rapidjson::Document &serialized_frag) {
 	serialized_frag.Parse("{}");
 
 	std::map<std::string, std::map<int, Frag::Item>>::iterator it;
-	std::cout << "serialize_ frag_map.size() " << frag_map.size() << std::endl;
+	// std::cout << "serialize_ frag_map.size() " << frag_map.size() << std::endl;
 	for (it = frag_map.begin(); it != frag_map.end(); it++) {
 		rapidjson::Document::AllocatorType& allocator = serialized_frag.GetAllocator();
 		rapidjson::Value fragItem_;
@@ -296,7 +297,7 @@ void Frag::addWeights(int num_docs, std::string database) {
 	pqxx::connection* C;
 
 	try {
-		C = new pqxx::connection("dbname = " + database + " user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = \'" + database + "\' user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
 		if (C->is_open()) {
 			std::cout << "Opened database successfully: " << C->dbname() << std::endl;
 		} else {
@@ -311,30 +312,31 @@ void Frag::addWeights(int num_docs, std::string database) {
 	std::string gram;
 	if (prefix_type==Frag::Type::UNIGRAM){
 		update_gram_idf = "update_unigram_idf";
-		gram = "unigrams";
+		gram = "lt_unigrams";
 	} else if (prefix_type==Frag::Type::BIGRAM){
 		update_gram_idf = "update_bigram_idf";
-		gram = "bigrams";
+		gram = "lt_bigrams";
 	} else if (prefix_type==Frag::Type::TRIGRAM){
 		update_gram_idf = "update_trigram_idf";
-		gram = "trigrams";
+		gram = "lt_trigrams";
 	} else {
 		return;
 	}
 
 	pqxx::work txn(*C);
-	C->prepare(update_gram_idf, "INSERT INTO " + gram + "_en (idf,gram) VALUES ($1,$2) ON CONFLICT "
-		       "ON CONSTRAINT " + gram + "_en_gram_key DO UPDATE SET idf = $1 WHERE "+ gram +"_en.gram = $2");
+	C->prepare(update_gram_idf, "INSERT INTO " + gram + " (idf,gram) VALUES ($1,$2) ON CONFLICT "
+		       "ON CONSTRAINT " + gram + "_gram_key DO UPDATE SET idf = $1 WHERE " + gram + ".gram = $2");
+
 	for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
 		// TODO store the idf somewhere also.
 		double idf = log((double)num_docs/(double)it->second.size());
 		pqxx::result r = txn.prepared(update_gram_idf)(std::to_string(idf))(it->first.c_str()).exec();
+    
 		// each word item in the index has an idf value.
 		// std::cout << "frag.cc : idf value for item " << it->first << " : " << idf << std::endl;
 		// each item for each url has a weight value.
 		for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
 			tit->second.weight = idf*tit->second.tf;
-			// std::cout << "frag.cc : weight value for item " << it->first << " in url id " << tit->first << " : " << tit->second.weight << std::endl;
 		}
 	}
 	txn.commit();
@@ -344,6 +346,12 @@ void Frag::addWeights(int num_docs, std::string database) {
 }
 
 void Frag::insert(std::string s, std::map<int,Frag::Item> m) {
+  /*
+  std::cout << "frag_map.size()" << std::endl;
+  std::cout << frag_map.size() << std::endl;
+  std::cout << "s" << std::endl;
+  std::cout << s << std::endl;
+  */
 	frag_map.insert(std::pair<std::string,std::map<int,Frag::Item>>(s,m));
 }
 

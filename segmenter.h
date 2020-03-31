@@ -41,14 +41,10 @@ class Segmenter {
 		Segmenter();
 		~Segmenter();
 		void init(std::string database);
-		void parse(std::string id, std::string url, std::string lang, std::string str_in,
+		void parse(std::string id, std::string url, std::string lang, std::string str_in, std::string table, std::string display_field,
 				   std::map<std::string, Frag::Item> &doc_unigram_map,
 				   std::map<std::string, Frag::Item> &doc_bigram_map,
 				   std::map<std::string, Frag::Item> &doc_trigram_map);
-		//std::string update_docngrams_table(std::string url, std::string gram, std::string c);
-		//std::string update_ngrams_table(std::string gram);
-		//std::string update_all_tables(std::string id, std::string url, std::string gram, std::string c);
-	//	void prepare_known_insert(pqxx::connection_base &c);
 		void tokenize(std::string text, std::vector<std::string> *pieces);
 		void detokenize(std::vector<std::string> pieces, std::string text);
 };

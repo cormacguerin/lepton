@@ -64,7 +64,7 @@ class Result {
 			std::string lang;
 			std::string url;
 			std::string snippet;
-			std::string topics;
+			std::string entities;
 			std::map<std::string,std::vector<int>> terms;
 			void updateResult();
 		};

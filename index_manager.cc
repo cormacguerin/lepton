@@ -13,9 +13,12 @@ using namespace std;
 using namespace pqxx;
 
 
-IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string db, std::string tb) : unigramFragManager(u,db,tb), bigramFragManager(b,db,tb), trigramFragManager(t,db,tb) {
+IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string db, std::string tb, std::string cl, std::string df) :
+    unigramFragManager(u,db,tb), bigramFragManager(b,db,tb), trigramFragManager(t,db,tb) {
   database = db;
   table = tb;
+  columns = cl;
+  display_field = df;
 }
 
 IndexManager::~IndexManager()
@@ -34,7 +37,7 @@ void IndexManager::init(std::string database) {
 	//	client.connect();
 	// postgres connection
 	try {
-		C = new pqxx::connection("dbname = " + database + " user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = \'" + database + "\' user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
     if (C->is_open()) {
        cout << "Opened database successfully: " << C->dbname() << endl;
     } else {
@@ -46,13 +49,13 @@ void IndexManager::init(std::string database) {
 	}
 }
 
-void IndexManager::processFeeds(std::string table) {
+void IndexManager::processFeeds() {
 	int num_docs;
 	int max_doc_id;
 	int batch_size;
-	int base_batch_size = 10000;
-	getNumDocs(num_docs, table);
-	getMaxDocId(max_doc_id, table);
+	int base_batch_size = 20;
+	getNumDocs(num_docs);
+	getMaxDocId(max_doc_id);
 	std::cout << "indexManager.cc : num_docs : " << num_docs << std::endl;
 	std::cout << "indexManager.cc : max_doc_id : " << max_doc_id << std::endl;
 	int num_batches = num_docs/base_batch_size;
@@ -64,10 +67,11 @@ void IndexManager::processFeeds(std::string table) {
 	}
 	std::cout << "indexManager.cc : batch_size " << batch_size << std::endl;
 	std::cout << "indexManager.cc : num_batches : " << num_batches << std::endl;
-	std::string statement = "SELECT lt_id,url,document,language FROM \"" + table + "\" WHERE lt_id BETWEEN $1 AND $2";
+	std::string statement = "SELECT lt_id,url,concat("+ columns +") as document,language FROM \"" + table + "\" WHERE lt_id BETWEEN $1 AND $2";
 
 	int batch_position = 0;
 
+  std::vector<int> ids;
 	for (int i = 0; i <= max_doc_id; ) {
 		batch_position += batch_size;
 
@@ -99,8 +103,19 @@ void IndexManager::processFeeds(std::string table) {
 				continue;
 			}
 			indexDocument(id.c_str(), url.c_str(), document.c_str(), lang.c_str());
+      ids.push_back(std::stoi(id.c_str()));
 		}
 		i = batch_position;
+    // we need a corpus to determine ranking score, as the corpus changes
+    // ranking may get skewed, eg initially indexed documents may have inaccurate
+    // ranking, as such reindexing is important to ensure normalization.
+    ids.clear();
+    // merge fragments
+    unigramFragManager.mergeFrags(num_docs, database);
+    bigramFragManager.mergeFrags(num_docs, database);
+    trigramFragManager.mergeFrags(num_docs, database);
+    // process doc info must be called after mergeFrage(which creates idf)
+    processDocInfo(ids);
 	}
 	// sync the remainder.
 	std::cout << "indexManager.cc : batch finished - sync remaining terms." << std::endl;
@@ -109,48 +124,63 @@ void IndexManager::processFeeds(std::string table) {
 	trigramFragManager.syncFrags();
 	// merge frag fragments into frag.
 	// atually just running one merges all, todo, split it up.
-	unigramFragManager.mergeFrags(num_docs, table);
-	bigramFragManager.mergeFrags(num_docs, table);
-	trigramFragManager.mergeFrags(num_docs, table);
+	unigramFragManager.mergeFrags(num_docs, database);
+	bigramFragManager.mergeFrags(num_docs, database);
+	trigramFragManager.mergeFrags(num_docs, database);
+  // process doc info must be called after mergeFrage(which creates idf)
+  processDocInfo(ids);
 }
 
 /*
  * This is our second pass, here we set the docscore.
  * docscore = product(num_terms*term_idf)/sum(terms)
  * We can't do this in the frst pass above as the IDF
- * for each term is unknown. The score is based on the 
- * corpus so we need to index the corpus first.
- * We could do other processing here eg. ML stuff etc
+ * for each term is unknown. The best trade off is to process
+ * in batches however again Since the score is based on the
+ * corpus we need to reindex to assist in score normalization.
+ * We also do basic entity extraction here, we
+ * could do other processing too eg. ML stuff etc
  */
-void IndexManager::processDocInfo(std::string table) {
+void IndexManager::processDocInfo(std::vector<int> batch) {
 
 	// this statement calculates the idf
 	std::cout << "index_manager.cc processDocInfo" << std::endl;
 	
 	std::vector<std::string> unibitri{"trigrams","bigrams","unigrams"};
 
-	std::string update_doc_idf = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE d.id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_unigrams AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE " + table + " SET lt_docscore = (SELECT score/freq FROM v) WHERE id = $1";
 
-	std::string update_doc_topics = "UPDATE " + table + " SET topics = $1 WHERE id = $2";
+	std::string update_doc_entities = "UPDATE " + table + " SET lt_entities = $1 WHERE lt_id = $2";
 
-	std::vector<int> b = GetDocscoreBatch(table);
+  /*
+	std::vector<int> b = GetDocscoreBatch();
 
 	while (b.size() > 0) {
 		std::cout << "b.size() " << b.size()  << std::endl;
 		pqxx::work txn(*C);
 		for (std::vector<int>::iterator it_ = b.begin(); it_ != b.end(); it_++) {
-			C->prepare("process_topics_batch", update_doc_topics);
 
-			C->prepare("process_docscore_batch", update_doc_idf);
+			C->prepare("process_entities_batch", update_doc_entities);
+
 			pqxx::result rds = txn.prepared("process_docscore_batch")(*it_).exec();
+  */
+	pqxx::work txn(*C);
+  for (std::vector<int>::iterator it_ = batch.begin(); it_ != batch.end(); it_++) {
 
 			std::vector<std::pair<std::string,float>> grams;
 			std::map<std::string,std::vector<std::pair<std::string,float>>> unigrams;
 			float multiplier = 3.0;
 			for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
-				std::string gram_terms = "SELECT d.id, key, (CHAR_LENGTH(value)- CHAR_LENGTH(REPLACE(value, ',', '')))*" + *it + ".idf AS i FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms INNER JOIN "+*it+" ON docterms.key="+*it+".gram WHERE d.id = $1 ORDER BY i DESC LIMIT 30";
+
+        // update the docuscore using the idf / term frequencies
+        std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE " + table + " SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE id = $1";
+        C->prepare("process_docscore", update_docscore);
+			  pqxx::result rds = txn.prepared("process_docscore")(*it_).exec();
+
+        // basic entity extraction function.
+				std::string gram_terms = "SELECT d.lt_id, key, (CHAR_LENGTH(value) - CHAR_LENGTH(REPLACE(value, ',', ''))), lt_" + *it + ".idf AS i FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms INNER JOIN lt_"+*it+" ON docterms.key = lt_"+*it+".gram WHERE d.lt_id = $1 ORDER BY i DESC LIMIT 30";
 				C->prepare("process_"+*it+"_batch", gram_terms);
 				pqxx::result rgt = txn.prepared("process_"+*it+"_batch")(*it_).exec();
+
 				for (pqxx::result::const_iterator row = rgt.begin(); row != rgt.end(); ++row) {
 					const pqxx::field gram = (row)[1];
 					const pqxx::field weight = (row)[2];
@@ -193,11 +223,11 @@ void IndexManager::processDocInfo(std::string table) {
 				}
 			}
 			std::cout << *it_ <<  " : " << strarray << std::endl;
-			pqxx::result rgt = txn.prepared("process_topics_batch")(strarray)(*it_).exec();
-		}
-		txn.commit();
-		b.clear();
-		b = GetDocscoreBatch(table);
+			pqxx::result rgt = txn.prepared("process_entities_batch")(strarray)(*it_).exec();
+//		}
+//		txn.commit();
+//		b.clear();
+//		b = GetDocscoreBatch();
 	}
 }
 
@@ -208,11 +238,12 @@ void IndexManager::processDocInfo(std::string table) {
  * - base64 decode the encoded contents.
  * - segment the body
  */
-void IndexManager::indexDocument(string id, string display_field, string rawdoc, string lang) {
+void IndexManager::indexDocument(string id, string pkey, string rawdoc, string lang) {
 	// create main json doc and load rawdoc into it.
+  /*
 	rapidjson::Document doc;
 	const char *cstr = rawdoc.c_str();
-	try { 
+	try {
 		doc.Parse(cstr);
 	} catch (const exception& e) {
 		cout << "Error : Aborting due to failed JSON parse attempt" << endl;
@@ -220,7 +251,7 @@ void IndexManager::indexDocument(string id, string display_field, string rawdoc,
 		return;
 	}
 	// const char *ckey = (*it).c_str();
-	const string display_url = doc["display_url"].GetString();
+	// const string display_url = doc[display_field].GetString();
 	string doc_body;
 	try {
 		doc_body = doc["body"].GetString();
@@ -234,12 +265,14 @@ void IndexManager::indexDocument(string id, string display_field, string rawdoc,
 	// this is the sentencepiece tokenizer
 	// spp.tokenize(decoded_doc_body, &tokenized_doc_body);
 	// this is the cormac tokenizer
+  */
 	
 	// container for our url term / frequency
 	std::map<std::string, Frag::Item> doc_unigram_map;
 	std::map<std::string, Frag::Item> doc_bigram_map;
 	std::map<std::string, Frag::Item> doc_trigram_map;
-	seg.parse(id, display_field, lang, decoded_doc_body, 
+	// seg.parse(id, display_field, lang, decoded_doc_body, 
+	seg.parse(id, pkey, lang, rawdoc, table, display_field,
 		doc_unigram_map, doc_bigram_map, doc_trigram_map);
 	unigramFragManager.addTerms(doc_unigram_map);
 	bigramFragManager.addTerms(doc_bigram_map);
@@ -274,8 +307,8 @@ void IndexManager::exportVocab(std::string lang) {
  * This is all very messy but it works.
  */
 
-void IndexManager::getNumDocs(int &count, std::string table) {
-	prepare_doc_count(*C, table);
+void IndexManager::getNumDocs(int &count) {
+	prepare_doc_count(*C);
 	pqxx::work txn(*C);
 	pqxx::result r = txn.prepared("doc_count").exec();
 	txn.commit();
@@ -317,8 +350,8 @@ void IndexManager::getMaxNgramId(int &num, std::string gram, std::string lang) {
 	num = atoi(c.c_str());
 }
 
-void IndexManager::getMaxDocId(int &num, std::string table) {
-	prepare_max_doc_id(*C, table);
+void IndexManager::getMaxDocId(int &num) {
+	prepare_max_doc_id(*C);
 	pqxx::work txn(*C);
 	pqxx::result r = txn.prepared("max_doc_id").exec();
 	txn.commit();
@@ -326,8 +359,8 @@ void IndexManager::getMaxDocId(int &num, std::string table) {
 	num = atoi(c.c_str());
 }
 
-std::vector<int> IndexManager::GetDocscoreBatch(std::string table) {
-	prepare_docscore_batch(*C, table);
+std::vector<int> IndexManager::GetDocscoreBatch() {
+	prepare_docscore_batch(*C);
 	pqxx::work txn(*C);
 	pqxx::result r = txn.prepared("docscore_batch").exec();
 	txn.commit();
@@ -340,11 +373,11 @@ std::vector<int> IndexManager::GetDocscoreBatch(std::string table) {
 	return b;
 }
 
-void IndexManager::prepare_docscore_batch(pqxx::connection_base &c, std::string table) {
-	c.prepare("docscore_batch", "SELECT lt_id, lang FROM \"" + table + "\" WHERE lt_segmented_grams IS NOT NULL AND topics IS NULL LIMIT 1000");
+void IndexManager::prepare_docscore_batch(pqxx::connection_base &c) {
+	c.prepare("docscore_batch", "SELECT lt_id, lang FROM \"" + table + "\" WHERE lt_segmented_grams IS NOT NULL AND entities IS NULL LIMIT 10");
 }
 
-void IndexManager::prepare_max_doc_id(pqxx::connection_base &c, std::string table) {
+void IndexManager::prepare_max_doc_id(pqxx::connection_base &c) {
 	c.prepare("max_doc_id", "SELECT MAX(lt_id) FROM \"" + table +"\"");
 }
 
@@ -360,7 +393,7 @@ void IndexManager::prepare_max_trigram_id(pqxx::connection_base &c, std::string 
 	c.prepare("max_trigram_id", "SELECT MAX(id) FROM trigrams WHERE lang = " + lang);
 }
 
-void IndexManager::prepare_doc_count(pqxx::connection_base &c, std::string table) {
+void IndexManager::prepare_doc_count(pqxx::connection_base &c) {
 	c.prepare("doc_count", "SELECT COUNT(*) FROM \"" + table + "\"");
 }
 
