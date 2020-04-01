@@ -99,14 +99,8 @@ void Segmenter::parse(std::string id, std::string pkey, std::string lang, std::s
 	std::vector<std::string> gramWindow;
 	std::vector<icu::UnicodeString> grams;
 
-	// this is a redis connection (were replacing this with postgres for the index)
-	// client.connect();
-	// postgres connection
-	std::cout << "INFO : Start parsing for " << pkey << std::endl;
-
 	/*
 	std::ifstream input("input.txt");
-
 	std::string str_in((std::istreambuf_iterator<char>(input)),
 			std::istreambuf_iterator<char>());
 	*/
@@ -487,8 +481,6 @@ void Segmenter::parse(std::string id, std::string pkey, std::string lang, std::s
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
-
-  std::cout << " DEBUG : segmenter.cc  table " << table << std::endl;
 
 	C->prepare("update_segmented_grams", 
     "UPDATE \"" + table + "\" SET (lt_index_date, lt_segmented_grams, lt_tdscore) = (NOW(), $1, $2) WHERE \""

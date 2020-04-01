@@ -53,7 +53,7 @@ void IndexManager::processFeeds() {
 	int num_docs;
 	int max_doc_id;
 	int batch_size;
-	int base_batch_size = 20;
+	int base_batch_size = 10000;
 	getNumDocs(num_docs);
 	getMaxDocId(max_doc_id);
 	std::cout << "indexManager.cc : num_docs : " << num_docs << std::endl;
@@ -87,9 +87,7 @@ void IndexManager::processFeeds() {
 			const pqxx::field url = (row)[1];
 			const pqxx::field document = (row)[2];
 			const pqxx::field lang = (row)[3];
-			std::cout << " - - - - - " << std::endl;
-			std::cout << "url : " << url.c_str() << std::endl;
-			std::cout << "lang : " << lang.c_str() << std::endl;
+			std::cout << "url : " << url.c_str() << "(" << lang.c_str() << ")" << std::endl;
 			if (url.is_null()) {
 				std::cout << "skip : url is null" << std::endl;;
 				continue;
@@ -109,13 +107,13 @@ void IndexManager::processFeeds() {
     // we need a corpus to determine ranking score, as the corpus changes
     // ranking may get skewed, eg initially indexed documents may have inaccurate
     // ranking, as such reindexing is important to ensure normalization.
-    ids.clear();
     // merge fragments
     unigramFragManager.mergeFrags(num_docs, database);
     bigramFragManager.mergeFrags(num_docs, database);
     trigramFragManager.mergeFrags(num_docs, database);
     // process doc info must be called after mergeFrage(which creates idf)
     processDocInfo(ids);
+    ids.clear();
 	}
 	// sync the remainder.
 	std::cout << "indexManager.cc : batch finished - sync remaining terms." << std::endl;
@@ -172,7 +170,7 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
 			for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
 
         // update the docuscore using the idf / term frequencies
-        std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE " + table + " SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE id = $1";
+        std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE id = $1";
         C->prepare("process_docscore", update_docscore);
 			  pqxx::result rds = txn.prepared("process_docscore")(*it_).exec();
 

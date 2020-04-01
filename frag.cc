@@ -14,12 +14,13 @@ Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id, std::string p) : pre
 	frag_id = _frag_id;
 	fragment_id = _fragment_id;
   path = p;
-	std::cout << "path " << path << std::endl;
 	load();
-	// std::cout << "A fragment_id " << fragment_id << std::endl;
-	// std::cout << "A _fragment_id " << _fragment_id << std::endl;
-	// std::cout << "B fragment_id " << fragment_id << std::endl;
-	// std::cout << "B _fragment_id " << _fragment_id << std::endl;
+  /*
+	std::cout << "A fragment_id " << fragment_id << std::endl;
+	std::cout << "A _fragment_id " << _fragment_id << std::endl;
+	std::cout << "B fragment_id " << fragment_id << std::endl;
+	std::cout << "B _fragment_id " << _fragment_id << std::endl;
+  */
 }
 
 Frag::~Frag()

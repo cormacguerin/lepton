@@ -86,6 +86,8 @@ void FragManager::syncFrags() {
  */
 void FragManager::mergeFrags(int num_docs, std::string database) {
 
+	std::cout << "frag_manager.cc : mergeFrags - " << database << std::endl;
+
 	int syncsize = grams_terms.size();
 	time_t beforetime = time(0);
 
@@ -98,28 +100,43 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 	} else {
 		int this_frag_id = 0;
 		std::unique_ptr<Frag> main_frag;
+// std::make_unique<Frag>(frag_type, last_frag_id, 1, path);
+    // track the merged frags so we can delete them on success.
+    std::vector<std::string> merged_frags;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
-			std::cout << "fram_manager.cc merge " << *it << std::endl;
+			std::cout << "fram_manager.cc : merge " << *it << std::endl;
 
 			std::string frag_string = (*it).substr((*it).find('_')+1,(*it).length());
 			int frag_id = stoi(frag_string.substr(0, frag_string.find(".")));
 
 			if (this_frag_id!=frag_id) {
 				if (this_frag_id != 0) {
+          std::cout << "DEB 1" << std::endl;
 					main_frag.get()->addWeights(num_docs, database);
+          std::cout << "DEB 2" << std::endl;
 					main_frag.get()->write();
+          std::cout << "DEB 3" << std::endl;
 					std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
+          // delete merged frags
+          for (std::vector<std::string>::iterator mit=merged_frags.begin(); mit!=merged_frags.end(); mit++) {
+            std::cout << "delete " << *mit << std::endl;
+          }
+          merged_frags.clear();
 				}
+        std::cout << "DEB 4" << std::endl;
 				std::cout << "frag_manager.cc : main frag id : " << frag_id << std::endl;
 				main_frag = std::make_unique<Frag>(frag_type,frag_id,0,path);
 			}
+      std::cout << "DEB 5" << std::endl;
 			if (frag_string.find(".frag.")!=std::string::npos) {
+        std::cout << "DEB 6" << std::endl;
 				int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
 				std::cout << "frag_manager.cc : frag " << frag_id << " : " << frag_part_id << " : " << *it << std::endl;
 				std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type,frag_id,frag_part_id,path);
 				for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
 					main_frag.get()->update(it->first, it->second);
 				}
+        merged_frags.push_back(frag_string);
 			}
 			this_frag_id=frag_id;
 		}
@@ -202,21 +219,20 @@ void FragManager::loadFrags() {
 		int this_frag_id = 1;
 		int this_frag_part_id = 1;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
-			std::cout << *it << std::endl;
 			std::string frag_string = (*it).substr((*it).find('_')+1,(*it).length());
 
-			std::cout << frag_string.substr(0, frag_string.find('.')) << std::endl;
 			int frag_id = stoi(frag_string.substr(0, frag_string.find('.')));
-			std::cout << frag_string.substr(frag_string.find('.')+7,frag_string.length()) << std::endl;
 			int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
 
-			std::cout << "frag_id " << frag_id << std::endl;
-			std::cout << "frag_part_id " << frag_part_id << std::endl;
+			std::cout << "load frag " << *it << " : " << frag_id << " . " << frag_part_id << std::endl;
 			if (this_frag_id!=frag_id) {
 				frags[this_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1,path);
-			}
+			  this_frag_part_id=frag_part_id;
+      } else {
+        // TEST
+			  this_frag_part_id=1;
+      }
 			this_frag_id=frag_id;
-			this_frag_part_id=frag_part_id;
 		}
 		last_frag_id=this_frag_id;
 		frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id+1,this_frag_part_id+1,path);

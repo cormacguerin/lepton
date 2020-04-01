@@ -32,7 +32,7 @@ class FragManager {
 		// hash map of term strings to a map of doc ids term data
 		std::map<std::string, std::map<int, Frag::Item>> grams_terms;
     std::string path;
-		int FRAG_SIZE=10000;
+		int FRAG_SIZE=20000;
 		int BATCH_SIZE=100000;
 		void loadLastFrag();
 		void loadFrags();

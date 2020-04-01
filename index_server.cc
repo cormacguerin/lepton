@@ -228,7 +228,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 }
 
 /*
- * Get the snippet, metadata, topics etc.
+ * Get the snippet, metadata, entities etc.
  */
 void IndexServer::getResultInfo(Result& result, std::string table) {
 	/*
@@ -250,7 +250,7 @@ void IndexServer::getResultInfo(Result& result, std::string table) {
 	prepstr += ")";
 
 	pqxx::work txn(*C);
-	C->prepare("get_docinfo_deep"+x, "SELECT id, topics, (WITH S AS (SELECT jsonb_array_elements_text(segmented_grams->'raw_text') AS snippet FROM docs_en WHERE id=D.id OFFSET 50 ROWS LIMIT 100) SELECT string_agg(snippet, ' ') FROM S) FROM docs_en AS D WHERE id IN " + prepstr);
+	C->prepare("get_docinfo_deep"+x, "SELECT id, entities, (WITH S AS (SELECT jsonb_array_elements_text(segmented_grams->'raw_text') AS snippet FROM docs_en WHERE id=D.id OFFSET 50 ROWS LIMIT 100) SELECT string_agg(snippet, ' ') FROM S) FROM docs_en AS D WHERE id IN " + prepstr);
 	pqxx::result r = txn.prepared("get_docinfo_deep"+x).exec();
 	txn.commit();
 
@@ -259,10 +259,10 @@ void IndexServer::getResultInfo(Result& result, std::string table) {
 		const pqxx::field t = (row)[1];
 		const pqxx::field s = (row)[2];
 		int id = c_map.at(atoi(i.c_str()));
-		std::string topics = std::string(t.c_str());
+		std::string entities = std::string(t.c_str());
 		std::string snippet = std::string(s.c_str());
 
-		result.items.at(id).topics = topics;
+		result.items.at(id).entities = entities;
 		result.items.at(id).snippet = snippet;
 	}
 */
@@ -271,16 +271,16 @@ void IndexServer::getResultInfo(Result& result, std::string table) {
 	}
 
 	pqxx::work txn(*C);
-	C->prepare("get_docinfo_deep", "SELECT id, topics, (WITH S AS (SELECT jsonb_array_elements_text(segmented_grams->'raw_text') AS snippet FROM " + table + "WHERE id=D.id OFFSET 50 ROWS LIMIT 100) SELECT string_agg(snippet, ' ') FROM S) FROM " + table + " AS D WHERE id = $1");
+	C->prepare("get_docinfo_deep", "SELECT id, entities, (WITH S AS (SELECT jsonb_array_elements_text(segmented_grams->'raw_text') AS snippet FROM " + table + "WHERE id=D.id OFFSET 50 ROWS LIMIT 100) SELECT string_agg(snippet, ' ') FROM S) FROM " + table + " AS D WHERE id = $1");
 	for (std::vector<Result::Item>::iterator tit = result.items.begin(); tit != result.items.end(); ++tit) {
 		pqxx::result r = txn.prepared("get_docinfo_deep")(tit->url_id).exec();
 		const pqxx::field i = r.back()[0];
 		const pqxx::field t = r.back()[1];
 		const pqxx::field s = r.back()[2];
 
-		std::string topics = std::string(t.c_str());
+		std::string entities = std::string(t.c_str());
 		std::string snippet = std::string(s.c_str());
-		tit->topics = topics;
+		tit->entities = entities;
 		tit->snippet = snippet;
 	}
 
