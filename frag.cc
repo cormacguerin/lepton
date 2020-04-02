@@ -123,6 +123,10 @@ void Frag::loadJsonFrag(std::string filename) {
 //						std::cout << "frag.cc  url_id : " << jtit_->value.GetInt() << std::endl;
 					item.url_id=jtit_->value.GetInt();
 				}
+        // TODO not sure if lang works as i added it later, never tested
+				if (strcmp(jtit_->name.GetString(),"lang")==0) {
+					item.lang=jtit_->value.GetInt();
+				}
 				if (strcmp(jtit_->name.GetString(),"tf")==0) {
 //						std::cout << "frag.cc  tf : " << jtit_->value.GetDouble() << std::endl;
 					item.tf=jtit_->value.GetDouble();
@@ -269,6 +273,7 @@ void Frag::serializeJSON(rapidjson::Document &serialized_frag) {
 			rapidjson::Value item_;
 			item_.SetObject();
 			item_.AddMember("url_id", rapidjson::Value().SetInt((tit->second).url_id), allocator);
+			item_.AddMember("lang", rapidjson::Value().SetInt((tit->second).lang), allocator);
 			item_.AddMember("tf", rapidjson::Value().SetDouble((tit->second).tf), allocator);
 			item_.AddMember("weight", rapidjson::Value().SetDouble((tit->second).weight), allocator);
 			fragItem_.AddMember(rapidjson::Value(const_cast<char*>(std::to_string(tit->first).c_str()), allocator).Move(), item_, allocator);
@@ -294,7 +299,7 @@ std::vector<std::string> Frag::getItemKeys() {
  * standard calculation for this is the item frequency times the idf(inverse document frequency).
  * idf is usually calculated as log(no. docs in corpus/no. of documents that contain the item)
  */
-void Frag::addWeights(int num_docs, std::string database) {
+void Frag::addWeights(std::map<int,int> num_docs, std::string database) {
 	pqxx::connection* C;
 
 	try {
@@ -325,23 +330,33 @@ void Frag::addWeights(int num_docs, std::string database) {
 	}
 
 	pqxx::work txn(*C);
-	C->prepare(update_gram_idf, "INSERT INTO " + gram + " (idf,gram) VALUES ($1,$2) ON CONFLICT "
-		       "ON CONSTRAINT " + gram + "_gram_key DO UPDATE SET idf = $1 WHERE " + gram + ".gram = $2");
+	C->prepare(update_gram_idf, "INSERT INTO " + gram + " (idf,gram,lang) VALUES ($1,$2,$3) ON CONFLICT "
+		       "ON CONSTRAINT " + gram + "_gram_key DO UPDATE SET idf = $1 WHERE " + gram + ".gram = $2 AND " + gram + ".lang = $3");
 
+std::cout << " - start adding weight " << std::endl;
 	for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-		// TODO store the idf somewhere also.
-		double idf = log((double)num_docs/(double)it->second.size());
-		pqxx::result r = txn.prepared(update_gram_idf)(std::to_string(idf))(it->first.c_str()).exec();
-    
-		// each word item in the index has an idf value.
-		// std::cout << "frag.cc : idf value for item " << it->first << " : " << idf << std::endl;
-		// each item for each url has a weight value.
 		for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
+      // TODO store the idf somewhere also.
+      int l = tit->second.lang;
+      int lang_num_docs = num_docs[l];
+//      std::cout << "DEBUG term id " << tit->first << " - lang " << l << " lang count - " << lang_num_docs << std::endl;
+      // double idf = log((double)num_docs/(double)it->second.size());
+      // becase we do per language we need to find the count of frags for this language
+      int term_count = std::count_if(it->second.begin(), it->second.end(), [l](std::pair<int,Frag::Item> v){return v.second.lang == l;});
+//      std::cout << "DEBUG term_count " << term_count << std::endl;
+      double idf = log((double)lang_num_docs/(double)term_count);
+//      std::cout << "DEBUG idf " << idf << std::endl;
+      pqxx::result r = txn.prepared(update_gram_idf)(std::to_string(idf))(it->first.c_str())(l).exec();
+      
+      // each word item in the index has an idf value.
+      // std::cout << "frag.cc : idf value for item " << it->first << " : " << idf << std::endl;
+      // each item for each url has a weight value.
 			tit->second.weight = idf*tit->second.tf;
 		}
 	}
+std::cout << " - end adding weight " << std::endl;
 	txn.commit();
-
+std::cout << " - end adding weight commit " << std::endl;
 	C->disconnect();
 	delete C;
 }

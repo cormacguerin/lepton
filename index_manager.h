@@ -45,7 +45,7 @@ class IndexManager {
 		void prepare_max_trigram_id(pqxx::connection_base &c, std::string lang);
 		void prepare_docscore_batch(pqxx::connection_base &c);
 		void getMaxDocId(int &num);
-		void getNumDocs(int &count);
+    void getNumDocs(std::map<int, int> &count);
 		void getNumNgrams(int &count, std::string gram, std::string lang);
 		void getMaxNgramId(int &numm, std::string gram, std::string lang);
 		void updateIdf(std::string lang);
@@ -54,8 +54,10 @@ class IndexManager {
 		void exportVocab(std::string lang);
 		bool isSPS(char firstchar);
 		bool hasDigit(const std::string& s);
-		void indexDocument(std::string id, std::string display_field, std::string doc, std::string lang);
+		void indexDocument(std::string id, std::string display_field, std::string doc, int lang);
 		std::vector<int> GetDocscoreBatch();
+    int getLangInt(std::string l);
+    std::string getLangCode(int i);
 
 };
 

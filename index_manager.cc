@@ -50,15 +50,15 @@ void IndexManager::init(std::string database) {
 }
 
 void IndexManager::processFeeds() {
-	int num_docs;
+  std::map<int, int> num_docs;
 	int max_doc_id;
 	int batch_size;
 	int base_batch_size = 10000;
 	getNumDocs(num_docs);
 	getMaxDocId(max_doc_id);
-	std::cout << "indexManager.cc : num_docs : " << num_docs << std::endl;
+	std::cout << "indexManager.cc : num_docs : " << num_docs[999] << std::endl;
 	std::cout << "indexManager.cc : max_doc_id : " << max_doc_id << std::endl;
-	int num_batches = num_docs/base_batch_size;
+	int num_batches = num_docs[999]/base_batch_size;
 	if (num_batches < 1) {
 		num_batches = 1;
 		batch_size = max_doc_id;
@@ -87,7 +87,7 @@ void IndexManager::processFeeds() {
 			const pqxx::field url = (row)[1];
 			const pqxx::field document = (row)[2];
 			const pqxx::field lang = (row)[3];
-			std::cout << "url : " << url.c_str() << "(" << lang.c_str() << ")" << std::endl;
+			std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
 			if (url.is_null()) {
 				std::cout << "skip : url is null" << std::endl;;
 				continue;
@@ -100,7 +100,8 @@ void IndexManager::processFeeds() {
 				std::cout << "skip : lang is null" << std::endl;;
 				continue;
 			}
-			indexDocument(id.c_str(), url.c_str(), document.c_str(), lang.c_str());
+      int l = getLangInt(std::string(lang.c_str()));
+			indexDocument(id.c_str(), url.c_str(), document.c_str(), l);
       ids.push_back(std::stoi(id.c_str()));
 		}
 		i = batch_position;
@@ -149,18 +150,6 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
 
 	std::string update_doc_entities = "UPDATE " + table + " SET lt_entities = $1 WHERE lt_id = $2";
 
-  /*
-	std::vector<int> b = GetDocscoreBatch();
-
-	while (b.size() > 0) {
-		std::cout << "b.size() " << b.size()  << std::endl;
-		pqxx::work txn(*C);
-		for (std::vector<int>::iterator it_ = b.begin(); it_ != b.end(); it_++) {
-
-			C->prepare("process_entities_batch", update_doc_entities);
-
-			pqxx::result rds = txn.prepared("process_docscore_batch")(*it_).exec();
-  */
 	pqxx::work txn(*C);
   for (std::vector<int>::iterator it_ = batch.begin(); it_ != batch.end(); it_++) {
 
@@ -170,7 +159,7 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
 			for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
 
         // update the docuscore using the idf / term frequencies
-        std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)) FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE id = $1";
+        std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE lt_id = $1";
         C->prepare("process_docscore", update_docscore);
 			  pqxx::result rds = txn.prepared("process_docscore")(*it_).exec();
 
@@ -214,7 +203,6 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
 			});
 			std::string strarray = "";
 			for (std::vector<std::pair<std::string,float>>::iterator pit_ = grams.begin(); pit_ != grams.end(); pit_++) {
-				//std::cout << pit_->first << "  -  " << pit_->second << std::endl;
 				strarray += pit_->first;
 				if (std::next(pit_) != grams.end()) {
 					strarray += ",";
@@ -222,10 +210,6 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
 			}
 			std::cout << *it_ <<  " : " << strarray << std::endl;
 			pqxx::result rgt = txn.prepared("process_entities_batch")(strarray)(*it_).exec();
-//		}
-//		txn.commit();
-//		b.clear();
-//		b = GetDocscoreBatch();
 	}
 }
 
@@ -236,7 +220,7 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
  * - base64 decode the encoded contents.
  * - segment the body
  */
-void IndexManager::indexDocument(string id, string pkey, string rawdoc, string lang) {
+void IndexManager::indexDocument(string id, string pkey, string rawdoc, int lang) {
 	// create main json doc and load rawdoc into it.
   /*
 	rapidjson::Document doc;
@@ -305,13 +289,62 @@ void IndexManager::exportVocab(std::string lang) {
  * This is all very messy but it works.
  */
 
-void IndexManager::getNumDocs(int &count) {
+void IndexManager::getNumDocs(std::map<int, int> &count) {
 	prepare_doc_count(*C);
 	pqxx::work txn(*C);
 	pqxx::result r = txn.prepared("doc_count").exec();
 	txn.commit();
-	const pqxx::field c = r.back()[0];
-	count = atoi(c.c_str());
+  int total = 0;
+	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+		const pqxx::field l = (row)[0];
+		const pqxx::field c = (row)[1];
+    count[getLangInt(l.c_str())] = atoi(c.c_str());
+    total += atoi(c.c_str());
+  }
+  count[999] = total;
+}
+
+int IndexManager::getLangInt(std::string l) {
+  if (l == "en") {
+    return 1; 
+  } else if (l == "ja") {
+    return 2;
+  } else if (l == "zh") {
+    return 3;
+  } else if (l == "es") {
+    return 4;
+  } else if (l == "fr") {
+    return 5;
+  } else if (l == "de") {
+    return 6;
+  } else {
+    return 0;
+  }
+}
+
+std::string IndexManager::getLangCode(int i) {
+  switch(i) {
+    case 1:
+      return "en"; 
+      break;
+    case 2:
+      return "ja"; 
+      break;
+    case 3:
+      return "zh";
+      break;
+    case 4:
+      return "es"; 
+      break;
+    case 5:
+      return "fr";
+      break;
+    case 6:
+      return "de"; 
+      break;
+    default:
+      return "nolang";
+  }
 }
 
 void IndexManager::getNumNgrams(int &count, std::string gram, std::string lang) {
@@ -392,7 +425,7 @@ void IndexManager::prepare_max_trigram_id(pqxx::connection_base &c, std::string 
 }
 
 void IndexManager::prepare_doc_count(pqxx::connection_base &c) {
-	c.prepare("doc_count", "SELECT COUNT(*) FROM \"" + table + "\"");
+  c.prepare("doc_count", "SELECT language, COUNT(language) AS count FROM \"" + table + "\" GROUP BY language");
 }
 
 void IndexManager::prepare_unigram_count(pqxx::connection_base &c, std::string lang) {

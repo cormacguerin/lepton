@@ -33,6 +33,7 @@ class Frag {
 
 		struct Item {
 			int url_id;
+      int lang;
 			double tf;
 			double weight;
 		};
@@ -48,7 +49,7 @@ class Frag {
 		size_t size();
 		void insert(std::string s, std::map<int,Frag::Item> m);
 		void update(std::string s, std::map<int,Frag::Item> m);
-		void addWeights(int num_docs, std::string database);
+		void addWeights(std::map<int,int> num_docs, std::string database);
 		void load();
 		void loadJsonFrag(std::string filename);
 		void loadRawFrag(std::string filename);
