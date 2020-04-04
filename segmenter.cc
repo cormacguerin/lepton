@@ -73,7 +73,7 @@ void Segmenter::init(std::string database) {
 }
 
 
-void Segmenter::parse(std::string id, std::string pkey, int lang, std::string str_in, std::string table, std::string display_field,
+void Segmenter::parse(std::string id, std::string pkey, std::string lang, std::string str_in, std::string table, std::string display_field,
 				   std::map<std::string, Frag::Item> &doc_unigram_map,
 				   std::map<std::string, Frag::Item> &doc_bigram_map,
 				   std::map<std::string, Frag::Item> &doc_trigram_map) {
@@ -296,7 +296,6 @@ void Segmenter::parse(std::string id, std::string pkey, int lang, std::string st
 						frag_term.url_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
-						frag_term.lang = lang;
 						doc_unigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
 
 						rapidjson::Value k((trim(gram).c_str()), allocator);
@@ -312,7 +311,6 @@ void Segmenter::parse(std::string id, std::string pkey, int lang, std::string st
 						frag_term.url_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
-						frag_term.lang = lang;
 						doc_bigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
 
 						rapidjson::Value k((trim(gram).c_str()), allocator);
@@ -326,7 +324,6 @@ void Segmenter::parse(std::string id, std::string pkey, int lang, std::string st
 						frag_term.url_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
-						frag_term.lang = lang;
 						doc_trigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
 
 						rapidjson::Value k((trim(gram).c_str()), allocator);
@@ -489,7 +486,7 @@ void Segmenter::parse(std::string id, std::string pkey, int lang, std::string st
     "UPDATE \"" + table + "\" SET (lt_index_date, lt_segmented_grams, lt_tdscore) = (NOW(), $1, $2) WHERE \""
     + display_field + "\" = $3");
 
-	// reset any existing content
+//  reset any existing content
 //	pqxx::result a_ = txn.prepared("delete_doc_text")(id).exec();
 
 	pqxx::result e_ = txn.prepared("update_segmented_grams")((std::string)buffer.GetString())(std::to_string(tdscore))(pkey).exec();

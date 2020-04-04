@@ -17,10 +17,16 @@ class IndexManager {
 		Segmenter seg;
 		pqxx::connection* C;
 		char SPS[4];
+    std::vector<std::string> langs = {"en","ja","zh","ko","es","de","fr"};
 		std::string SPC;
-		FragManager unigramFragManager;
-		FragManager bigramFragManager;
-		FragManager trigramFragManager;
+    // per language map per language frag manager (can be large so put on heap)
+    // ie. <lang , fragmanager >
+		std::map<std::string, FragManager*> unigramFragManager;
+		std::map<std::string, FragManager*> bigramFragManager;
+    std::map<std::string, FragManager*> trigramFragManager;
+    std::map<std::string, Frag::Item> doc_unigram_map;
+    std::map<std::string, Frag::Item> doc_bigram_map;
+    std::map<std::string, Frag::Item> doc_trigram_map;
     std::string database;
     std::string table;
     std::string columns;
@@ -45,7 +51,7 @@ class IndexManager {
 		void prepare_max_trigram_id(pqxx::connection_base &c, std::string lang);
 		void prepare_docscore_batch(pqxx::connection_base &c);
 		void getMaxDocId(int &num);
-    void getNumDocs(std::map<int, int> &count);
+    void getNumDocs(std::map<std::string, int> &count);
 		void getNumNgrams(int &count, std::string gram, std::string lang);
 		void getMaxNgramId(int &numm, std::string gram, std::string lang);
 		void updateIdf(std::string lang);
@@ -54,10 +60,8 @@ class IndexManager {
 		void exportVocab(std::string lang);
 		bool isSPS(char firstchar);
 		bool hasDigit(const std::string& s);
-		void indexDocument(std::string id, std::string display_field, std::string doc, int lang);
+		void indexDocument(std::string id, std::string display_field, std::string doc, std::string lang);
 		std::vector<int> GetDocscoreBatch();
-    int getLangInt(std::string l);
-    std::string getLangCode(int i);
 
 };
 

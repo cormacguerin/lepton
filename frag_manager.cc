@@ -10,12 +10,14 @@
 #include <unordered_set>
 #include "dirent.h"
 
-FragManager::FragManager(Frag::Type type, std::string db, std::string tb) : frag_type()
+FragManager::FragManager(Frag::Type type, std::string db, std::string tb, std::string l) : frag_type()
 {
 	frag_type = type;
   path = "index/" + db + "/" + tb + "/";
+  lang = l;
 	loadFragIndex();
   std::cout << "path : " << path << std::endl;
+  std::cout << "lang : " << lang << std::endl;
 }
 
 FragManager::~FragManager()
@@ -65,7 +67,7 @@ void FragManager::syncFrags() {
 				frags[last_frag_id].get()->writeIndex();
 				// increment the last/latest frag id and create a new frag for it.
 				last_frag_id = last_frag_id+1;
-				frags[last_frag_id] = std::make_unique<Frag>(frag_type, last_frag_id, 1, path);
+				frags[last_frag_id] = std::make_unique<Frag>(frag_type, last_frag_id, 1, path + lang);
 			}
 			frags[last_frag_id].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
 			grams_terms.erase(grams_terms.begin());
@@ -84,7 +86,7 @@ void FragManager::syncFrags() {
  * In fact the problem is loading & parsing the json that is slow.. writing is faster (a lot faster). 
  * This function is some of the logic I had for merging frags. maybe we can run it as a separate process, to clean up the frags
  */
-void FragManager::mergeFrags(std::map<int, int> num_docs, std::string database) {
+void FragManager::mergeFrags(int num_docs, std::string database) {
 
 	std::cout << "frag_manager.cc : mergeFrags - " << database << std::endl;
 
@@ -100,13 +102,13 @@ void FragManager::mergeFrags(std::map<int, int> num_docs, std::string database) 
 	} else {
 		int this_frag_id = 0;
 		std::unique_ptr<Frag> main_frag;
-// std::make_unique<Frag>(frag_type, last_frag_id, 1, path);
+    // std::make_unique<Frag>(frag_type, last_frag_id, 1, path);
     // track the merged frags so we can delete them on success.
     std::vector<std::string> merged_frags;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
 			std::cout << "fram_manager.cc : merge " << *it << std::endl;
 
-			std::string frag_string = (*it).substr((*it).find('_')+1,(*it).length());
+			std::string frag_string = (*it).substr((*it).find("gram_")+5,(*it).length());
 			int frag_id = stoi(frag_string.substr(0, frag_string.find(".")));
 
 			if (this_frag_id!=frag_id) {
@@ -121,12 +123,12 @@ void FragManager::mergeFrags(std::map<int, int> num_docs, std::string database) 
           merged_frags.clear();
 				}
 				std::cout << "frag_manager.cc : main frag id : " << frag_id << std::endl;
-				main_frag = std::make_unique<Frag>(frag_type,frag_id,0,path);
+				main_frag = std::make_unique<Frag>(frag_type, frag_id, 0, path + lang);
 			}
 			if (frag_string.find(".frag.")!=std::string::npos) {
 				int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
 				std::cout << "frag_manager.cc : frag " << frag_id << " : " << frag_part_id << " : " << *it << std::endl;
-				std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type,frag_id,frag_part_id,path);
+				std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type, frag_id, frag_part_id, path + lang);
 				for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
 					main_frag.get()->update(it->first, it->second);
 				}
@@ -206,28 +208,27 @@ void FragManager::loadFrags() {
 
 	if (index_files.empty()) {
 		std::cout << "no index files create new frag" << std::endl;
-		frags[1] = std::make_unique<Frag>(frag_type,1,1,path);
+		frags[1] = std::make_unique<Frag>(frag_type,1,1,path + lang);
 		last_frag_id = 1;
 	} else {
 		// frag is .frag, frag_part is .0000* file
 		int this_frag_id = 1;
 		int this_frag_part_id = 1;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
-			std::string frag_string = (*it).substr((*it).find('_')+1,(*it).length());
+			std::string frag_string = (*it).substr((*it).find("gram_")+5,(*it).length());
 
 			int frag_id = stoi(frag_string.substr(0, frag_string.find('.')));
 			int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
 
 			std::cout << "load frag " << *it << " : " << frag_id << " " << frag_part_id << std::endl;
-      std::cout << "frags[" << this_frag_id << "] : - frag_id " << std::endl;
 			if (this_frag_id!=frag_id) {
-				frags[this_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1,path);
+				frags[this_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1,path + lang);
       }
 			this_frag_id=frag_id;
 	    this_frag_part_id = frag_part_id;
 		}
 		last_frag_id=this_frag_id;
-		frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id+1,this_frag_part_id+1,path);
+		frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id+1,this_frag_part_id+1,path + lang);
 	}
 }
 
@@ -323,7 +324,7 @@ std::vector<std::string> FragManager::getFiles(std::string path, std::string ext
 	std::vector<std::string> index_files;
 	while (entry = readdir(dp)) {
 		std::string e_(entry->d_name);
-		if ((e_.find(ext) != std::string::npos) && (e_.find(gram_type) != std::string::npos)) {
+		if ((e_.find(ext) != std::string::npos) && (e_.find(gram_type) != std::string::npos) && (e_.find(lang) != std::string::npos)) {
 			index_files.push_back(entry->d_name);
 		}
 	}

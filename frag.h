@@ -15,6 +15,8 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/istreamwrapper.h>
 #include "parallel_hashmap/phmap.h"
+#include <pqxx/pqxx>
+#include <pqxx/strconv.hxx>
 
 // some notes
 
@@ -30,10 +32,10 @@ class Frag {
 		int frag_id;
 		int fragment_id;
     std::string path;
+    std::string lang;
 
 		struct Item {
 			int url_id;
-      int lang;
 			double tf;
 			double weight;
 		};
@@ -49,13 +51,14 @@ class Frag {
 		size_t size();
 		void insert(std::string s, std::map<int,Frag::Item> m);
 		void update(std::string s, std::map<int,Frag::Item> m);
-		void addWeights(std::map<int,int> num_docs, std::string database);
+		void addWeights(int num_docs, std::string database);
 		void load();
 		void loadJsonFrag(std::string filename);
 		void loadRawFrag(std::string filename);
 		//void addToIndex(phmap::parallel_flat_hash_map<std::string, phmap::flat_hash_map<int, Frag::Item>> &index);
 		void addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index);
 		std::string readFile(std::string filename);
+    pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
 
 	private:
 

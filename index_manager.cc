@@ -7,14 +7,21 @@
 #include <math.h>
 #include <pqxx/strconv.hxx>
 #include "frag.h"
+#include "util.h"
 
 
 using namespace std;
 using namespace pqxx;
 
 
-IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string db, std::string tb, std::string cl, std::string df) :
-    unigramFragManager(u,db,tb), bigramFragManager(b,db,tb), trigramFragManager(t,db,tb) {
+IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string db, std::string tb, std::string cl, std::string df) {
+//    unigramFragManager(u,db,tb), bigramFragManager(b,db,tb), trigramFragManager(t,db,tb) {
+  for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
+    std::cout << "*lit " << *lit << std::endl;
+    unigramFragManager[*lit] = new FragManager(u,db,tb,*lit);
+    bigramFragManager[*lit] = new FragManager(b,db,tb,*lit);
+    trigramFragManager[*lit] = new FragManager(t,db,tb,*lit);
+  }
   database = db;
   table = tb;
   columns = cl;
@@ -23,6 +30,11 @@ IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string
 
 IndexManager::~IndexManager()
 {
+  for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
+    delete unigramFragManager[*lit];
+    delete bigramFragManager[*lit];
+    delete trigramFragManager[*lit];
+  }
 }
 
 void IndexManager::init(std::string database) {
@@ -34,7 +46,7 @@ void IndexManager::init(std::string database) {
 	seg.init(database);
 
 	// this is a redis connection (were replacing this with postgres for the index)
-	//	client.connect();
+	// client.connect();
 	// postgres connection
 	try {
 		C = new pqxx::connection("dbname = \'" + database + "\' user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
@@ -50,15 +62,17 @@ void IndexManager::init(std::string database) {
 }
 
 void IndexManager::processFeeds() {
-  std::map<int, int> num_docs;
+
+  std::set<std::string> run_langs;
+  std::map<std::string, int> num_docs;
 	int max_doc_id;
 	int batch_size;
 	int base_batch_size = 10000;
 	getNumDocs(num_docs);
 	getMaxDocId(max_doc_id);
-	std::cout << "indexManager.cc : num_docs : " << num_docs[999] << std::endl;
+	std::cout << "indexManager.cc : total num_docs : " << num_docs["total"] << std::endl;
 	std::cout << "indexManager.cc : max_doc_id : " << max_doc_id << std::endl;
-	int num_batches = num_docs[999]/base_batch_size;
+	int num_batches = num_docs["total"]/base_batch_size;
 	if (num_batches < 1) {
 		num_batches = 1;
 		batch_size = max_doc_id;
@@ -67,7 +81,7 @@ void IndexManager::processFeeds() {
 	}
 	std::cout << "indexManager.cc : batch_size " << batch_size << std::endl;
 	std::cout << "indexManager.cc : num_batches : " << num_batches << std::endl;
-	std::string statement = "SELECT lt_id,url,concat("+ columns +") as document,language FROM \"" + table + "\" WHERE lt_id BETWEEN $1 AND $2";
+	std::string statement = "SELECT lt_id,url,concat(" + columns + ") as document,language FROM \"" + table + "\" WHERE lt_id BETWEEN $1 AND $2";
 
 	int batch_position = 0;
 
@@ -87,6 +101,7 @@ void IndexManager::processFeeds() {
 			const pqxx::field url = (row)[1];
 			const pqxx::field document = (row)[2];
 			const pqxx::field lang = (row)[3];
+      /*
 			std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
 			if (url.is_null()) {
 				std::cout << "skip : url is null" << std::endl;;
@@ -100,8 +115,13 @@ void IndexManager::processFeeds() {
 				std::cout << "skip : lang is null" << std::endl;;
 				continue;
 			}
-      int l = getLangInt(std::string(lang.c_str()));
-			indexDocument(id.c_str(), url.c_str(), document.c_str(), l);
+      if (std::find(langs.begin(), langs.end(), lang.c_str()) == langs.end()) {
+        continue;
+      }
+      run_langs.insert(lang.c_str());
+      // int l = getLangInt(std::string(lang.c_str()));
+			indexDocument(id.c_str(), url.c_str(), document.c_str(), lang.c_str());
+      */
       ids.push_back(std::stoi(id.c_str()));
 		}
 		i = batch_position;
@@ -109,23 +129,27 @@ void IndexManager::processFeeds() {
     // ranking may get skewed, eg initially indexed documents may have inaccurate
     // ranking, as such reindexing is important to ensure normalization.
     // merge fragments
-    unigramFragManager.mergeFrags(num_docs, database);
-    bigramFragManager.mergeFrags(num_docs, database);
-    trigramFragManager.mergeFrags(num_docs, database);
+    for (std::set<std::string>::iterator lit = run_langs.begin(); lit != run_langs.end(); lit++) {
+      unigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
+      bigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
+      trigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
+    }
     // process doc info must be called after mergeFrage(which creates idf)
     processDocInfo(ids);
     ids.clear();
 	}
 	// sync the remainder.
 	std::cout << "indexManager.cc : batch finished - sync remaining terms." << std::endl;
-	unigramFragManager.syncFrags();
-	bigramFragManager.syncFrags();
-	trigramFragManager.syncFrags();
-	// merge frag fragments into frag.
-	// atually just running one merges all, todo, split it up.
-	unigramFragManager.mergeFrags(num_docs, database);
-	bigramFragManager.mergeFrags(num_docs, database);
-	trigramFragManager.mergeFrags(num_docs, database);
+  for (std::set<std::string>::iterator lit = run_langs.begin(); lit != run_langs.end(); lit++) {
+    unigramFragManager.at(*lit)->syncFrags();
+    bigramFragManager.at(*lit)->syncFrags();
+    trigramFragManager.at(*lit)->syncFrags();
+    // merge frag fragments into frag.
+    // atually just running one merges all, todo, split it up.
+    unigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
+    bigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
+    trigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
+  }
   // process doc info must be called after mergeFrage(which creates idf)
   processDocInfo(ids);
 }
@@ -148,68 +172,70 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
 	std::vector<std::string> unibitri{"trigrams","bigrams","unigrams"};
 
 
-	std::string update_doc_entities = "UPDATE " + table + " SET lt_entities = $1 WHERE lt_id = $2";
+	std::string update_doc_entities = "UPDATE \"" + table + "\" SET lt_entities = $1 WHERE lt_id = $2";
 
 	pqxx::work txn(*C);
-  for (std::vector<int>::iterator it_ = batch.begin(); it_ != batch.end(); it_++) {
 
-			std::vector<std::pair<std::string,float>> grams;
-			std::map<std::string,std::vector<std::pair<std::string,float>>> unigrams;
-			float multiplier = 3.0;
-			for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
+	float multiplier = 3.0;
+	for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
 
-        // update the docuscore using the idf / term frequencies
-        std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE lt_id = $1";
-        C->prepare("process_docscore", update_docscore);
-			  pqxx::result rds = txn.prepared("process_docscore")(*it_).exec();
+	  std::vector<std::pair<std::string,float>> grams;
+    
+    for (std::vector<int>::iterator it_ = batch.begin(); it_ != batch.end(); it_++) {
 
-        // basic entity extraction function.
-				std::string gram_terms = "SELECT d.lt_id, key, (CHAR_LENGTH(value) - CHAR_LENGTH(REPLACE(value, ',', ''))), lt_" + *it + ".idf AS i FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms INNER JOIN lt_"+*it+" ON docterms.key = lt_"+*it+".gram WHERE d.lt_id = $1 ORDER BY i DESC LIMIT 30";
-				C->prepare("process_"+*it+"_batch", gram_terms);
-				pqxx::result rgt = txn.prepared("process_"+*it+"_batch")(*it_).exec();
+      // update the docuscore using the idf / term frequencies
+      std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE lt_id = $1";
+      C->prepare("process_docscore", update_docscore);
+      pqxx::result rds = txn.prepared("process_docscore")(*it_).exec();
 
-				for (pqxx::result::const_iterator row = rgt.begin(); row != rgt.end(); ++row) {
-					const pqxx::field gram = (row)[1];
-					const pqxx::field weight = (row)[2];
-					std::string t = std::string(gram.c_str());
-					float w = atof(weight.c_str())*multiplier;
-					bool add = true;
-					if (hasDigit(t)==false) {
-						std::cout << t << " - " << w << std::endl;
-						if (grams.empty()) {
-							grams.push_back(std::pair<std::string,float>(t,w));
-						}
-						for (std::vector<std::pair<std::string,float>>::iterator git = grams.begin(); git != grams.end(); git++) {
-							if (git->first.find(t) != std::string::npos) {
-								if (w < git->second) {
-									add=false;
-									std::cout << " - keep " << git->first << "(" << git->second << ") over " << t << "(" << w << ")" << std::endl;
-									break;
-								} else {
-									std::cout << " - swap " << git->first << "(" << git->second << ") for " << t << "(" << w << ")" << std::endl;
-									grams.erase(git--);
-								}
-							}
-						}
-						if (add==true) {
-							grams.push_back(std::pair<std::string,float>(t,w));
-						}
-					}
-				}
-				multiplier=multiplier-1.0;
-			}
-			std::sort(grams.begin(), grams.end(), [](auto &left, auto &right) {
-				return left.second < right.second;
-			});
-			std::string strarray = "";
-			for (std::vector<std::pair<std::string,float>>::iterator pit_ = grams.begin(); pit_ != grams.end(); pit_++) {
-				strarray += pit_->first;
-				if (std::next(pit_) != grams.end()) {
-					strarray += ",";
-				}
-			}
-			std::cout << *it_ <<  " : " << strarray << std::endl;
-			pqxx::result rgt = txn.prepared("process_entities_batch")(strarray)(*it_).exec();
+      // basic entity extraction function.
+      std::string gram_terms = "SELECT d.lt_id, key, (CHAR_LENGTH(value) - CHAR_LENGTH(REPLACE(value, ',', ''))), lt_" + *it + ".idf AS i FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms INNER JOIN lt_"+*it+" ON docterms.key = lt_"+*it+".gram WHERE d.lt_id = $1 ORDER BY i DESC LIMIT 30";
+      C->prepare("process_"+*it+"_batch", gram_terms);
+      pqxx::result rgt = txn.prepared("process_"+*it+"_batch")(*it_).exec();
+
+      for (pqxx::result::const_iterator row = rgt.begin(); row != rgt.end(); ++row) {
+        const pqxx::field gram = (row)[1];
+        const pqxx::field weight = (row)[2];
+        std::string t = std::string(gram.c_str());
+        float w = atof(weight.c_str())*multiplier;
+        bool add = true;
+        if (hasDigit(t)==false) {
+          std::cout << t << " - " << w << std::endl;
+          if (grams.empty()) {
+            grams.push_back(std::pair<std::string,float>(t,w));
+          }
+          for (std::vector<std::pair<std::string,float>>::iterator git = grams.begin(); git != grams.end(); git++) {
+            if (git->first.find(t) != std::string::npos) {
+              if (w < git->second) {
+                add=false;
+                std::cout << " - keep " << git->first << "(" << git->second << ") over " << t << "(" << w << ")" << std::endl;
+                break;
+              } else {
+                std::cout << " - swap " << git->first << "(" << git->second << ") for " << t << "(" << w << ")" << std::endl;
+                grams.erase(git--);
+              }
+            }
+          }
+          if (add==true) {
+            grams.push_back(std::pair<std::string,float>(t,w));
+          }
+        }
+      }
+      std::sort(grams.begin(), grams.end(), [](auto &left, auto &right) {
+        return left.second < right.second;
+      });
+      std::string strarray = "";
+      for (std::vector<std::pair<std::string,float>>::iterator pit_ = grams.begin(); pit_ != grams.end(); pit_++) {
+        strarray += pit_->first;
+        if (std::next(pit_) != grams.end()) {
+          strarray += ",";
+        }
+      }
+      std::cout << *it_ <<  " : " << strarray << std::endl;
+      C->prepare("process_doc_entities", update_doc_entities);
+      pqxx::result ent = txn.prepared("process_doc_entities")(strarray)(*it_).exec();
+    }
+    multiplier=multiplier-1.0;
 	}
 }
 
@@ -220,7 +246,7 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
  * - base64 decode the encoded contents.
  * - segment the body
  */
-void IndexManager::indexDocument(string id, string pkey, string rawdoc, int lang) {
+void IndexManager::indexDocument(string id, string pkey, string rawdoc, std::string lang) {
 	// create main json doc and load rawdoc into it.
   /*
 	rapidjson::Document doc;
@@ -256,9 +282,9 @@ void IndexManager::indexDocument(string id, string pkey, string rawdoc, int lang
 	// seg.parse(id, display_field, lang, decoded_doc_body, 
 	seg.parse(id, pkey, lang, rawdoc, table, display_field,
 		doc_unigram_map, doc_bigram_map, doc_trigram_map);
-	unigramFragManager.addTerms(doc_unigram_map);
-	bigramFragManager.addTerms(doc_bigram_map);
-	trigramFragManager.addTerms(doc_trigram_map);
+	unigramFragManager[lang]->addTerms(doc_unigram_map);
+	bigramFragManager[lang]->addTerms(doc_bigram_map);
+	trigramFragManager[lang]->addTerms(doc_trigram_map);
 }
 
 bool IndexManager::isSPS(char firstchar) {
@@ -289,7 +315,7 @@ void IndexManager::exportVocab(std::string lang) {
  * This is all very messy but it works.
  */
 
-void IndexManager::getNumDocs(std::map<int, int> &count) {
+void IndexManager::getNumDocs(std::map<std::string, int> &count) {
 	prepare_doc_count(*C);
 	pqxx::work txn(*C);
 	pqxx::result r = txn.prepared("doc_count").exec();
@@ -298,53 +324,10 @@ void IndexManager::getNumDocs(std::map<int, int> &count) {
 	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
 		const pqxx::field l = (row)[0];
 		const pqxx::field c = (row)[1];
-    count[getLangInt(l.c_str())] = atoi(c.c_str());
+    count[l.c_str()] = atoi(c.c_str());
     total += atoi(c.c_str());
   }
-  count[999] = total;
-}
-
-int IndexManager::getLangInt(std::string l) {
-  if (l == "en") {
-    return 1; 
-  } else if (l == "ja") {
-    return 2;
-  } else if (l == "zh") {
-    return 3;
-  } else if (l == "es") {
-    return 4;
-  } else if (l == "fr") {
-    return 5;
-  } else if (l == "de") {
-    return 6;
-  } else {
-    return 0;
-  }
-}
-
-std::string IndexManager::getLangCode(int i) {
-  switch(i) {
-    case 1:
-      return "en"; 
-      break;
-    case 2:
-      return "ja"; 
-      break;
-    case 3:
-      return "zh";
-      break;
-    case 4:
-      return "es"; 
-      break;
-    case 5:
-      return "fr";
-      break;
-    case 6:
-      return "de"; 
-      break;
-    default:
-      return "nolang";
-  }
+  count["total"] = total;
 }
 
 void IndexManager::getNumNgrams(int &count, std::string gram, std::string lang) {
