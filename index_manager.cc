@@ -101,8 +101,8 @@ void IndexManager::processFeeds() {
 			const pqxx::field url = (row)[1];
 			const pqxx::field document = (row)[2];
 			const pqxx::field lang = (row)[3];
-      /*
-			std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
+
+			// std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
 			if (url.is_null()) {
 				std::cout << "skip : url is null" << std::endl;;
 				continue;
@@ -120,6 +120,7 @@ void IndexManager::processFeeds() {
       }
       run_langs.insert(lang.c_str());
       // int l = getLangInt(std::string(lang.c_str()));
+      /*
 			indexDocument(id.c_str(), url.c_str(), document.c_str(), lang.c_str());
       */
       ids.push_back(std::stoi(id.c_str()));
@@ -129,11 +130,13 @@ void IndexManager::processFeeds() {
     // ranking may get skewed, eg initially indexed documents may have inaccurate
     // ranking, as such reindexing is important to ensure normalization.
     // merge fragments
+    /*
     for (std::set<std::string>::iterator lit = run_langs.begin(); lit != run_langs.end(); lit++) {
       unigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
       bigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
       trigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
     }
+    */
     // process doc info must be called after mergeFrage(which creates idf)
     processDocInfo(ids);
     ids.clear();
@@ -171,7 +174,6 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
 	
 	std::vector<std::string> unibitri{"trigrams","bigrams","unigrams"};
 
-
 	std::string update_doc_entities = "UPDATE \"" + table + "\" SET lt_entities = $1 WHERE lt_id = $2";
 
 	pqxx::work txn(*C);
@@ -179,51 +181,57 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
 	float multiplier = 3.0;
 	for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
 
+    std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE lt_id = $1";
+    C->prepare("process_" + *it + "_docscore", update_docscore);
+
 	  std::vector<std::pair<std::string,float>> grams;
     
     for (std::vector<int>::iterator it_ = batch.begin(); it_ != batch.end(); it_++) {
 
       // update the docuscore using the idf / term frequencies
-      std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE lt_id = $1";
-      C->prepare("process_docscore", update_docscore);
-      pqxx::result rds = txn.prepared("process_docscore")(*it_).exec();
+      pqxx::result rds = txn.prepared("process_" + *it + "_docscore")(*it_).exec();
 
       // basic entity extraction function.
       std::string gram_terms = "SELECT d.lt_id, key, (CHAR_LENGTH(value) - CHAR_LENGTH(REPLACE(value, ',', ''))), lt_" + *it + ".idf AS i FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms INNER JOIN lt_"+*it+" ON docterms.key = lt_"+*it+".gram WHERE d.lt_id = $1 ORDER BY i DESC LIMIT 30";
       C->prepare("process_"+*it+"_batch", gram_terms);
       pqxx::result rgt = txn.prepared("process_"+*it+"_batch")(*it_).exec();
+//     std::cout << " - statement - " << gram_terms << std::endl;
+//     std::cout << " - value - " << *it_ << std::endl;
 
       for (pqxx::result::const_iterator row = rgt.begin(); row != rgt.end(); ++row) {
         const pqxx::field gram = (row)[1];
         const pqxx::field weight = (row)[2];
+//        std::cout << " - gram " << gram.c_str() << std::endl;
+//        std::cout << " - weight " << weight.c_str() << std::endl;
         std::string t = std::string(gram.c_str());
-        float w = atof(weight.c_str())*multiplier;
+        float w = atof(weight.c_str()) * multiplier;
         bool add = true;
         if (hasDigit(t)==false) {
           std::cout << t << " - " << w << std::endl;
           if (grams.empty()) {
             grams.push_back(std::pair<std::string,float>(t,w));
-          }
-          for (std::vector<std::pair<std::string,float>>::iterator git = grams.begin(); git != grams.end(); git++) {
-            if (git->first.find(t) != std::string::npos) {
-              if (w < git->second) {
-                add=false;
-                std::cout << " - keep " << git->first << "(" << git->second << ") over " << t << "(" << w << ")" << std::endl;
+          } else if (grams.back().second < w) {
+            for (int i=0; i < grams.size(); i++) {
+              if (grams.at(i).second < w) {
+                grams.insert(grams.begin()+i, std::pair<std::string,float>(t,w));
+                if (grams.size() > 20) {
+                  grams.pop_back();
+                }
                 break;
-              } else {
-                std::cout << " - swap " << git->first << "(" << git->second << ") for " << t << "(" << w << ")" << std::endl;
-                grams.erase(git--);
               }
             }
           }
+          /*
           if (add==true) {
             grams.push_back(std::pair<std::string,float>(t,w));
           }
+          */
         }
       }
       std::sort(grams.begin(), grams.end(), [](auto &left, auto &right) {
         return left.second < right.second;
       });
+      // This is very innefficient, we should use reserve at the beingging and just insert the lower values
       std::string strarray = "";
       for (std::vector<std::pair<std::string,float>>::iterator pit_ = grams.begin(); pit_ != grams.end(); pit_++) {
         strarray += pit_->first;
@@ -231,6 +239,7 @@ void IndexManager::processDocInfo(std::vector<int> batch) {
           strarray += ",";
         }
       }
+      grams.clear();
       std::cout << *it_ <<  " : " << strarray << std::endl;
       C->prepare("process_doc_entities", update_doc_entities);
       pqxx::result ent = txn.prepared("process_doc_entities")(strarray)(*it_).exec();
