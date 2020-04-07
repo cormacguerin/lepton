@@ -18,6 +18,8 @@ IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string
 //    unigramFragManager(u,db,tb), bigramFragManager(b,db,tb), trigramFragManager(t,db,tb) {
   for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
     std::cout << "*lit " << *lit << std::endl;
+    std::cout << "db " << db << std::endl;
+    std::cout << "tb " << tb << std::endl;
     unigramFragManager[*lit] = new FragManager(u,db,tb,*lit);
     bigramFragManager[*lit] = new FragManager(b,db,tb,*lit);
     trigramFragManager[*lit] = new FragManager(t,db,tb,*lit);
@@ -119,10 +121,7 @@ void IndexManager::processFeeds() {
         continue;
       }
       run_langs.insert(lang.c_str());
-      // int l = getLangInt(std::string(lang.c_str()));
-      /*
 			indexDocument(id.c_str(), url.c_str(), document.c_str(), lang.c_str());
-      */
       ids.push_back(std::stoi(id.c_str()));
 		}
 		i = batch_position;
@@ -130,13 +129,11 @@ void IndexManager::processFeeds() {
     // ranking may get skewed, eg initially indexed documents may have inaccurate
     // ranking, as such reindexing is important to ensure normalization.
     // merge fragments
-    /*
     for (std::set<std::string>::iterator lit = run_langs.begin(); lit != run_langs.end(); lit++) {
       unigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
       bigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
       trigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
     }
-    */
     // process doc info must be called after mergeFrage(which creates idf)
     processDocInfo(ids);
     ids.clear();

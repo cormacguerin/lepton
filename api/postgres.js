@@ -348,11 +348,11 @@ console.log("promises finished in " + totaltime + "ms");
         if (!fs.existsSync(i_dir)){
           fs.mkdirSync(i_dir);
         }
-        var id_dir = "index/" + database
+        var id_dir = "index/" + database.replace(/ /g,"_");
         if (!fs.existsSync(id_dir)){
           fs.mkdirSync(id_dir);
         }
-        var idt_dir = "index/" + database + "/" + table
+        var idt_dir = "index/" + database.replace(/ /g,"_") + "/" + table.replace(/ /g,"_");
         if (!fs.existsSync(idt_dir)){
           fs.mkdirSync(idt_dir);
         }

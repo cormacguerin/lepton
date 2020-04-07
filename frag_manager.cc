@@ -14,6 +14,7 @@ FragManager::FragManager(Frag::Type type, std::string db, std::string tb, std::s
 {
 	frag_type = type;
   path = "index/" + db + "/" + tb + "/";
+  std::replace(path.begin(),path.end(),' ','_');
   lang = l;
 	loadFragIndex();
   std::cout << "path : " << path << std::endl;
@@ -82,9 +83,6 @@ void FragManager::syncFrags() {
 }
 
 /*
- * Merging while crawling is just too slow.. this might mean json is too slow, or it might just be that rapid json is too slow.
- * In fact the problem is loading & parsing the json that is slow.. writing is faster (a lot faster). 
- * This function is some of the logic I had for merging frags. maybe we can run it as a separate process, to clean up the frags
  */
 void FragManager::mergeFrags(int num_docs, std::string database) {
 
@@ -101,14 +99,15 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 		return;
 	} else {
 		int this_frag_id = 0;
-		std::unique_ptr<Frag> main_frag;
-    // std::make_unique<Frag>(frag_type, last_frag_id, 1, path);
+	  std::unique_ptr<Frag> main_frag = std::make_unique<Frag>(frag_type, this_frag_id, 0, path + lang);
+//		std::unique_ptr<Frag> main_frag;
     // track the merged frags so we can delete them on success.
-    std::vector<std::string> merged_frags;
+    std::vector<Frag*> merged_frags;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
 			std::cout << "fram_manager.cc : merge " << *it << std::endl;
 
 			std::string frag_string = (*it).substr((*it).find("gram_")+5,(*it).length());
+      std::cout << "DEBUG frag_string " << frag_string << std::endl;
 			int frag_id = stoi(frag_string.substr(0, frag_string.find(".")));
 
 			if (this_frag_id!=frag_id) {
@@ -117,8 +116,8 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 					main_frag.get()->write();
 					std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
           // delete merged frags
-          for (std::vector<std::string>::iterator mit=merged_frags.begin(); mit!=merged_frags.end(); mit++) {
-            std::cout << "delete " << *mit << std::endl;
+          for (std::vector<Frag*>::iterator mit=merged_frags.begin(); mit!=merged_frags.end(); mit++) {
+//            (*mit)->remove();
           }
           merged_frags.clear();
 				}
@@ -132,7 +131,8 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 				for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
 					main_frag.get()->update(it->first, it->second);
 				}
-        merged_frags.push_back(frag_string);
+			  frag_part.get()->remove();
+        merged_frags.push_back(frag_part.get());
 			}
 			this_frag_id=frag_id;
 		}
@@ -247,6 +247,7 @@ void FragManager::loadFragIndex() {
 
 	std::cout << "load frag index" << std::endl;
 	std::vector<std::string> index_files = getFiles(path,".idx");
+  std::cout << "path " << path << std::endl;
 
 	std::sort(index_files.begin(),index_files.end());
 	if (index_files.empty()) {
@@ -311,6 +312,7 @@ std::vector<std::string> FragManager::getFiles(std::string path, std::string ext
 		gram_type = "trigram";
 	}
 
+	std::vector<std::string> index_files;
 	struct dirent *entry;
 	DIR *dp;
 
@@ -319,15 +321,19 @@ std::vector<std::string> FragManager::getFiles(std::string path, std::string ext
 	{
 	perror("opendir");
 		std::cout << "frag_manager.cc : Error , unable to load last frag" << std::endl;;
-		exit;
+    return index_files;
 	}
-	std::vector<std::string> index_files;
-	while (entry = readdir(dp)) {
-		std::string e_(entry->d_name);
-		if ((e_.find(ext) != std::string::npos) && (e_.find(gram_type) != std::string::npos) && (e_.find(lang) != std::string::npos)) {
-			index_files.push_back(entry->d_name);
-		}
-	}
+  try {
+    while (entry = readdir(dp)) {
+      std::string e_(entry->d_name);
+      if ((e_.find(ext) != std::string::npos) && (e_.find(gram_type) != std::string::npos) && (e_.find(lang) != std::string::npos)) {
+        index_files.push_back(entry->d_name);
+      }
+    }
+  } catch (int e) {
+    std::cout << "frag_manager.cc : failed to load index files " << e << std::endl;
+  }
+
 	closedir(dp);
 	std::sort(index_files.begin(),index_files.end());
 	return index_files;

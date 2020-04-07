@@ -33,6 +33,7 @@ class Frag {
 		int fragment_id;
     std::string path;
     std::string lang;
+	  std::string filename;
 
 		struct Item {
 			int url_id;
@@ -59,6 +60,7 @@ class Frag {
 		void addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index);
 		std::string readFile(std::string filename);
     pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
+    void remove();
 
 	private:
 

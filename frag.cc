@@ -14,6 +14,29 @@ Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id, std::string p) : pre
 	fragment_id = _fragment_id;
   path = p;
   std::cout << "frag.cc path " << path << std::endl;
+
+	if (prefix_type==Frag::Type::UNIGRAM){
+		filename = path + "_unigram_";
+	} else if (prefix_type==Frag::Type::BIGRAM){
+		filename = path + "_bigram_";
+	} else if (prefix_type==Frag::Type::TRIGRAM){
+		filename = path + "_trigram_";
+	} else {
+		return;
+	}
+	
+	std::stringstream frag_id_string;
+	frag_id_string << std::setw(5) << std::setfill('0') << frag_id;
+
+	filename.append(frag_id_string.str());
+	if (fragment_id==0) {
+		filename.append(".frag");
+	} else {
+		filename.append(".frag.");
+		std::stringstream fragment_id_string;
+		fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
+		filename.append(fragment_id_string.str());
+	}
 	load();
   /*
 	std::cout << "A fragment_id " << fragment_id << std::endl;
@@ -28,31 +51,6 @@ Frag::~Frag()
 }
 
 void Frag::load() {
-	std::string filename;
-	if (prefix_type==Frag::Type::UNIGRAM){
-		filename = path + "_unigram_";
-	} else if (prefix_type==Frag::Type::BIGRAM){
-		filename = path + "_bigram_";
-	} else if (prefix_type==Frag::Type::TRIGRAM){
-		filename = path + "_trigram_";
-	} else {
-		return;
-	}
-
-	std::stringstream frag_id_string;
-	frag_id_string << std::setw(5) << std::setfill('0') << frag_id;
-	
-	if (fragment_id==0) {
-		filename.append(frag_id_string.str());
-		filename.append(".frag");
-	} else {
-		filename.append(frag_id_string.str());
-		filename.append(".frag.");
-		std::stringstream fragment_id_string;
-		fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
-		filename.append(fragment_id_string.str());
-	}
-
 	time_t beforetime = time(0);
 	std::ifstream ifs(filename);
 
@@ -194,29 +192,6 @@ void Frag::writeIndex() {
 
 void Frag::write() {
 	time_t beforetime = time(0);
-	std::string filename;
-	if (prefix_type==Frag::Type::UNIGRAM){
-		filename = path + "_unigram_";
-	} else if (prefix_type==Frag::Type::BIGRAM){
-		filename = path + "_bigram_";
-	} else if (prefix_type==Frag::Type::TRIGRAM){
-		filename = path + "_trigram_";
-	} else {
-		return;
-	}
-	
-	std::stringstream frag_id_string;
-	frag_id_string << std::setw(5) << std::setfill('0') << frag_id;
-
-	filename.append(frag_id_string.str());
-	if (fragment_id==0) {
-		filename.append(".frag");
-	} else {
-		filename.append(".frag.");
-		std::stringstream fragment_id_string;
-		fragment_id_string << std::setw(5) << std::setfill('0') << fragment_id;
-		filename.append(fragment_id_string.str());
-	}
 	// writeJsonFrag(filename);
 	writeRawFrag(filename);
 
@@ -414,3 +389,14 @@ std::string Frag::readFile(std::string filename) {
 	throw(errno);
 }
 
+void Frag::remove() {
+  std::cout << "fragmap size " << frag_map.size() << std::endl;
+  std::cout << "filename " << filename << std::endl;
+  std::string esc_filename = filename;
+//  std::replace(esc_filename.begin(),esc_filename.end(),' ','_');
+  if (std::remove(esc_filename.c_str()) != 0) {
+    std::cout << "frag.cc : ERROR delete " << filename << " failed." << std::endl;
+  } else {
+    std::cout << "frag.cc : " << filename << " deleted." << std::endl;
+  }
+}
