@@ -55,19 +55,27 @@ void FragManager::syncFrags() {
 	time_t beforetime = time(0);
 	std::cout << "frag_manager.cc : begin syncFrags " << beforetime << std::endl;
 	// load / create frags for new insertions
-	loadFrags();
+	loadNextFrags();
 	while (grams_terms.size()>0) {
 		phmap::parallel_flat_hash_map<std::string, int>::iterator it = gram_frag_term_index.find(grams_terms.begin()->first);
 		if (it != gram_frag_term_index.end()) {
+      /*
+      std::cout << "DEB last_frag_id " << last_frag_id << std::endl;
+      std::cout << "DEB it->second " << it->second << std::endl;
+      std::cout << "DEB filename " << frags[it->second].get()->filename << std::endl;
+      std::cout << "DEB frag map size " << frags[it->second].get()->frag_map.size() << std::endl;
+      */
 			frags[it->second].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
 			grams_terms.erase(grams_terms.begin());
 		} else {
 			gram_frag_term_index.insert(std::pair<std::string,int>(grams_terms.begin()->first, last_frag_id));
-			if (frags[last_frag_id].get()->size() == last_frag_id*1000) {
+			if (frags[last_frag_id].get()->size() == last_frag_id*FRAG_SIZE_MULTIPLIER) {
+        std::cout << "DEB FRAG " << last_frag_id << " is full" << std::endl;
 				// this frag is now full so write it's permanent index.
 				frags[last_frag_id].get()->writeIndex();
 				// increment the last/latest frag id and create a new frag for it.
 				last_frag_id = last_frag_id+1;
+        std::cout << "DEB create new FRAG " << last_frag_id << std::endl;
 				frags[last_frag_id] = std::make_unique<Frag>(frag_type, last_frag_id, 1, path + lang);
 			}
 			frags[last_frag_id].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
@@ -83,6 +91,9 @@ void FragManager::syncFrags() {
 }
 
 /*
+ * In this function we.
+ * Read all the frag parts 00001 to 00*x and merge them all into 00001
+ * This means that 00001 part should always have the full index.
  */
 void FragManager::mergeFrags(int num_docs, std::string database) {
 
@@ -99,10 +110,10 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 		return;
 	} else {
 		int this_frag_id = 0;
-	  std::unique_ptr<Frag> main_frag = std::make_unique<Frag>(frag_type, this_frag_id, 0, path + lang);
+	  std::unique_ptr<Frag> main_frag = std::make_unique<Frag>(frag_type, this_frag_id, 1, path + lang);
+		std::cout << "frag_manager.cc : main frag fragmap size " << main_frag.get()->frag_map.size() << std::endl;
 //		std::unique_ptr<Frag> main_frag;
     // track the merged frags so we can delete them on success.
-    std::vector<Frag*> merged_frags;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
 			std::cout << "fram_manager.cc : merge " << *it << std::endl;
 
@@ -115,14 +126,9 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 					main_frag.get()->addWeights(num_docs, database);
 					main_frag.get()->write();
 					std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
-          // delete merged frags
-          for (std::vector<Frag*>::iterator mit=merged_frags.begin(); mit!=merged_frags.end(); mit++) {
-//            (*mit)->remove();
-          }
-          merged_frags.clear();
 				}
 				std::cout << "frag_manager.cc : main frag id : " << frag_id << std::endl;
-				main_frag = std::make_unique<Frag>(frag_type, frag_id, 0, path + lang);
+				main_frag = std::make_unique<Frag>(frag_type, frag_id, 1, path + lang);
 			}
 			if (frag_string.find(".frag.")!=std::string::npos) {
 				int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
@@ -131,8 +137,10 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 				for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
 					main_frag.get()->update(it->first, it->second);
 				}
-			  frag_part.get()->remove();
-        merged_frags.push_back(frag_part.get());
+        // delete the parts, remember that we want to keep the 00001 part as that is the main merge file.
+        if (frag_part.get()->fragment_id != 1) {
+			    frag_part.get()->remove();
+        }
 			}
 			this_frag_id=frag_id;
 		}
@@ -203,15 +211,22 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 }
 
 
-void FragManager::loadFrags() {
+/*
+ * Load a whole new set of frags taking off from where the last frag was.
+ *
+ *
+ */
+void FragManager::loadNextFrags() {
 	std::vector<std::string> index_files = getFiles(path,".frag.");
 
 	if (index_files.empty()) {
 		std::cout << "no index files create new frag" << std::endl;
 		frags[1] = std::make_unique<Frag>(frag_type,1,1,path + lang);
+    std::cout << "DEB frags[1]" << std::endl;
 		last_frag_id = 1;
 	} else {
-		// frag is .frag, frag_part is .0000* file
+		// frag is .frag, frag_part is .0000* file 
+    // both of these were set to 1
 		int this_frag_id = 1;
 		int this_frag_part_id = 1;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
@@ -223,11 +238,13 @@ void FragManager::loadFrags() {
 			std::cout << "load frag " << *it << " : " << frag_id << " " << frag_part_id << std::endl;
 			if (this_frag_id!=frag_id) {
 				frags[this_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1,path + lang);
+        std::cout << "DEB frags["<< this_frag_id <<"]" << std::endl;
       }
 			this_frag_id=frag_id;
 	    this_frag_part_id = frag_part_id;
 		}
 		last_frag_id=this_frag_id;
+    std::cout << "DEB last frags["<< last_frag_id <<"]" << std::endl;
 		frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id+1,this_frag_part_id+1,path + lang);
 	}
 }

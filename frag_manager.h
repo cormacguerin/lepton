@@ -33,10 +33,18 @@ class FragManager {
 		// hash map of term strings to a map of doc ids term data
 		std::map<std::string, std::map<int, Frag::Item>> grams_terms;
     std::string path;
+    // base number of terms per frag
 		int FRAG_SIZE=20000;
+    // x number of terms per subsequent frag
+    // the logic is that the first frag will have all the common terms
+    // it will ballon, while subsequent fragments will have less occurences
+    // eg. 
+    // frag 1 has 20000 terms
+    // frag 2 has 2000000 terms and so on
+		int FRAG_SIZE_MULTIPLIER=100;
 		int BATCH_SIZE=100000;
 		void loadLastFrag();
-		void loadFrags();
+		void loadNextFrags();
 		void saveFrags();
 		void loadFragIndex();
 		std::string readFile(std::string filename);

@@ -104,7 +104,7 @@ void IndexManager::processFeeds() {
 			const pqxx::field document = (row)[2];
 			const pqxx::field lang = (row)[3];
 
-			// std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
+			std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
 			if (url.is_null()) {
 				std::cout << "skip : url is null" << std::endl;;
 				continue;
@@ -135,7 +135,7 @@ void IndexManager::processFeeds() {
       trigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
     }
     // process doc info must be called after mergeFrage(which creates idf)
-    processDocInfo(ids);
+//    processDocInfo(ids);
     ids.clear();
 	}
 	// sync the remainder.
@@ -151,7 +151,7 @@ void IndexManager::processFeeds() {
     trigramFragManager.at(*lit)->mergeFrags(num_docs.at(*lit), database);
   }
   // process doc info must be called after mergeFrage(which creates idf)
-  processDocInfo(ids);
+//  processDocInfo(ids);
 }
 
 /*

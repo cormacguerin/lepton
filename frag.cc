@@ -38,6 +38,7 @@ Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id, std::string p) : pre
 		filename.append(fragment_id_string.str());
 	}
 	load();
+  std::cout << "DEB FILENANE " << filename << std::endl;
   /*
 	std::cout << "A fragment_id " << fragment_id << std::endl;
 	std::cout << "A _fragment_id " << _fragment_id << std::endl;
@@ -80,6 +81,7 @@ void Frag::load() {
  * TODO : Sean to implement.
  */
 void Frag::loadRawFrag(std::string filename) {
+  std::cout << "LOAD RAW " << filename << std::endl;
 	std::ifstream in (filename);
 	in >> bits(frag_map);
 	in.close();
@@ -357,6 +359,9 @@ void Frag::insert(std::string s, std::map<int,Frag::Item> m) {
   std::cout << frag_map.size() << std::endl;
   std::cout << "s" << std::endl;
   std::cout << s << std::endl;
+	for (std::map<int, Frag::Item>::iterator it = m.begin(); it != m.end(); ++it) {
+		std::cout << " m : " << it->first << " : "  << it->second.url_id << std::endl;
+	}
   */
 	frag_map.insert(std::pair<std::string,std::map<int,Frag::Item>>(s,m));
 }
