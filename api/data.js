@@ -151,6 +151,33 @@ exports.getTableSchema = function(user_id, d, table, c) {
   });
 }
 
+exports.getIndexTables = function(u,c) {
+  db_pg['admin'].getTextTables(u, function(e, r) {
+    if (e) {
+      console.log("unable to retrieve user_clients");
+      console.log(e);
+      c(e);
+    } else {
+      for (var i in r) {
+        var x=0;
+        initDB(r[i].database, function() {
+          db_pg[r[i].database].getTableIndexStats(r[i].table, function(e,s) {
+            r[i].total = parseInt(s[0].total);
+            r[i].indexed = parseInt(s[0].indexed);
+            r[i].refreshed = parseInt(s[0].refreshed);
+            x++;
+            console.log(s[0])
+            console.log(r[i])
+            if (x === r.length) {
+              c(r);
+            }
+          });
+        });
+      }
+    }
+  });
+}
+
 exports.addDatabase = function(u,d,c) {
   if (!d) {
     c({status:'failed'})

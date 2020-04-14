@@ -530,32 +530,30 @@ export default {
 
 <style scoped>
 h2 {
-    padding-top: 30px;
-    color: #2c3e50;
+    margin-top: 15px;
+    color: #777;
     text-align: left;
     font-size: 1.8em;
 }
 .database-icon {
-    padding:20px;
-    margin-right: 20px;
+    margin: 15px;
     transform: rotate(180deg);
-    width: 120px;
+    width: 60px;
 }
 .cylinder {
     margin-top: -5px;
     width: 100%;
-    height: 20px;
-    border-top: 2px solid #4e97ad;
+    height: 13px;
+    border-top: 2px solid #fff;
     border-bottom: 1px solid #efefef;
     border-radius: 50%;
-    background-color: #fff;
+    background-color: #717171;
     -webkit-box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
        -moz-box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
             box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
 }
 .buttons {
-  margin-left: 10px;
-  margin-right: 10px;
+  margin: 10px;
 }
 .action {
     color: #39b2d5;
@@ -594,7 +592,6 @@ h2 {
     margin-right: 10px;
     margin-bottom: 10px;
     margin-top: 20px;
-    border: 1px solid #fff;
     border-radius: 5px;
     background-color: #fff;
     -webkit-box-shadow:0 2px 4px 0 #b2b5be;
@@ -614,6 +611,7 @@ h2 {
   margin: 10px;
 }
 .left {
+  background-color: #efefef;
   min-width: 100px;
 }
 .margin-right {

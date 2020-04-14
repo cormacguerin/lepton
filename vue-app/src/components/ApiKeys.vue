@@ -142,7 +142,7 @@ import AddApiKey from './AddApiKey.vue'
 import AddApiScope from './AddApiScope.vue'
 
 export default {
-  name: 'Configure',
+  name: 'ApiKeys',
   components: {
     AddApiKey,
     AddApiScope

@@ -1,5 +1,5 @@
 <template>
-  <div class="schema">
+  <div class="database">
     <flex-row
       justify="center"
       class="cards"
@@ -16,7 +16,7 @@
               class="fa fa-plus"
               aria-hidden="true"
             />
-            Schema
+            Database
           </span>
         </CButton>
         <CModal
@@ -50,7 +50,7 @@ import DatabaseCard from './DatabaseCard.vue'
 import EditDatabase from './EditDatabase.vue'
 
 export default {
-  name: 'Schema',
+  name: 'Database',
   components: {
     DatabaseCard,
     EditDatabase
@@ -83,7 +83,7 @@ export default {
 </script>
 
 <style scoped>
-.schema {
+.database {
     width: 100%;
 }
 .cards {

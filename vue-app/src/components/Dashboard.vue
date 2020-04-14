@@ -54,7 +54,7 @@ import ChartCard from './ChartCard.vue'
 import EditChart from './EditChart.vue'
 
 export default {
-  name: 'Schema',
+  name: 'Dashboards',
   components: {
     ChartCard,
     EditChart

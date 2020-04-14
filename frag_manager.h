@@ -39,9 +39,9 @@ class FragManager {
     // the logic is that the first frag will have all the common terms
     // it will ballon, while subsequent fragments will have less occurences
     // eg. 
-    // frag 1 has 20000 terms
-    // frag 2 has 2000000 terms and so on
-		int FRAG_SIZE_MULTIPLIER=100;
+    // frag 1 has 50 terms
+    // frag 2 has 100 terms and so on
+		int FRAG_SIZE_MULTIPLIER=50;
 		int BATCH_SIZE=100000;
 		void loadLastFrag();
 		void loadNextFrags();

@@ -8,10 +8,13 @@ import VueRouter from 'vue-router'
 import { cilPlus } from '@coreui/icons'
 import { CDropdown, CDropdownItem } from './components/celements/celements.ts'
 import Home from './components/Home.vue'
-import Schema from './components/Schema.vue'
+import Database from './components/Database.vue'
+import Chart from './components/Chart.vue'
 import Dashboard from './components/Dashboard.vue'
 import Insights from './components/Insights.vue'
-import Configure from './components/Configure.vue'
+import Indexing from './components/Indexing.vue'
+import Serving from './components/Serving.vue'
+import ApiKeys from './components/ApiKeys.vue'
 import 'vue-flex/dist/vue-flex.css'
 import '@coreui/icons/css/all.css'
 import '@coreui/icons/css/free.css'
@@ -63,10 +66,13 @@ Vue.config.productionTip = false
 
 const routes = [
   { path: '/', name: 'home', component: Home },
-  { path: '/schema', name: 'schema', component: Schema },
+  { path: '/database', name: 'database', component: Database },
+  { path: '/charts', name: 'charts', component: Chart },
   { path: '/dashboard', name: 'dashboard', component: Dashboard },
+  { path: '/indexing', name: 'indexing', component: Indexing },
+  { path: '/serving', name: 'serving', component: Serving },
   { path: '/insights', name: 'insights', component: Insights },
-  { path: '/configure', name: 'configure', component: Configure }
+  { path: '/apikeys', name: 'apikeys', component: ApiKeys }
 ]
 
 const router = new VueRouter({

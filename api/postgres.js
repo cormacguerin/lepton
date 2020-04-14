@@ -420,8 +420,22 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   getTableMeta(user_id, database, table, callback) {
-    var query = "SELECT _column AS column_name, display_field, enable as fts from text_tables_index WHERE id = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id FROM databases WHERE database = $1) AND owner = $3)"
+    var query = "SELECT _column AS column_name, display_field, serving, indexing as fts from text_tables_index WHERE id = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id FROM databases WHERE database = $1) AND owner = $3)"
     this.execute(query, [database,table,user_id], function(e,r) {
+      callback(e,r);
+    });
+  }
+
+  getTextTables(user_id, callback) {
+    var query = "SELECT d.database, t.tablename AS table, array_agg(tx._column ORDER BY t.tablename) AS column, display_field, indexing, serving from text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 GROUP BY d.database, t.tablename, display_field, indexing, serving ORDER BY d.database;"
+    this.execute(query, [user_id], function(e,r) {
+      callback(e,r);
+    });
+  }
+
+  getTableIndexStats(table, callback) {
+    var query = "SELECT COUNT(*) AS total, sum(case when lt_index_date IS NOT NULL then 1 else 0 end) AS indexed, sum(case when lt_index_date >= lt_crawl_date then 1 else 0 end) AS refreshed FROM \"" + table+ "\"";
+    this.execute(query, null, function(e,r) {
       callback(e,r);
     });
   }
@@ -866,14 +880,14 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   setFTS(u,d,t,c,b,callback) {
-    var query = "INSERT INTO text_tables_index(database,_table,_column,enable)"
+    var query = "INSERT INTO text_tables_index(database,_table,_column,indexing)"
       + " SELECT r.db, r.t, r.c, r.e::boolean FROM"
       + " (SELECT * FROM (VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $5), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $5)), $3, $4)) AS v (db,t,c,e)) r"
       + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column_key DO UPDATE SET"
 //      + " database = (SELECT id from databases where database = $1 AND owner = $5),"
       + " _table = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $5)),"
       + " _column = $3,"
-      + " enable = $4::boolean";
+      + " indexing = $4::boolean";
     /*
     var query = "SELECT t.id, r.db, r.t, r.c, r.e::boolean FROM"
       + " (SELECT id FROM tables WHERE database = $1 AND tablename = $2 AND owner = $5) t,"

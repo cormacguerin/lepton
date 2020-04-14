@@ -58,6 +58,12 @@ app.get('/api/getTableSchema', user.authorize, function(req,res,next) {
     res.json({d});
   });
 });
+app.get('/api/getIndexTables', user.authorize, function(req,res,next) {
+  var queryData = url.parse(req.url, true).query;
+	data.getIndexTables(req.user_id, function(d) {
+    res.json(d);
+  });
+});
 app.get('/api/getUserInfo', user.authorize, function(req,res,next) {
 	// get language and locale
 	var language;
@@ -469,10 +475,12 @@ app.get('/', function(req, res, next) {
 });
 */
 
-app.use('/schema/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/database/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/dashboard/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/apikeys/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/indexing/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/serving/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/insights/', express.static(__dirname + '/vue-app/dist/'));
-app.use('/configure/', express.static(__dirname + '/vue-app/dist/'));
 // web root
 app.use('/', express.static(__dirname + '/vue-app/dist/'));
 

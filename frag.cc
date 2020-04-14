@@ -204,6 +204,13 @@ void Frag::write() {
 	frag_map.clear();
 }
 
+/*
+ * Write the raw frags.
+ * We first write to a temporary file with _ extension.
+ * When done we attempt to get a lock on the original file as it may be getting read by the index server.
+ * If we get a lock we move the _ file to the original filename
+ * If we don't get a log we print an error and continue, the next crawl should fix it.
+ */
 void Frag::writeRawFrag(std::string filename) {
 	std::string tmp_filename = filename;
 	tmp_filename.append("_");
@@ -212,7 +219,12 @@ void Frag::writeRawFrag(std::string filename) {
 	f << bits(frag_map) << "\n";
 	f.close();
 
-	rename(tmp_filename.c_str(),filename.c_str());
+  int lck;
+  if (fileLock(filename,lck) == true) {
+	  rename(tmp_filename.c_str(),filename.c_str());
+  } else {
+    std::cout << "frag.cc : WARNING : unable to get lock on writeRawFrag." << std::endl;
+  }
 }
 
 void Frag::writeJsonFrag(std::string filename) {
@@ -398,10 +410,11 @@ void Frag::remove() {
   std::cout << "fragmap size " << frag_map.size() << std::endl;
   std::cout << "filename " << filename << std::endl;
   std::string esc_filename = filename;
-//  std::replace(esc_filename.begin(),esc_filename.end(),' ','_');
+  //  std::replace(esc_filename.begin(),esc_filename.end(),' ','_');
   if (std::remove(esc_filename.c_str()) != 0) {
     std::cout << "frag.cc : ERROR delete " << filename << " failed." << std::endl;
   } else {
     std::cout << "frag.cc : " << filename << " deleted." << std::endl;
   }
 }
+
