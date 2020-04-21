@@ -1,17 +1,17 @@
-#ifndef _INDEXROOT_H_
-#define _INDEXROOT_H_
+#ifndef _SERVEROOT_H_
+#define _SERVEROOT_H_
 
 #include <string>
 #include <pqxx/pqxx>
 
-class IndexRoot {
+class ServeRoot {
 	private:
 		pqxx::connection* C;
 		void adminConnect();
 
 	public:
-		IndexRoot();
-		~IndexRoot();
+		ServeRoot();
+		~ServeRoot();
     void run();
     int main();
 

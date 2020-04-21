@@ -68,7 +68,8 @@ CREATE TABLE text_tables_index (
     _table INT REFERENCES tables (id) ON DELETE CASCADE NOT NULL,
     _column VARCHAR (64) NOT NULL,
     display_field VARCHAR(64) DEFAULT 'url',
-    enable BOOLEAN,
+    indexing BOOLEAN,
+    serving BOOLEAN,
     UNIQUE (database,_table,_column)
 );
 

@@ -194,6 +194,16 @@ app.get('/api/setFTS', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
+app.get('/api/setServing', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.serving)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+	data.setServing(req.user_id, queryData.database, queryData.table, queryData.serving, function(r) {
+    res.json(r);
+  });
+});
 app.get('/api/setFTSDisplayField', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   if (!(queryData.database && queryData.table && queryData.display_field)) {

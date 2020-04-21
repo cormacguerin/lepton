@@ -7,15 +7,15 @@ using namespace std;
 
 std::string port = "3333";
 
-Indexroot::Indexroot() {
+IndexRoot::IndexRoot() {
   adminConnect();
 }
 
-Indexroot::~Indexroot()
+IndexRoot::~IndexRoot()
 {
 }
 
-void Indexroot::adminConnect() {
+void IndexRoot::adminConnect() {
 	try {
 		C = new pqxx::connection("dbname = admin user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
     if (C->is_open()) {
@@ -32,10 +32,10 @@ void Indexroot::adminConnect() {
 /*
  * Run the main indexing process
  */
-void Indexroot::run() {
+void IndexRoot::run() {
   pqxx::work txn(*C);
   // SELECT all database table columns which have indexing enabled
-  std::string statement = "SELECT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table  WHERE enable = true";
+  std::string statement = "SELECT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table  WHERE indexing = true";
   C->prepare("get_tables_to_index", statement);
 
   pqxx::result r = txn.prepared("get_tables_to_index").exec();
@@ -76,7 +76,7 @@ void Indexroot::run() {
 }
 
 int main(int argc, char** argv) {
-  Indexroot ir;
+  IndexRoot ir;
   ir.run();
 	return 0;
 }

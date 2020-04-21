@@ -15,21 +15,23 @@ using namespace std;
 using namespace pqxx;
 
 
-IndexServer::IndexServer()
+IndexServer::IndexServer(std::string database, std::string table)
 {
 	q = 0;
 	x = 0;
+  db = database;
+  tb = table;
   // todo, you need to enable service here
-	init("something");
+	init();
 }
 
 IndexServer::~IndexServer()
 {
 }
 
-void IndexServer::init(std::string database) {
+void IndexServer::init() {
 	try {
-		C = new pqxx::connection("dbname = " + database + " user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = " + db + " user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
 		if (C->is_open()) {
 			cout << "Opened database successfully: " << C->dbname() << endl;
 		} else {
@@ -41,10 +43,10 @@ void IndexServer::init(std::string database) {
 	//std::string ngrams[] = {"uni","bi","tri"};
 	//std::string langs[] = {"en","ja","zh"};
 	std::string ngrams[] = {"uni"};
-	std::string langs[] = {"en"};
-	for (const string &ng : ngrams) {
-		for (const string &l : langs) {
-			loadIndex(ng, l);
+  for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
+	  for (const string &ng : ngrams) {
+      unigramurls_map[*lit] = phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>();
+			loadIndex(ng, *lit);
 		}
 	}
 }
@@ -52,14 +54,17 @@ void IndexServer::init(std::string database) {
 void IndexServer::loadIndex(std::string ng, std::string lang) {
 
 	time_t beforeload = getTime();
-	std::cout << "loading index... (this might take a while)." << std::endl;
+	std::cout << "loading index " << lang << " ... (this might take a while)." << std::endl;
 
 
 	std::vector<std::string> index_files;
-	std::string path = "index/";
 
 	struct dirent *entry;
 	DIR *dp;
+
+  std::string path = "index/" + db + "/" + tb + "/";
+  std::cout << path << std::endl;
+  std::replace(path.begin(),path.end(),' ','_');
 
 	dp = opendir(path.c_str());
 	if (dp == NULL) {
@@ -67,30 +72,32 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 		std::cout << "frag_manager.cc : Error , unable to load last frag" << std::endl;;
 		exit;
 	}
-	std::string ext = ".frag";
+	std::string ext = ".frag.00001";
 	while (entry = readdir(dp)) {
 		std::string e_(entry->d_name);
-		if ((e_.find(ext) != std::string::npos)) {
-			if (e_.substr(e_.length()-5).compare(".frag") == 0) {
-				index_files.push_back(entry->d_name);
-			}
+    if (e_.substr(0,2).compare(lang) == 0) {
+		  if ((e_.find(ext) != std::string::npos)) {
+        if (e_.substr(e_.length()-11).compare(ext) == 0) {
+          index_files.push_back(entry->d_name);
+        }
+      }
 		}
 	}
 	closedir(dp);
 
 	std::sort(index_files.begin(),index_files.end());
 	if (index_files.empty()) {
-		std::cout << "no index files create new frag" << std::endl;
+		std::cout << "no index files" << std::endl;
 		return;
 	} else {
-		std::cout << "unigramurls_map.size() " << unigramurls_map.size() << std::endl;
+		std::cout << "unigramurls_map.size() " << unigramurls_map[lang].size() << std::endl;
 		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
 			std::cout << *it << std::endl;
-			int frag_id = stoi((*it).substr((*it).find('_')+1,(*it).find('.')));
-			Frag frag(Frag::Type::UNIGRAM, frag_id);
-			frag.addToIndex(unigramurls_map);
-			std::cout << "unigramurls_map.size() " << unigramurls_map.size() << std::endl;
+			int frag_id = stoi((*it).substr((*it).find('.')-5,(*it).find('.')));
+			Frag frag(Frag::Type::UNIGRAM, frag_id, 1, path + lang);
+			frag.addToIndex(unigramurls_map[lang]);
 		}
+		std::cout << "unigramurls_map["<<lang<<"].size() " << unigramurls_map[lang].size() << std::endl;
 	}
 
 	/*
@@ -219,7 +226,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 	std::cout << "index_server.cc sort and resize " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
 
 	beforeload = indexServer->getTime();
-	indexServer->getResultInfo(result, "table");
+	indexServer->getResultInfo(result);
 	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc getResultInfo " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
@@ -230,7 +237,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 /*
  * Get the snippet, metadata, entities etc.
  */
-void IndexServer::getResultInfo(Result& result, std::string table) {
+void IndexServer::getResultInfo(Result& result) {
 	/*
 	if (result.items.empty()) {
 		return;
@@ -271,7 +278,7 @@ void IndexServer::getResultInfo(Result& result, std::string table) {
 	}
 
 	pqxx::work txn(*C);
-	C->prepare("get_docinfo_deep", "SELECT id, entities, (WITH S AS (SELECT jsonb_array_elements_text(segmented_grams->'raw_text') AS snippet FROM " + table + "WHERE id=D.id OFFSET 50 ROWS LIMIT 100) SELECT string_agg(snippet, ' ') FROM S) FROM " + table + " AS D WHERE id = $1");
+	C->prepare("get_docinfo_deep", "SELECT id, entities, (WITH S AS (SELECT jsonb_array_elements_text(segmented_grams->'raw_text') AS snippet FROM " + tb + "WHERE id=D.id OFFSET 50 ROWS LIMIT 100) SELECT string_agg(snippet, ' ') FROM S) FROM " + tb + " AS D WHERE id = $1");
 	for (std::vector<Result::Item>::iterator tit = result.items.begin(); tit != result.items.end(); ++tit) {
 		pqxx::result r = txn.prepared("get_docinfo_deep")(tit->url_id).exec();
 		const pqxx::field i = r.back()[0];
@@ -466,14 +473,12 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 	return result;
 }
 
-
 pqxx::prepare::invocation& IndexServer::prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv)
 {
     for(auto data_val : data)
         inv(data_val);
     return inv;
 }
-
 
 std::vector<std::string> IndexServer::getDocInfo(int url_id) {
 	pqxx::work txn(*C);
@@ -541,8 +546,8 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		query.term.term.toUTF8String(converted);
 		std::cout << "index_server.cc - looking for " << converted << std::endl;
 
-		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = indexServer->unigramurls_map.find(converted);
-		if (urls != indexServer->unigramurls_map.end()) {
+		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = indexServer->unigramurls_map[query.lang].find(converted);
+		if (urls != indexServer->unigramurls_map[query.lang].end()) {
 			std::cout << "index_server.cc Found " << urls->first << std::endl;
 			/*
 			for (std::vector<Frag::Item>::const_iterator it = (urls->second).begin() ; it != (urls->second).end(); ++it) {

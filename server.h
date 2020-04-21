@@ -13,7 +13,7 @@ class Server {
 		std::shared_ptr<IndexServer> indexServer;
 
 	public:
-		Server(short port);
+		Server(short port, std::string database, std::string table);
 		~Server();
 		void run();
 };

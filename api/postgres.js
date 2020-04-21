@@ -902,6 +902,18 @@ console.log("promises finished in " + totaltime + "ms");
     });
   }
 
+  setServing(u,d,t,s,callback) {
+    var query = "UPDATE text_tables_index SET serving = $3::boolean WHERE _table = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4));"
+
+    var values = [d,t,s,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
   setFTSDisplayField(u, d,t,df,callback) {
     var query = "UPDATE text_tables_index SET display_field = $3 WHERE id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $4)"
 

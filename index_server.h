@@ -16,25 +16,28 @@
 class IndexServer {
 
 	public:
-		IndexServer();
+		IndexServer(std::string database, std::string table);
 		~IndexServer();
-		void init(std::string database);
+		void init();
 		void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates);
 		void execute(std::string lang, std::string query, std::promise<std::string> promiseObj);
 		static void search(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryParser);
+    std::vector<std::string> langs = {"en","ja","zh","ko","es","de","fr"};
 
 	private:
 		int q;
 		int x;
+    std::string db;
+    std::string tb;
 		pqxx::connection* C;
 		pqxx::work* txn;
-		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> unigramurls_map;
-		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> bigramurls_map;
-		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> trigramurls_map;
+    std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> unigramurls_map;
+    std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> bigramurls_map;
+    std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> trigramurls_map;
 		std::vector<std::string> getDocInfo(int url_id);
 		std::map<std::string,std::vector<int>> getTermPositions(int url_id, std::vector<std::string> terms);
 		Result getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates);
-		void getResultInfo(Result& result, std::string table);
+		void getResultInfo(Result& result);
 		pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
 		void loadIndex(std::string gram, std::string lang);
 		QueryBuilder queryBuilder;

@@ -4,9 +4,9 @@
       no-wrap
       class="container"
     >
-      <div class="database">
+      <div>
         <flex-row
-          class="left"
+          class="main"
         >
           <div
             class="database-icon"
@@ -16,7 +16,7 @@
             <div class="cylinder" />
           </div>
           <div class="flexgrow">
-            <h2>{{ database }}</h2>
+            <div class="databasetitle"> {{ database }} </div>
           </div>
           <div class="edit">
             <CDropdown>
@@ -529,25 +529,28 @@ export default {
 </script>
 
 <style scoped>
-h2 {
-    margin-top: 15px;
-    color: #777;
+.databasetitle {
+    margin-top: 10px;
+    margin-left: 10px;
+    color: #7f7f7f;
     text-align: left;
-    font-size: 1.8em;
+    font-size: 1.2em;
 }
 .database-icon {
-    margin: 15px;
+    margin-left: 15px;
+    margin-bottom: 10px;
+    margin-top: 5px;
     transform: rotate(180deg);
-    width: 60px;
+    width: 30px;
 }
 .cylinder {
     margin-top: -5px;
     width: 100%;
-    height: 13px;
-    border-top: 2px solid #fff;
-    border-bottom: 1px solid #efefef;
+    height: 12px;
+    border-top: 2px solid #cfcfcf;
+    border-bottom: 1px solid #39b2d5;
     border-radius: 50%;
-    background-color: #717171;
+    background-color: #39b2d5;
     -webkit-box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
        -moz-box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
             box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
@@ -598,20 +601,15 @@ h2 {
        -moz-box-shadow:0 2px 4px 0 #b2b5be;
             box-shadow:0 2px 4px 0 #b2b5be;
 }
-.database {
-    min-width: 100px;
-    width: 100%;
-    border-radius: 3px;
-    color: #2c3e50;
-}
 .borderpad {
   border: 1px solid #c8ced3;
   border-radius: 4px;
   padding: 10px;
   margin: 10px;
 }
-.left {
-  background-color: #efefef;
+.main {
+  background-color: #f3f3f3;
+  border-bottom: 4px solid #39b2d5;
   min-width: 100px;
 }
 .margin-right {
@@ -620,6 +618,7 @@ h2 {
 .edit {
   margin-right: 5px;
   margin-left: 5px;
+  padding-top: 10px;
   width: 10px;
 }
 .flexgrow {

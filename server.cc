@@ -5,9 +5,9 @@
 #include <iostream>
 #include <memory>
 
-Server::Server(short port) : acceptor_(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
+Server::Server(short port, std::string database, std::string table) : acceptor_(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
 {
-	indexServer = std::make_shared<IndexServer>();
+	indexServer = std::make_shared<IndexServer>(database, table);
 	do_accept();
 }
 

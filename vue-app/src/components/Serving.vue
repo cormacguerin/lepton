@@ -4,7 +4,7 @@
       justify="center"
       class="cards"
     >
-      <IndexCard
+      <ServeCard
         v-for="item in indices"
         :key="item.database"
         :database="item.database"
@@ -22,12 +22,12 @@
 </template>
 <script>
 
-import IndexCard from './IndexCard.vue'
+import ServeCard from './ServeCard.vue'
 
 export default {
   name: 'Serving',
   components: {
-    IndexCard
+    ServeCard
   },
   data () {
     return {

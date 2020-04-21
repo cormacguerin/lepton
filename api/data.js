@@ -40,7 +40,7 @@ exports.getDatabases = function(u,c) {
             db_pg['admin'].getTables(u, database, function(e,s) {
               if (e) {
                 console.log(e);
-                c(e);
+                pe(e);
               } else {
                 pr({key:database.replace(r,''),tables:s});
               }
@@ -158,22 +158,27 @@ exports.getIndexTables = function(u,c) {
       console.log(e);
       c(e);
     } else {
-      for (var i in r) {
-        var x=0;
-        initDB(r[i].database, function() {
-          db_pg[r[i].database].getTableIndexStats(r[i].table, function(e,s) {
-            r[i].total = parseInt(s[0].total);
-            r[i].indexed = parseInt(s[0].indexed);
-            r[i].refreshed = parseInt(s[0].refreshed);
-            x++;
-            console.log(s[0])
-            console.log(r[i])
-            if (x === r.length) {
-              c(r);
+      const re = /^[0-9]+_/gi;
+      var reply = []
+      r.forEach(function(d) {
+        initDB(d.database, function() {
+          db_pg[d.database].getTableIndexStats(d.table, function(e,s) {
+//            var d = Object.assign({},r[x]);
+            d.total = parseInt(s[0].total);
+            d.indexed = parseInt(s[0].indexed);
+            d.refreshed = parseInt(s[0].refreshed);
+            console.log("before")
+            console.log(d)
+            d.database = d.database.replace(re,'');
+            console.log("after")
+            console.log(d)
+            reply.push(d);
+            if (reply.length === r.length) {
+              c(reply);
             }
           });
         });
-      }
+      });
     }
   });
 }
@@ -441,6 +446,31 @@ exports.setFTS = function(u,d,t,c,b,callback) {
   const db = u + '_' + d;
   initDB('admin', function() {
     db_pg['admin'].setFTS(u, db, t, c, b, function(err, r) {
+      if (err) {
+        console.log("unable to retrieve user_clients")
+        console.log(err)
+        callback({status:'failed', error:err})
+      } else {
+        if (r.length === 0) {
+          callback(r)
+        } else {
+          callback(err)
+        }
+      }
+    })
+  })
+}
+
+/*
+ * enable / disable serving
+ */
+exports.setServing = function(u,d,t,s,callback) {
+  if (!(d&&t&&s)) {
+    return callback({status:'failed'})
+  }
+  const db = u + '_' + d;
+  initDB('admin', function() {
+    db_pg['admin'].setServing(u, db, t, s, function(err, r) {
       if (err) {
         console.log("unable to retrieve user_clients")
         console.log(err)
