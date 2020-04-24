@@ -35,7 +35,7 @@ void IndexRoot::adminConnect() {
 void IndexRoot::run() {
   pqxx::work txn(*C);
   // SELECT all database table columns which have indexing enabled
-  std::string statement = "SELECT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table  WHERE indexing = true";
+  std::string statement = "SELECT DISTINCT databases.database, tables.tablename, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table  WHERE indexing = true";
   C->prepare("get_tables_to_index", statement);
 
   pqxx::result r = txn.prepared("get_tables_to_index").exec();

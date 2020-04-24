@@ -51,6 +51,9 @@ void IndexServer::init() {
 	}
 }
 
+/*
+ * load the index files for the specified ngram and language into the map
+ */
 void IndexServer::loadIndex(std::string ng, std::string lang) {
 
 	time_t beforeload = getTime();
@@ -76,9 +79,11 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	while (entry = readdir(dp)) {
 		std::string e_(entry->d_name);
     if (e_.substr(0,2).compare(lang) == 0) {
-		  if ((e_.find(ext) != std::string::npos)) {
-        if (e_.substr(e_.length()-11).compare(ext) == 0) {
-          index_files.push_back(entry->d_name);
+      if (e_.substr(3,ng.length()).compare(ng) == 0) {
+        if ((e_.find(ext) != std::string::npos)) {
+          if (e_.substr(e_.length()-11).compare(ext) == 0) {
+            index_files.push_back(entry->d_name);
+          }
         }
       }
 		}
