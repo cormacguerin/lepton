@@ -41,7 +41,7 @@ export default {
   methods: {
     getIndexTables () {
       var vm = this
-      this.$axios.get(this.$SERVER_URI + '/api/getIndexTables', {
+      this.$axios.get(this.$SERVER_URI + '/api/getIndexingInfo', {
         params: {
         }
       })

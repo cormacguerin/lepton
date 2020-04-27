@@ -32,7 +32,10 @@ export default {
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/search', {
         params: {
-          query: vm.query
+          query: vm.query,
+          database: 'Economic',
+          table: 'wikipedia countries',
+          lang: 'en'
         }
       })
         .then(function (response) {

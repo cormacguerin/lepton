@@ -2,14 +2,10 @@
 #define _SERVEROOT_H_
 
 #include <string>
-#include <pqxx/pqxx>
-#include "server.h"
+#include "management_server.h"
 
 class ServeRoot {
 	private:
-		pqxx::connection* C;
-		void adminConnect();
-    std::vector<Server*> servers;
 
 	public:
 		ServeRoot();

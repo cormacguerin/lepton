@@ -13,6 +13,7 @@ var async = require('async');
 
 var user = require('./api/user.js');
 var data = require('./api/data.js');
+var queryServers = {}
 
 user.loadExistingSessions();
 
@@ -58,10 +59,31 @@ app.get('/api/getTableSchema', user.authorize, function(req,res,next) {
     res.json({d});
   });
 });
-app.get('/api/getIndexTables', user.authorize, function(req,res,next) {
+app.get('/api/getIndexingInfo', user.authorize, function(req,res,next) {
   var queryData = url.parse(req.url, true).query;
 	data.getIndexTables(req.user_id, function(d) {
     res.json(d);
+  });
+});
+app.get('/api/getServingInfo', user.authorize, function(req,res,next) {
+  var queryData = url.parse(req.url, true).query;
+	data.getIndexTables(req.user_id, function(d) {
+    getStats(function(s) {
+      console.log('s');
+      console.log(s);
+      if (s) {
+        for (var i in d) {
+          if (s[req.user_id + "_" +d[i].database]) {
+            if (s[req.user_id + "_" +d[i].database][d[i].table]) {
+              d[i].status = s[req.user_id + "_" +d[i].database][d[i].table].status;
+              d[i].loaded = s[req.user_id + "_" +d[i].database][d[i].table].loaded;
+            }
+          }
+        }
+      }
+      console.log(d);
+      res.json(d);
+    });
   });
 });
 app.get('/api/getUserInfo', user.authorize, function(req,res,next) {
@@ -411,16 +433,65 @@ app.post('/addTableData', user.authorizeApi, function(req, res, next) {
 
 /*
  * Search for a document
+ * TODO there is a lot of duplication and stuff here that could be cleaned up
  */
-app.get('/search', function(req, res, next) {
+app.get('/search', user.authorize, function(req, res, next) {
 	try {
 		var queryData = url.parse(req.url, true).query;
+    var database = req.user_id + "_" + queryData.database;
+    var table = queryData.table;
 		var socket = new net.Socket();
 		if (!queryData.query) {
 			res.json({"error":"no query"});
 			return;
 		} else {
-			execute(req,res);
+      console.log('queryServers');
+      console.log(queryServers);
+      if (Object.keys(queryServers).length === 0) {
+        getStats(function() {
+          if (queryServers[database]) {
+            if (queryServers[database][table]) {
+              execute(queryData,queryServers[database][table].port,function(r) {
+                res.json(r);
+              });
+            } else {
+              res.json({});
+            }
+          } else {
+            res.json({});
+          }
+        });
+      } else if (queryServers[database]) {
+        if (queryServers[database][table]) {
+          execute(queryData,queryServers[database][table].port,function(r) {
+            res.json(r);
+          });
+        } else {
+          getStats(function() {
+            if (queryServers[database][table]) {
+              execute(queryData,queryServers[database][table].port,function(r) {
+                res.json(r);
+              });
+            } else {
+              res.json({});
+            }
+          });
+        }
+      } else {
+        getStats(function() {
+          if (queryServers[database]) {
+            if (queryServers[database][table]) {
+              execute(queryData,queryServers[database][table].port,function(r) {
+                res.json(r);
+              });
+            } else {
+              res.json({});
+            }
+          } else {
+            res.json({});
+          }
+        })
+      }
 		}
 	} catch(e) {
 		res.send({"error":"\""+e+"\""});
@@ -429,13 +500,65 @@ app.get('/search', function(req, res, next) {
 	}
 });
 
-function execute(req, res) {
+app.get('/manage', function(req, res, next) {
+	try {
 		var queryData = url.parse(req.url, true).query;
 		var socket = new net.Socket();
-		socket.connect(3333, '127.0.0.1', function() {
-			var data_length = queryData.query.length;
+		if (!queryData.query) {
+			res.json({"error":"no query"});
+			return;
+		} else {
+		}
+	} catch(e) {
+		res.send({"error":"\""+e+"\""});
+		console.log(e);
+		return;
+	}
+});
+
+function getStats(callback) {
+  console.log('getStats');
+  execute({'query':'stats'}, 3333, function(r) {
+    if (r['error']) {
+  console.log('getStats error');
+      return callback();
+    }
+    var stats = JSON.parse(r)
+  console.log('getStats r');
+    console.log(r);
+    if (stats.servers) {
+      stats.servers.forEach(function(s) {
+        queryServers[s.database] = {}
+        queryServers[s.database][s.table] = s;
+      });
+    }
+    console.log('queryServers');
+    console.log(queryServers);
+    callback(queryServers);
+  });
+}
+
+function toggleServing(database, table, callback) {
+  execute({'query':'enable','database':database,'table':table}, 3333, function(r) {
+    callback(r);
+  });
+}
+
+function execute(queryData, port, callback) {
+    var tmpQuery = {}
+    tmpQuery.query = queryData.query;
+    tmpQuery.lang = "en";
+    internalQuery = JSON.stringify(tmpQuery);
+    console.log('internalQuery')
+    console.log(internalQuery)
+    
+		var socket = new net.Socket();
+		socket.connect(port, '127.0.0.1', function() {
+      console.log('hit');
+			var data_length = internalQuery.length;
 			var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":";
-			socket.write(header.concat(queryData.query),'utf8', function(r) {
+			socket.write(header.concat(internalQuery),'utf8', function(r) {
+				console.log('socket.write');
 				console.log(r);
 			});
 			socket.end();
@@ -443,28 +566,27 @@ function execute(req, res) {
 		var packet = "";
 		socket.on('data', (data) => {
 			packet += data.toString();
-			// console.log('packet data');
-			// console.log(packet);
+			console.log('packet - data');
+			console.log(packet);
 			socket.end();
 		});
 		socket.on('end', () => {
-			res.json(packet);
-			console.log('disconnected from server');
+      console.log('end - packet');
+      console.log(packet);
+      if (packet) {
+			  callback(packet);
+      } else {
+        callback('{}');
+      }
 		});
 		socket.on('unhandledRejection', (error, promise) => {
-			res.send({"error":+error+"\""});
-			console.log(error);
-			return;
+			callback({"error":error});
 		});
 		socket.on('uncaughtException', (error, promise) => {
-			res.send({"error":+error+"\""});
-			console.log(error);
-			return;
+			callback({"error":error});
 		});
 		socket.on('error', (error, promise) => {
-			res.send({"error":+error+"\""});
-			console.log(error);
-			return;
+			callback({"error":error});
 		});
 }
 

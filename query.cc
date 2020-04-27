@@ -60,7 +60,7 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 		}
 	}
 	if (!converted.empty()) {
-	       serialized_query.AddMember("term", rapidjson::Value(const_cast<char*>(converted.c_str()), allocator).Move(), allocator);
+	  serialized_query.AddMember("term", rapidjson::Value(const_cast<char*>(converted.c_str()), allocator).Move(), allocator);
 	}
 	if (OperatorList[this->op].c_str()) {
 		serialized_query.AddMember("operator", rapidjson::Value(const_cast<char*>((OperatorList[this->op]).c_str()), allocator).Move(), allocator);

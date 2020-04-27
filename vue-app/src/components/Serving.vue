@@ -16,6 +16,8 @@
         :total="item.total"
         :indexed="item.indexed"
         :refreshed="item.refreshed"
+        :status="item.status"
+        :loaded="item.loaded"
       />
     </flex-col>
   </div>
@@ -41,7 +43,7 @@ export default {
   methods: {
     getIndexTables () {
       var vm = this
-      this.$axios.get(this.$SERVER_URI + '/api/getIndexTables', {
+      this.$axios.get(this.$SERVER_URI + '/api/getServingInfo', {
         params: {
         }
       })

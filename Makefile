@@ -46,8 +46,8 @@ LINKER = $(COMPILER) $(LINKOPTS)
 
 all: serveroot indexroot
 
-serveroot: serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o frag_manager.o frag.o result.o
-	${LINKER} -o serveroot serveroot.o query.o query_builder.o index_server.o server.o session.o segmenter.o frag_manager.o frag.o result.o $(LD_FLAGS)
+serveroot: serveroot.o query.o query_builder.o index_server.o management_server.o query_server.o session.o segmenter.o frag_manager.o frag.o result.o
+	${LINKER} -o serveroot serveroot.o query.o query_builder.o index_server.o management_server.o query_server.o session.o segmenter.o frag_manager.o frag.o result.o $(LD_FLAGS)
 
 indexroot: indexroot.o index_manager.o base64.o segmenter.o frag_manager.o frag.o murmur_hash3.o
 	${LINKER} -o indexroot indexroot.o index_manager.o base64.o segmenter.o frag_manager.o frag.o murmur_hash3.o $(LD_FLAGS) 
@@ -70,8 +70,11 @@ index_server.o : index_server.cc index_server.h
 session.o : session.cc session.h
 	${COMPILE} session.cc
 
-server.o : server.cc server.h
-	${COMPILE} server.cc
+management_server.o : management_server.cc management_server.h
+	${COMPILE} management_server.cc
+
+query_server.o : query_server.cc query_server.h
+	${COMPILE} query_server.cc
 
 murmur_hash3.o : murmur_hash3.cc murmur_hash3.h
 	${COMPILE} murmur_hash3.cc

@@ -167,11 +167,7 @@ exports.getIndexTables = function(u,c) {
             d.total = parseInt(s[0].total);
             d.indexed = parseInt(s[0].indexed);
             d.refreshed = parseInt(s[0].refreshed);
-            console.log("before")
-            console.log(d)
             d.database = d.database.replace(re,'');
-            console.log("after")
-            console.log(d)
             reply.push(d);
             if (reply.length === r.length) {
               c(reply);
