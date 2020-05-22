@@ -1,6 +1,6 @@
 <template>
   <div class="input">
-    <flex-col>
+    <flex-row>
       <div class="margin">
         <input
           v-model="tableName"
@@ -8,39 +8,16 @@
           placeholder="table name"
         >
       </div>
-      <flex-row>
-        <div class="margin">
-          <input
-            v-model="columnName"
-            placeholder="primary key"
-          >
-        </div>
-        <div class="margin nopadding">
-          <CDropdown
-            ref="dataTypeDropDown"
-            :toggler-text="dataType"
-            title="data type"
-          >
-            <CDropdownItem
-              v-for="dt in dataTypes"
-              :key="dt"
-              @click.native="selectDataType(dt)"
-            >
-              {{ dt }}
-            </CDropdownItem>
-          </CDropdown>
-        </div>
-        <div class="margin">
-          <CButton
-            class="active"
-            color="info"
-            @click="save"
-          >
-            Save
-          </CButton>
-        </div>
-      </flex-row>
-    </flex-col>
+      <div class="margin">
+        <CButton
+          class="active"
+          color="info"
+          @click="save"
+        >
+          Save
+        </CButton>
+      </div>
+    </flex-row>
   </div>
 </template>
 <script>
@@ -83,9 +60,7 @@ export default {
       this.$axios.get(this.$SERVER_URI + '/api/createSearchTable', {
         params: {
           database: vm.database,
-          table: vm.tableName,
-          column: vm.columnName,
-          datatype: vm.dataType
+          table: vm.tableName
         }
       })
         .then(function (response) {

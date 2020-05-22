@@ -305,22 +305,18 @@ console.log("promises finished in " + totaltime + "ms");
    * if yes decode and index
    * if no index as normal text
    */
-  createSearchTable(database, table, column, datatype, callback) {
+  createSearchTable(database, table, callback) {
 
     var query = "CREATE TABLE \""
       + table
-      + "\" (\""
-      + column
-      + "\" "
-      + getDataType(datatype)
-      + " PRIMARY KEY,"
+      + "\" ("
       + "language VARCHAR(2),"
       + "title VARCHAR(2048),"
       + "status VARCHAR(64),"
       + "last_modified TIMESTAMP,"
       + "document text,"
       + "metadata text,"
-      + "lt_id SERIAL,"
+      + "lt_id SERIAL PRIMARY KEY,"
       + "lt_uuid uuid,"
       + "lt_docscore real,"
       + "lt_tdscore real,"
@@ -420,7 +416,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   getTableMeta(user_id, database, table, callback) {
-    var query = "SELECT _column AS column_name, display_field, serving, indexing as fts from text_tables_index WHERE id = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id FROM databases WHERE database = $1) AND owner = $3)"
+    var query = "SELECT _column AS column_name, display_field, serving, indexing as fts from text_tables_index WHERE _table = (SELECT id FROM tables WHERE tablename = $2 AND database = (SELECT id FROM databases WHERE database = $1) AND owner = $3)"
     this.execute(query, [database,table,user_id], function(e,r) {
       callback(e,r);
     });

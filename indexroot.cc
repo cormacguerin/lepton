@@ -35,7 +35,7 @@ void IndexRoot::adminConnect() {
 void IndexRoot::run() {
   pqxx::work txn(*C);
   // SELECT all database table columns which have indexing enabled
-  std::string statement = "SELECT DISTINCT databases.database, tables.tablename, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table  WHERE indexing = true";
+  std::string statement = "SELECT DISTINCT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table  WHERE indexing = true";
   C->prepare("get_tables_to_index", statement);
 
   pqxx::result r = txn.prepared("get_tables_to_index").exec();
@@ -59,7 +59,12 @@ void IndexRoot::run() {
         std::string newcol = "," + std::string(column.c_str());
         tables[database.c_str()][table.c_str()].second += newcol;
       }
+      std::cout << "database.c_str()" << database.c_str() << std::endl;
+      std::cout << "table.c_str()" << table.c_str() << std::endl;
+      std::cout << "display_field.c_str()" << display_field.c_str() << std::endl;
+      std::cout<<"sizeof(display_field.c_str())"<<std::endl;
       tables[database.c_str()][table.c_str()].first = display_field.c_str();
+      std::cout << "end" << std::endl;
     }
   }
   for (std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>>::iterator dit = tables.begin(); dit != tables.end(); dit++) {

@@ -310,6 +310,8 @@ void Frag::addWeights(int num_docs, std::string database) {
 		update_gram_idf = "update_trigram_idf";
 		gram = "lt_trigrams";
 	} else {
+    C->disconnect();
+    delete C;
 		return;
 	}
 

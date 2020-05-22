@@ -1,3 +1,4 @@
+import sys
 import pycurl
 import json
 import urllib.parse
@@ -30,8 +31,11 @@ else:
 database = args.database
 filename = args.filename
 
-with open(filename) as json_file:
-    data = json.load(json_file)
+if (filename):
+    with open(filename) as json_file:
+        data = json.load(json_file)
+else:
+    data = json.load(sys.stdin)
 
 # UTC date
 Date = datetime.datetime.utcnow()

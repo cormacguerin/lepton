@@ -408,10 +408,10 @@ export default {
     },
     setFTS (c) {
       console.log(c)
-      if (c.fts === false) {
-        c.fts = true
-      } else {
+      if (c.fts === true) {
         c.fts = false
+      } else {
+        c.fts = true
       }
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/setFTS', {

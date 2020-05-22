@@ -46,10 +46,10 @@
         </flex-row>
         <flex-row class="info">
           <div v-if="indexing">
-            Indexing: Enabled
+            Indexing: <span class="enabled">Enabled</span>
           </div>
           <div v-else>
-            Indexing: Disabled
+            Indexing: <span class="disabled">Disabled</span>
           </div>
           <div class="space">
            -
@@ -264,5 +264,11 @@ export default {
 .info {
   margin-left: 10px;
   margin-right: 10px;
+}
+.enabled {
+  color: #3ee500;
+}
+.disabled {
+  color: #ff4000;
 }
 </style>

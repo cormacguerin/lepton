@@ -148,11 +148,11 @@ app.get('/api/createTable', user.authorize, function(req, res, next) {
 });
 app.get('/api/createSearchTable', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
-  if (!(queryData.database && queryData.table && queryData.column && queryData.datatype)) {
+  if (!(queryData.database && queryData.table)) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.createSearchTable(req.user_id, queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
+	data.createSearchTable(req.user_id, queryData.database, queryData.table, function(r) {
     res.json(r);
   });
 });
@@ -520,20 +520,15 @@ function getStats(callback) {
   console.log('getStats');
   execute({'query':'stats'}, 3333, function(r) {
     if (r['error']) {
-  console.log('getStats error');
+      console.log('getStats error');
       return callback();
     }
-    var stats = JSON.parse(r)
-  console.log('getStats r');
-    console.log(r);
-    if (stats.servers) {
-      stats.servers.forEach(function(s) {
+    if (r.servers) {
+      r.servers.forEach(function(s) {
         queryServers[s.database] = {}
         queryServers[s.database][s.table] = s;
       });
     }
-    console.log('queryServers');
-    console.log(queryServers);
     callback(queryServers);
   });
 }
@@ -574,7 +569,13 @@ function execute(queryData, port, callback) {
       console.log('end - packet');
       console.log(packet);
       if (packet) {
-			  callback(packet);
+        var result = {};
+        try {
+          result = JSON.parse(packet);
+        } catch(e) {
+          console.log(e);
+        }
+			  callback(result);
       } else {
         callback('{}');
       }

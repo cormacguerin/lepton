@@ -23,8 +23,6 @@ IndexServer::IndexServer(std::string database, std::string table)
   db = database;
   tb = table;
   // todo, you need to enable service here
-	//init();
-  std::mutex m;
 }
 
 IndexServer::~IndexServer()
@@ -113,7 +111,7 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
       m.lock();
 			frag.addToIndex(unigramurls_map[lang]);
       m.unlock();
-      percent_loaded[lang]=std::round((counter++/index_files.size())*100);
+      percent_loaded[lang]=std::ceil((counter++/index_files.size())*100);
 		  std::cout << counter <<" percent_loaded " << lang<< " " << percent_loaded[lang] << std::endl;
 		}
 	}
@@ -236,8 +234,8 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::promis
 		[](const Result::Item& l, const Result::Item& r) {
 		return l.score > r.score;
 	});
-	if (result.items.size() > 50) {
-		result.items.resize(50);
+	if (result.items.size() > 20) {
+		result.items.resize(20);
 	}
 	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
@@ -341,7 +339,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 
 	std::map<int,int> c_map;
 	int x = 0;
-	std::string prepstr_="(";
+	std::string prepstr_="";
 	for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
 		Result::Item item;
 		item.tf = tit->tf;
@@ -350,19 +348,23 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		result.items.push_back(item);
 		prepstr_ += std::to_string(tit->url_id);
 		if (std::next(tit) != candidates.end()) {
-			prepstr_ += ",";
+			prepstr_ += "),(";
 		}
 		c_map[item.url_id]=x;
 		x++;
 	}
-	prepstr_ += ")";
+	// prepstr_ += "";
 
 	if (prepstr_ == "()") {
 		std::cout << "somehow no url ids in candidates.. corrupted index/database? " << std::endl;
 		return result;
 	}
 
-	C->prepare("get_docinfo"+q,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE d.lt_id IN " + prepstr_ + " AND docterms.key IN " + prepstr);
+  // 'IN' was very slow so trying some other options
+  // using ANY with array
+	// C->prepare("get_docinfo"+q,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE d.lt_id = ANY ('{" + prepstr_ + "}') AND docterms.key IN " + prepstr);
+  // C->prepare("get_docinfo"+q,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d INNER JOIN (SELECT * FROM unnest('{" + prepstr_ + "}'::int[])) v(id) ON (d.lt_id = v.id), jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE docterms.key IN " + prepstr);
+  C->prepare("get_docinfo"+q,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d LEFT JOIN ( VALUES (" + prepstr_ + ")) v(id) ON (d.lt_id = v.id), jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE docterms.key IN " + prepstr);
 
 	std::map<std::string,std::vector<int>> term_positions;
 	std::vector<pqxx::result> pqxx_results;
@@ -665,13 +667,14 @@ int IndexServer::getTime() {
 std::map<std::string,int> IndexServer::getServingInfo() {
     std::map<std::string,int> lang_term_count;
     std::cout << "getServingInfo try lock" << std::endl;
-    if (m.try_lock()) {
+    if (getLock()==true) {
       std::cout << "getServingInfo lock success" << std::endl;
       for (std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>>::const_iterator it = unigramurls_map.begin(); it != unigramurls_map.end(); it++) {
         std::cout << "getServingInfo : " << it->first << " " << it->second.size() << std::endl;
         lang_term_count[it->first] = it->second.size();
       }
       std::cout << "getServingInfo unlock" << std::endl;
+      // getLock locks, so make sure to unlock before returning.
       m.unlock();
       std::cout << "getServingInfo return success" << std::endl;
       return lang_term_count;
@@ -684,10 +687,11 @@ std::map<std::string,int> IndexServer::getServingInfo() {
 std::map<std::string,int> IndexServer::getPercentLoaded() {
     std::map<std::string,int> pl;
     std::cout << "getPercentLoaded try lock" << std::endl;
-    if (m.try_lock()) {
+    if (getLock()==true) {
       std::cout << "getPercentLoaded lock success" << std::endl;
       pl = percent_loaded;
       std::cout << "getPercentLoaded unlock" << std::endl;
+      // getLock locks, so make sure to unlock before returning.
       m.unlock();
       std::cout << "getPercentLoaded return success" << std::endl;
       return pl;
@@ -695,5 +699,20 @@ std::map<std::string,int> IndexServer::getPercentLoaded() {
       std::cout << "getPercentLoaded return fail" << std::endl;
       return pl;
     }
+}
+
+/*
+ * Function to get an exclusive lock on urlgrams map
+ * options
+ * - int time to wait in microseconds. (default 100)
+ * - int number of times to try. (default 5) (0 for infinate)
+ */
+bool IndexServer::getLock(int t, int n) {
+  for (int i=0; i<=n*t; i+t) {
+    if (m.try_lock()) {
+      return true;
+    }
+  }
+  return false;
 }
 

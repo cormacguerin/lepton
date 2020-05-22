@@ -48,7 +48,7 @@ class IndexServer {
 		QueryBuilder queryBuilder;
 		const int MAX_CANDIDATES_COUNT = 1000;
 		int getTime();
-
+    bool getLock(int t=100, int n=5);
 };
 
 #endif

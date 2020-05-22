@@ -19,6 +19,8 @@ ManagementServer::~ManagementServer()
   for (std::vector<QueryServer*>::iterator it = servers.begin(); it != servers.end(); it++) {
     delete *it;
   }
+  C->disconnect();
+  delete C;
 }
 
 void ManagementServer::adminConnect() {
@@ -124,10 +126,12 @@ void ManagementServer::run() {
   }
 
   // start the management interface
-	io_context.run();
+	// io_context.run();
   // detach the asio thread so it can respond.
-  // std::thread t(std::bind(static_cast<size_t (asio::io_context::*)()>(&asio::io_context::run), &io_context));
-  // t.join();
+  std::thread t(std::bind(static_cast<size_t (asio::io_context::*)()>(&asio::io_context::run), &io_context));
+  std::cout << "1" << std::endl;
+  t.join();
+  std::cout << "2" << std::endl;
 }
 
 void ManagementServer::startServerThread(int port, std::string database, std::string table) {

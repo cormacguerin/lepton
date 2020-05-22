@@ -28,9 +28,6 @@ exports.getDatabases = function(u,c) {
 			console.log(err);
       c(err)
 		} else {
-      console.log('d');
-      console.log(d);
-
       var promises = [];
       const promisePush = async function() {
         for (var i=0; i<d.length; i++) {
@@ -243,7 +240,7 @@ exports.createTable = function(u,d,t,c,dt,callback) {
   });
 }
 
-exports.createSearchTable = function(u,d,t,c,dt,callback) {
+exports.createSearchTable = function(u,d,t,callback) {
   if (!d) {
     callback({status:'failed'})
   }
@@ -252,7 +249,7 @@ exports.createSearchTable = function(u,d,t,c,dt,callback) {
   }
   const db = u + '_' + d;
   initDB(db, function() {
-    db_pg[db].createSearchTable(db,t,c,dt,function(err,r) {
+    db_pg[db].createSearchTable(db,t,function(err,r) {
       if (err){
         console.log("unable to create search table");
         console.log(err);

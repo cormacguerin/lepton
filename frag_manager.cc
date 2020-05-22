@@ -336,8 +336,9 @@ std::vector<std::string> FragManager::getFiles(std::string path, std::string ext
 	dp = opendir(path.c_str());
 	if (dp == NULL)
 	{
-	perror("opendir");
+	  perror("opendir");
 		std::cout << "frag_manager.cc : Error , unable to load last frag" << std::endl;;
+	  closedir(dp);
     return index_files;
 	}
   try {

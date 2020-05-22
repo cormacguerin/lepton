@@ -13,6 +13,8 @@ Segmenter::Segmenter()
 
 Segmenter::~Segmenter()
 {
+  C->disconnect();
+  delete C;
 }
 
 void Segmenter::init(std::string database) {

@@ -37,6 +37,8 @@ IndexManager::~IndexManager()
     delete bigramFragManager[*lit];
     delete trigramFragManager[*lit];
   }
+  C->disconnect();
+  delete C;
 }
 
 void IndexManager::init(std::string database) {
@@ -68,7 +70,7 @@ void IndexManager::processFeeds() {
   std::set<std::string> run_langs;
   std::map<std::string, int> num_docs;
 	int max_doc_id;
-	int batch_size;
+	int batch_size = 0;
 	int base_batch_size = 10000;
 	getNumDocs(num_docs);
 	getMaxDocId(max_doc_id);
@@ -76,11 +78,15 @@ void IndexManager::processFeeds() {
 	std::cout << "indexManager.cc : max_doc_id : " << max_doc_id << std::endl;
 	int num_batches = num_docs["total"]/base_batch_size;
 	if (num_batches < 1) {
-		num_batches = 1;
+    if (max_doc_id > 0) {
+		  num_batches = 1;
+    }
 		batch_size = max_doc_id;
 	} else {
 		batch_size = max_doc_id/num_batches;
 	}
+  if (batch_size == 0)
+    return;
 	std::cout << "indexManager.cc : batch_size " << batch_size << std::endl;
 	std::cout << "indexManager.cc : num_batches : " << num_batches << std::endl;
 	std::string statement = "SELECT lt_id,url,concat(" + columns + ") as document,language FROM \"" + table + "\" WHERE lt_id BETWEEN $1 AND $2";
