@@ -1,50 +1,90 @@
-lepton is a indexing/serving framework.
+lepton is a converged data solution with indexing/serving framework, machine learning and more.
 
-Deps.
+# Howto setup on compute engine
+# setup a new system and add nvme ssd in the disk management section for local ssd disk.
+# log in and install theses.
+
+sudo apt-get install postgresql
+sudo apt-get install git
+sudo apt-get install nodejs
+sudo apt-get install xfsprogs
+sudo apt-get install g++
+sudo apt-get install build-essential
+sudo apt-get install libpqxx-dev
+sudo apt-get install libasio-dev
+sudo apt-get install rapidjson-dev
+
+# setup the ssd
+
+# find the UUID
+ls -l /dev/disk/by-uuid/
+
+# add an entry like this replacing the correct UUID 
+echo 'UUID=9c811e51-9e6e-441c-8508-80791411c468 /nvme xfs defaults 0 2' >> /etc/fstab
+
+# add the mountpoint, filesystem and mount it.
+sudo mkdir /nvme
+sudo mkfs.xfs /dev/nvme0n1 
+sudo mount /nvme
+
+# make our directories and add the correct ownership and permissions
+sudo mkdir /nvme/index
+sudo chown compdeep:compdeep /nvme/index
+sudo chmod 755 /nvme/index
+
+sudo mkdir -p /nvme/postgresql/11/main/
+sudo chown -R postgres:postgres /nvme/postgresql
+sudo chmod -R 755 /nvme/postgresql
+
+# pull the repo and cd into it
+git clone https://github.com/cormacguerin/lepton.git
+cd lepton
+
+# create the index symlink
+ln -s /nvme/index/ index
 
 # BUILD SOFTWARE 
 make
 # there are two executables
 # - indexroot (will read the documents from postgres and convert them in a reverse index in the index directory (it's pretty slow))
 # - serveroot (a server that accepts queries (you can query from nodejs search endpoint))
+# these are standalone applications that will run, I have yet to create a management script to start and stop them.
 
- - python
- pip install pycurl requests bs4 urlmatch lxml --user
-
-# DONT NEED SENTENCEPIECE - SKIP to rapidjson
- - sentencepiece (https://github.com/google/sentencepiece)
- # install autotools if it's not already installed.
- apt-get install autotools
- # install google protobuf
- apt-get install protobuf-compiler
- # clone the sentencepiece 
- git clone https://github.com/google/sentencepiece.git
- ./autogen.sh
- make
- sudo make install
-
- # USING RAPIDJSON NOW, INSTALL THIS
- - rapidjson (https://github.com/Tencent/rapidjson.git)
- git clone https://github.com/Tencent/rapidjson.git
- cd rapidjson
- cmake .
- make
- sudo make install
-
-
-# install postgres create databases and add the schema in the server directory
-# in psql
-CREATE DATABASE admin;
-CREATE DATABASE index;
-# or as postgres user
-create db admin
-create db index
+# install postgres create databases and add the schema in the server directory as postgres user
+sudo su - postgres
+createdb admin
+createdb index 
 
 # then run the schemas in server/ for each
-# connect with psql -d admin
-# you need to update the password in ./password with whatever is the psql postgres password
+cat /home/compdeep/lepton/server/admin_schema.psql |psql -d admin
+cat /home/compdeep/lepton/server/index_schema.psql |psql -d index
 
-# install nodejs and run node lepton.js
+# finally set a password for postgres user like this by logging in like this
+psql
+ALTER USER postgres PASSWORD '0fi1hakfpmaac1zmcx9nfa';
+\q
+
+# It will look something like this
+# psql (11.7 (Debian 11.7-0+deb10u1))
+# Type "help" for help.
+#
+# postgres=# ALTER USER postgres PASSWORD '0fi1hakfpmaac1zmcx9nfa';
+# ALTER ROLE
+# postgres=# \q
+
+# all done here, exit back to compdeep account
+exit
+
+# you need to update the password in ./password with whatever is the psql postgres password
+echo '0fi1hakfpmaac1zmcx9nfa' > .password
+
+# we are now good to go just fire up nodejs
+node lepton.js
+
+# for the indexing to run when you have data all setup you need to manually then run index and serve in separeate screns
+# for example
+screen ./indexroot
+screen ./serveroot
 
  - testing indexing api.
  curl -H "Content-Type: application/json" -X POST --data "@testdocs.json" '127.0.0.1:3000/addDocument?type=content'
