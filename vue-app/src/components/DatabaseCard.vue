@@ -16,7 +16,9 @@
             <div class="cylinder" />
           </div>
           <div class="flexgrow">
-            <div class="databasetitle"> {{ database }} </div>
+            <div class="databasetitle">
+              {{ database }}
+            </div>
           </div>
           <div class="edit">
             <CDropdown>

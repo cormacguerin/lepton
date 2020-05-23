@@ -8,10 +8,10 @@
           placeholder="dataset name"
         >
       </div>
-      <textarea v-model="query"
+      <textarea
+        v-model="query"
         placeholder=""
-      >
-      </textarea>
+      />
       <div class="error">
         {{ error }}
       </div>

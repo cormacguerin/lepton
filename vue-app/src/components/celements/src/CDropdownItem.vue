@@ -1,6 +1,6 @@
 <template>
   <div class="dropdown-item">
-    <slot></slot>
+    <slot />
   </div>
 </template>
 
@@ -10,10 +10,10 @@ export default {
   name: 'CDropdownItem',
   components: {
   },
+  props: {
+  },
   data () {
     return {}
-  },
-  props: {
   },
   created () {
   },

@@ -13,6 +13,8 @@ sudo apt-get install build-essential
 sudo apt-get install libpqxx-dev
 sudo apt-get install libasio-dev
 sudo apt-get install rapidjson-dev
+sudo apt-get install screen
+sudo apt-get install npm
 
 # setup the ssd
 
@@ -43,12 +45,25 @@ cd lepton
 # create the index symlink
 ln -s /nvme/index/ index
 
+# INSTALL NODE JS LIBS
+npm install
+
+# Install the website nodejs libs and build the website
+cd vue-app
+npm install
+npm run build
+
+# done go back the lepton dir
+cd ..
+
 # BUILD SOFTWARE 
 make
 # there are two executables
 # - indexroot (will read the documents from postgres and convert them in a reverse index in the index directory (it's pretty slow))
 # - serveroot (a server that accepts queries (you can query from nodejs search endpoint))
 # these are standalone applications that will run, I have yet to create a management script to start and stop them.
+
+
 
 # install postgres create databases and add the schema in the server directory as postgres user
 sudo su - postgres
@@ -76,7 +91,7 @@ ALTER USER postgres PASSWORD '0fi1hakfpmaac1zmcx9nfa';
 exit
 
 # you need to update the password in ./password with whatever is the psql postgres password
-echo '0fi1hakfpmaac1zmcx9nfa' > .password
+echo '0fi1hakfpmaac1zmcx9nfa' > dbpassword
 
 # we are now good to go just fire up nodejs
 node lepton.js
