@@ -1,10 +1,18 @@
-lepton is a converged data solution with indexing/serving framework, machine learning and more.
+# lepton is a converged data solution with indexing/serving framework, machine learning and more.
 
-# Howto setup on compute engine
-# setup a new system and add nvme ssd in the disk management section for local ssd disk.
-# log in and install theses.
+# Howto setup on compute engine, below are instructions for manual setup
+# We need to automate this and alse create relase builts etc and images we can just roll out.
 
+# First setup a new system and add nvme ssd in the disk management section for local ssd disk.
+# There are instructions here if for reference
+# https://cloud.google.com/compute/docs/disks/local-ssd
+
+# create additional locals (you may need more depending on languages/customers)
+sudo locale-gen en_US.UTF-8 
+
+# intall all software required.
 sudo apt-get install postgresql
+sudo apt-get install apache2
 sudo apt-get install git
 sudo apt-get install nodejs
 sudo apt-get install xfsprogs
@@ -48,8 +56,12 @@ ln -s /nvme/index/ index
 # INSTALL NODE JS LIBS
 npm install
 
+# BUILD WEBSITE
 # Install the website nodejs libs and build the website
 cd vue-app
+# Now edit src/main.js
+# and change the Vue.prototype.$SERVER_URI
+# Vue.prototype.$SERVER_URI = 'https://compdeep.customer.com'
 npm install
 npm run build
 
@@ -62,11 +74,17 @@ make
 # - indexroot (will read the documents from postgres and convert them in a reverse index in the index directory (it's pretty slow))
 # - serveroot (a server that accepts queries (you can query from nodejs search endpoint))
 # these are standalone applications that will run, I have yet to create a management script to start and stop them.
+# for example
+screen ./indexroot
+screen ./serveroot
 
-
-
-# install postgres create databases and add the schema in the server directory as postgres user
+# SETUP DATABASE
 sudo su - postgres
+
+# configure the database directory.
+/usr/lib/postgresql/11/bin/initdb -D /nvme/postgresql/11/main/
+
+# create databases and add the schema in the server directory as postgres user
 createdb admin
 createdb index 
 
@@ -93,13 +111,90 @@ exit
 # you need to update the password in ./password with whatever is the psql postgres password
 echo '0fi1hakfpmaac1zmcx9nfa' > dbpassword
 
+# DONE
 # we are now good to go just fire up nodejs
 node lepton.js
 
-# for the indexing to run when you have data all setup you need to manually then run index and serve in separeate screns
-# for example
-screen ./indexroot
-screen ./serveroot
+# EXTRA FOR PRODICTION
+# we are almost complete at this stage and we can actually run the app now but if we want to serve publically
+# we need to route the node traffic, I'm using apache reverse proxy to do this in procutions, if you are running locally
+# you can already skip and just run against 0:3000 in the browser
+# 
+# Apache setup follows for prod, jump into a root shell
+sudo su -
+
+a2enmod proxy
+a2enmod proxy_http
+a2enmod proxy_ajp
+a2enmod rewrite
+a2enmod deflate
+a2enmod headers
+a2enmod proxy_balancer
+a2enmod proxy_connect
+a2enmod proxy_html
+
+# There is a reverse proxy config in /home/YOUR_USER_HOME_DIR/lepton/server/apache2.conf
+# you can either copy this over in place of default or manually add the differences,
+# Either way you will need to do some editing of the ip address to get it to work.
+
+cp /home/compdeep/lepton/server/apache2.conf /etc/apache2/
+
+# now we need to make certificates, for testing we will use self signed ones
+# however if it were a real customer we would need to get them to provide the certs
+# we can make self signed certs like this, I'm storing them in a cas folder so we need to
+# create that first
+mkdir /etc/apache2/cas/
+
+# generate the keys and copy them, you will be asked some pass phrase, pick some string
+# for real customers we will need to store this somewhere secure.
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365
+cp cert.pem /etc/apache2/cas/compdeep.pem 
+cp cert.pem /etc/apache2/cas/compdeep.crt 
+cp key.pem /etc/apache2/cas/compdeep.pem
+
+# The edits that we need to make are as follows.
+# Of course you need to change to ip to yours or whatever domainname
+# eg. compdeep.example.com
+#
+# <VirtualHost *:80>
+#         ServerName basic
+#         Redirect permanent / https://34.67.102.230/
+# </VirtualHost>
+#
+# <VirtualHost *:443>
+# #    ServerName www.compdeep.com
+#     ServerName 34.67.102.230
+#     <Proxy *>
+#         Order deny,allow
+#         Allow from all
+#     </Proxy>
+#     SSLEngine on
+#     SSLProtocol all -SSLv2
+#     SSLCipherSuite HIGH:MEDIUM:!aNULL:!MD5
+#     SSLProxyEngine On
+#     SSLCertificateFile /etc/apache2/cas/compdeep.crt
+#     SSLCertificateKeyFile /etc/apache2/cas/compdeep.pem
+# #    SSLCertificateChainFile /etc/apache2/cas/DigiCertCA.crt
+#     ProxyRequests Off
+#     ProxyPreserveHost On
+#     ProxyPass / http://127.0.0.1:3000/ Keepalive=On
+#     ProxyPassReverse / http://127.0.0.1:3000/
+# </VirtualHost>
+# 
+
+# 
+# And that's it we can restart apache, there is more info on apache config here
+# https://www.digitalocean.com/community/tutorials/how-to-use-apache-http-server-as-reverse-proxy-using-mod_proxy-extension
+# Eventually we will need to setup more advances load balancing rules etc
+#
+# Finally restart apache , you will need to enter the password used creating the certs
+
+service apache2 restart
+# if something goes wrong take a look in the apache error logs in /var/log/apache2/error.log
+# Otherwise we should be good to go, acceess the public IP or domain name
+# you will get an insecure error of course if it's a self signed cert but should be good for testing.
+
+# TESTING AND UsING THE API
 
  - testing indexing api.
  curl -H "Content-Type: application/json" -X POST --data "@testdocs.json" '127.0.0.1:3000/addDocument?type=content'

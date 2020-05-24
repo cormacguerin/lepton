@@ -52,7 +52,7 @@ Vue.component('CNavItem', CNavItem)
 Vue.config.productionTip = false
 
 // Vue.prototype.$SERVER_URI = 'http://127.0.0.1:3000'
-Vue.prototype.$SERVER_URI = 'https://35.239.29.200'
+Vue.prototype.$SERVER_URI = 'https://34.67.102.230'
 
 Vue.prototype.$axios = Axios
 
