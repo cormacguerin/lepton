@@ -55,6 +55,9 @@ indexroot: indexroot.o index_manager.o base64.o segmenter.o frag_manager.o frag.
 index_manager.o : index_manager.cc index_manager.h
 	${COMPILE} index_manager.cc
 
+#score_document.o : score_document.cc score_document.h
+#	${COMPILE} score_document.cc
+
 query.o : query.cc query.h
 	${COMPILE} query.cc
 

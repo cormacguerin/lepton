@@ -1,6 +1,4 @@
 #include "index_server.h"
-#include <iostream>
-#include <fstream>
 #include <unistd.h>
 #include "base64.h"
 #include <algorithm>
@@ -10,6 +8,8 @@
 #include "dirent.h"
 #include <chrono>
 #include <mutex>
+#include <cstdio>
+#include "util.h"
 
 
 using namespace std;
@@ -20,9 +20,9 @@ IndexServer::IndexServer(std::string database, std::string table)
 {
 	q = 0;
 	x = 0;
-  db = database;
-  tb = table;
-  // todo, you need to enable service here
+    db = database;
+    tb = table;
+    // todo, you need to enable service here
 }
 
 IndexServer::~IndexServer()
@@ -31,7 +31,7 @@ IndexServer::~IndexServer()
 
 void IndexServer::init() {
 	try {
-		C = new pqxx::connection("dbname = " + db + " user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = " + db + " user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
 		if (C->is_open()) {
 			cout << "Opened database successfully: " << C->dbname() << endl;
 		} else {
@@ -43,17 +43,17 @@ void IndexServer::init() {
 	}
 	//std::string ngrams[] = {"uni","bi","tri"};
 	//std::string langs[] = {"en","ja","zh"};
-  status = "loading";
+    status = "loading";
 	std::string ngrams[] = {"uni"};
-  for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
+    for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
 	  for (const string &ng : ngrams) {
-      m.lock();
-      unigramurls_map[*lit] = phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>();
-      m.unlock();
-			loadIndex(ng, *lit);
-		}
+        m.lock();
+        unigramurls_map[*lit] = phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>();
+        m.unlock();
+        loadIndex(ng, *lit);
+	  }
 	}
-  status = "Serving";
+    status = "Serving";
 }
 
 /*
@@ -70,50 +70,50 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	struct dirent *entry;
 	DIR *dp;
 
-  std::string path = "index/" + db + "/" + tb + "/";
-  std::cout << path << std::endl;
-  std::replace(path.begin(),path.end(),' ','_');
+    std::string path = "index/" + db + "/" + tb + "/";
+    std::cout << path << std::endl;
+    std::replace(path.begin(),path.end(),' ','_');
 
 	dp = opendir(path.c_str());
 	if (dp == NULL) {
-		perror("opendir");
-		std::cout << "frag_manager.cc : Error , unable to load last frag" << std::endl;;
-    status = "Failed - unable to load index.";
-    return;
+	  perror("opendir");
+	  std::cout << "frag_manager.cc : Error , unable to load last frag" << std::endl;;
+      status = "Failed - unable to load index.";
+      return;
 	}
 	std::string ext = ".frag.00001";
 	while (entry = readdir(dp)) {
-		std::string e_(entry->d_name);
-    if (e_.substr(0,2).compare(lang) == 0) {
-      if (e_.substr(3,ng.length()).compare(ng) == 0) {
-        if ((e_.find(ext) != std::string::npos)) {
-          if (e_.substr(e_.length()-11).compare(ext) == 0) {
-            index_files.push_back(entry->d_name);
+      std::string e_(entry->d_name);
+      if (e_.substr(0,2).compare(lang) == 0) {
+        if (e_.substr(3,ng.length()).compare(ng) == 0) {
+          if ((e_.find(ext) != std::string::npos)) {
+            if (e_.substr(e_.length()-11).compare(ext) == 0) {
+              index_files.push_back(entry->d_name);
+            }
           }
         }
-      }
-		}
+	  }
 	}
 	closedir(dp);
 
   double counter = 0;
 	std::sort(index_files.begin(),index_files.end());
 	if (index_files.empty()) {
-		std::cout << "no index files" << std::endl;
-    status = "No index.";
-		return;
+	  std::cout << "no index files" << std::endl;
+      status = "No index.";
+	  return;
 	} else {
-		// std::cout << "unigramurls_map.size() " << unigramurls_map[lang].size() << std::endl;
-		for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
-			std::cout << *it << std::endl;
-			int frag_id = stoi((*it).substr((*it).find('.')-5,(*it).find('.')));
-			Frag frag(Frag::Type::UNIGRAM, frag_id, 1, path + lang);
-      m.lock();
-			frag.addToIndex(unigramurls_map[lang]);
-      m.unlock();
-      percent_loaded[lang]=std::ceil((counter++/index_files.size())*100);
-		  std::cout << counter <<" percent_loaded " << lang<< " " << percent_loaded[lang] << std::endl;
-		}
+	  // std::cout << "unigramurls_map.size() " << unigramurls_map[lang].size() << std::endl;
+	  for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
+	    std::cout << *it << std::endl;
+		int frag_id = stoi((*it).substr((*it).find('.')-5,(*it).find('.')));
+		Frag frag(Frag::Type::UNIGRAM, frag_id, 1, path + lang);
+        m.lock();
+		frag.addToIndex(unigramurls_map[lang]);
+        m.unlock();
+        percent_loaded[lang]=std::ceil((counter++/index_files.size())*100);
+		std::cout << counter <<" percent_loaded " << lang<< " " << percent_loaded[lang] << std::endl;
+	  }
 	}
 
 	/*
@@ -348,8 +348,9 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		result.items.push_back(item);
 		prepstr_ += std::to_string(tit->url_id);
 		if (std::next(tit) != candidates.end()) {
-			prepstr_ += "),(";
+			prepstr_ += ",";
 		}
+        std::cout << "c_map : " << item.url_id << std::endl;
 		c_map[item.url_id]=x;
 		x++;
 	}
@@ -362,9 +363,11 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 
   // 'IN' was very slow so trying some other options
   // using ANY with array
-	// C->prepare("get_docinfo"+q,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE d.lt_id = ANY ('{" + prepstr_ + "}') AND docterms.key IN " + prepstr);
+	C->prepare("get_docinfo"+q,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE d.lt_id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr);
   // C->prepare("get_docinfo"+q,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d INNER JOIN (SELECT * FROM unnest('{" + prepstr_ + "}'::int[])) v(id) ON (d.lt_id = v.id), jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE docterms.key IN " + prepstr);
-  C->prepare("get_docinfo"+q,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d LEFT JOIN ( VALUES (" + prepstr_ + ")) v(id) ON (d.lt_id = v.id), jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE docterms.key IN " + prepstr);
+    std::cout << "prepstr_ " << prepstr_ << std::endl;
+    std::cout << "prepstr " << prepstr << std::endl;
+    // C->prepare("get_docinfo"+q,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d LEFT JOIN ( VALUES (" + prepstr_ + ")) v(id) ON (d.lt_id = v.id), jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE docterms.key IN " + prepstr);
 
 	std::map<std::string,std::vector<int>> term_positions;
 	std::vector<pqxx::result> pqxx_results;
@@ -377,9 +380,9 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 	prep_dynamic(terms, w_invocation);
 	pqxx::result r = w_invocation.exec();
 
-  time_t afterload = getTime();
-  double seconds = difftime(afterload, beforeload);
-  std::cout << "index_server.cc : sql for getResult processed in " << seconds << std::endl;
+    time_t afterload = getTime();
+    double seconds = difftime(afterload, beforeload);
+    std::cout << "index_server.cc : sql for getResult processed in " << seconds << std::endl;
 
 	beforeload = getTime();
 	getResultTime = 0;
@@ -397,13 +400,16 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		const pqxx::field term = (row)[4];
 		const pqxx::field position = (row)[5];
 
+        if (!c_map.count(atoi(i.c_str()))) {
+            continue;
+        } 
+
 		id = c_map.at(atoi(i.c_str()));
 		result.items.at(id).score = 1;
 		result.items.at(id).url = pqxx::to_string(u);
 		result.items.at(id).docscore = atof(s.c_str());
 		result.items.at(id).score = atof(s.c_str()) * result.items.at(id).weight;
 
-		//
 		if (id != last_id && row!=r.begin()) {
 			double wscore = 1.0;
 			if (result.items.at(last_id).terms.size() > 1) {

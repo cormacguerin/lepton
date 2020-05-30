@@ -10,6 +10,11 @@
 # create additional locals (you may need more depending on languages/customers)
 sudo locale-gen en_US.UTF-8 
 
+# increase the system wide soft limit in /etc/security/limits.conf
+*   soft    nofile  100000
+# then run sysctl and log back in for the changes to take effect.
+sysctl -p
+
 # intall all software required.
 sudo apt-get install postgresql
 sudo apt-get install apache2

@@ -22,44 +22,44 @@
 
 
 class FragManager {
-	private:
-		Frag::Type frag_type;
-    std::string database;
-    std::string table;
-    std::string lang;
-		// hash map of term strings to frag ids
-		// std::map<std::string, int> gram_frag_term_index;
-		phmap::parallel_flat_hash_map<std::string, int> gram_frag_term_index;
-		// hash map of term strings to a map of doc ids term data
-		std::map<std::string, std::map<int, Frag::Item>> grams_terms;
-    std::string path;
-    // base number of terms per frag
-		int FRAG_SIZE=20000;
-    // x number of terms per subsequent frag
-    // the logic is that the first frag will have all the common terms
-    // it will ballon, while subsequent fragments will have less occurences
-    // eg. 
-    // frag 1 has 50 terms
-    // frag 2 has 100 terms and so on
-		int FRAG_SIZE_MULTIPLIER=50;
-		int BATCH_SIZE=100000;
-		void loadLastFrag();
-		void loadNextFrags();
-		void saveFrags();
-		void loadFragIndex();
-		std::string readFile(std::string filename);
-		std::vector<std::string> getFiles(std::string path, std::string ext);
-		int last_frag_id;
+    private:
+        Frag::Type frag_type;
+        std::string database;
+        std::string table;
+        std::string lang;
+        // hash map of term strings to frag ids
+        // std::map<std::string, int> gram_frag_term_index;
+        phmap::parallel_flat_hash_map<std::string, int> gram_frag_term_index;
+        // hash map of term strings to a map of doc ids term data
+        std::map<std::string, std::map<int, Frag::Item>> grams_terms;
+        std::string path;
+        // base number of terms per frag
+        //	int FRAG_SIZE=100000;
+        // x number of terms per subsequent frag
+        // the logic is that the first frag will have all the common terms
+        // it will ballon, while subsequent fragments will have less occurences
+        // eg. 
+        // frag 1 has 50 terms
+        // frag 2 has 100 terms and so on
+        int FRAG_SIZE_MULTIPLIER=100;
+        int BATCH_SIZE=100000;
+        void loadFrags();
+        void saveFrags();
+        void loadFragIndex();
+        std::string readFile(std::string filename);
+        std::vector<std::string> getFiles(std::string path, std::string ext);
+        std::vector<int> indices;
+        int last_frag_id;
 
-	public:
+    public:
 
-		FragManager(Frag::Type type, std::string db, std::string tb, std::string l);
-		~FragManager();
+        FragManager(Frag::Type type, std::string db, std::string tb, std::string l);
+        ~FragManager();
 
-		std::map<int,std::unique_ptr<Frag>> frags;
-		void addTerms(std::map<std::string, Frag::Item> doc_grams);
-		void syncFrags();
-		void mergeFrags(int num_docs, std::string database);
+        std::map<int,std::unique_ptr<Frag>> frags;
+        void addTerms(std::map<std::string, Frag::Item> doc_grams);
+        void syncFrags();
+        void mergeFrags(int num_docs, std::string database);
 
 };
 

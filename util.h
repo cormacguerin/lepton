@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <sys/file.h>
 #include <unistd.h>
-
-
+#include <iostream>
+#include <fstream>
+#include <algorithm>
 
 inline int getLangInt(std::string l) {
   if (l == "en") {
@@ -96,3 +97,24 @@ inline bool fileUnlock(int n) {
     return true;
   }
 }
+
+
+inline std::string getDbPassword() {
+    std::ifstream dbpassword("dbpassword");
+	std::string password;
+
+	if (dbpassword.good()) {
+	  getline(dbpassword, password);
+	} else {
+	  std::cout << "no dbpassword file" << std::endl;
+	  exit(1);
+	}
+	dbpassword.close();
+    return password;
+}
+
+inline bool hasDigit(const std::string& s)
+{
+    return std::any_of(s.begin(), s.end(), ::isdigit);
+}
+

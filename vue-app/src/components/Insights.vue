@@ -70,6 +70,12 @@
         :url="item.url"
         :title="item.title"
         :snippet="item.snippet"
+        :weight="item.weight"
+        :tf="item.tf"
+        :tdscore="item.tdscore"
+        :docscore="item.docscore"
+        :wscore="item.wscore"
+        :score="item.score"
         @click.native="open(item)"
       />
     </div>

@@ -4,6 +4,7 @@
 #include "texttools.h"
 #include <future>
 #include <math.h>
+#include "util.h"
 
 Segmenter::Segmenter()
 {
@@ -28,7 +29,7 @@ void Segmenter::init(std::string database) {
 	std::ifstream en_stop_words_dict("data/english_stop_words.txt");
 
 	try {
-		C = new pqxx::connection("dbname = " + database + " user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = " + database + " user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
 	if (C->is_open()) {
 		  std::cout << "Opened database successfully: " << C->dbname() << std::endl;
 	} else {
@@ -75,7 +76,7 @@ void Segmenter::init(std::string database) {
 }
 
 
-void Segmenter::parse(std::string id, std::string pkey, std::string lang, std::string str_in, std::string table, std::string display_field,
+void Segmenter::parse(std::string id, std::string lang, std::string str_in, std::string table,
 				   std::map<std::string, Frag::Item> &doc_unigram_map,
 				   std::map<std::string, Frag::Item> &doc_bigram_map,
 				   std::map<std::string, Frag::Item> &doc_trigram_map) {
@@ -418,9 +419,6 @@ void Segmenter::parse(std::string id, std::string pkey, std::string lang, std::s
 		double ln = log(it-term_incidence.begin()+1);
 
 		double zdevsq = pow(abs(r-ln),2);
-		std::cout << "segmented.cc : r - " << r << std::endl;
-		std::cout << "segmented.cc : ln - " << ln << std::endl;
-		std::cout << "segmented.cc : zdevsq - " << zdevsq << std::endl;
 		z_variance += zdevsq;
 		if ((it-term_incidence.begin()+1) > 1000) {
 			z_variance = z_variance/1000;
@@ -485,13 +483,12 @@ void Segmenter::parse(std::string id, std::string pkey, std::string lang, std::s
 	docngrams.Accept(writer);
 
 	C->prepare("update_segmented_grams", 
-    "UPDATE \"" + table + "\" SET (lt_index_date, lt_segmented_grams, lt_tdscore) = (NOW(), $1, $2) WHERE \""
-    + display_field + "\" = $3");
+    "UPDATE \"" + table + "\" SET (lt_index_date, lt_segmented_grams, lt_tdscore) = (NOW(), $1, $2) WHERE lt_id = $3");
 
 //  reset any existing content
 //	pqxx::result a_ = txn.prepared("delete_doc_text")(id).exec();
 
-	pqxx::result e_ = txn.prepared("update_segmented_grams")((std::string)buffer.GetString())(std::to_string(tdscore))(pkey).exec();
+	pqxx::result e_ = txn.prepared("update_segmented_grams")((std::string)buffer.GetString())(std::to_string(tdscore))(id).exec();
 
 	txn.commit();
 

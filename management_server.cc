@@ -7,10 +7,11 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
+#include "util.h"
 
 ManagementServer::ManagementServer(short port) : acceptor_(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
 {
-  adminConnect();
+    adminConnect();
 	do_accept();
 }
 
@@ -25,7 +26,7 @@ ManagementServer::~ManagementServer()
 
 void ManagementServer::adminConnect() {
 	try {
-		C = new pqxx::connection("dbname = admin user = postgres password = kPwFWfYAsyRGZ6IomXLCypWqbmyAbK+gnKIW437QLjw= hostaddr = 127.0.0.1 port = 5432");
+		C = new pqxx::connection("dbname = admin user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
     if (C->is_open()) {
       std::cout << "Opened database successfully: " << C->dbname() << std::endl;
     } else {
@@ -106,22 +107,13 @@ void ManagementServer::run() {
       std::cout << "indexroot.cc : run() - table : " << tit->first << std::endl;
       std::cout << "indexroot.cc : run()   columns : " << (tit->second).second << std::endl;
       std::cout << "indexroot.cc : run()   display_field : " << (tit->second).first << std::endl;
-      //std::thread t(std::bind(static_cast<void (QueryServer::*)()>(&QueryServer::run), *it));
-      //t.detach();
       servers.push_back(new QueryServer(port++, dit->first, tit->first));
-      // std::thread t(std::bind(&ManagementServer::startServerThread, this, port++, dit->first, tit->first));
-      std::cout <<"MEH3" << servers.size()<< std::endl;
-      // t.detach();
-      std::cout <<"MEH4" << servers.size()<< std::endl;
- //     sptr->set_callback(std::bind(&ManagementServer::do_management, this, std::placeholders::_1));
- //     servers.back()->run();
     }
   }
 
   for (std::vector<QueryServer*>::iterator it = servers.begin(); it != servers.end(); it++) {
-    std::thread t(std::bind(static_cast<void (QueryServer::*)()>(&QueryServer::run), *it));
     std::cout << "DEBUG *it->database" << (*it)->database << std::endl;
-    //std::thread t(std::bind(&QueryServer::run, *it));
+    std::thread t(std::bind(static_cast<void (QueryServer::*)()>(&QueryServer::run), *it));
     t.detach();
   }
 

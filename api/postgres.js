@@ -282,7 +282,9 @@ console.log("promises finished in " + totaltime + "ms");
       + column
       + "\""
       + getDataType(datatype)
-      + " PRIMARY KEY, lt_uuid uuid);"
+      + " PRIMARY KEY,"
+      + "lt_feed_date TIMESTAMP,"
+      + "lt_uuid uuid);"
 
     this.execute(query, null, function(e,r) {
       callback(e,r);
@@ -322,7 +324,7 @@ console.log("promises finished in " + totaltime + "ms");
       + "lt_tdscore real,"
       + "lt_entities text,"
       + "lt_atf real,"
-      + "lt_crawl_date TIMESTAMP,"
+      + "lt_feed_date TIMESTAMP,"
       + "lt_index_date TIMESTAMP,"
       + "lt_update BOOL,"
       + "lt_segmented_grams jsonb);"
@@ -430,7 +432,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   getTableIndexStats(table, callback) {
-    var query = "SELECT COUNT(*) AS total, sum(case when lt_index_date IS NOT NULL then 1 else 0 end) AS indexed, sum(case when lt_index_date >= lt_crawl_date then 1 else 0 end) AS refreshed FROM \"" + table+ "\"";
+    var query = "SELECT COUNT(*) AS total, sum(case when lt_index_date IS NOT NULL then 1 else 0 end) AS indexed, sum(case when lt_index_date < lt_feed_date then 1 else 0 end) AS stale FROM \"" + table+ "\"";
     this.execute(query, null, function(e,r) {
       callback(e,r);
     });
@@ -555,6 +557,8 @@ console.log("promises finished in " + totaltime + "ms");
         errors: [],
         results: []
       }
+      // set the current feed_date
+      data['lt_feed_date'] = 'NOW()::TIMESTAMP';
 
       var keys = Object.keys(data[0]);
       var insert_prep = '';

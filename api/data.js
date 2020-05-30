@@ -163,7 +163,7 @@ exports.getIndexTables = function(u,c) {
 //            var d = Object.assign({},r[x]);
             d.total = parseInt(s[0].total);
             d.indexed = parseInt(s[0].indexed);
-            d.refreshed = parseInt(s[0].refreshed);
+            d.refreshed = parseInt(s[0].stale);
             d.database = d.database.replace(re,'');
             reply.push(d);
             if (reply.length === r.length) {
