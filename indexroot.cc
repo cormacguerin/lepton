@@ -64,11 +64,11 @@ void IndexRoot::process() {
     }
   }
   for (std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>>::iterator dit = tables.begin(); dit != tables.end(); dit++) {
-    std::cout << "indexroot.cc : run() "  << dit->first << std::endl;
+    // std::cout << "indexroot.cc : run() "  << dit->first << std::endl;
     for (std::map<std::string, std::pair<std::string, std::string>>::iterator tit = dit->second.begin(); tit != dit->second.end(); tit++) {
-      std::cout << "indexroot.cc : run() - table : " << tit->first << std::endl;
-      std::cout << "indexroot.cc : run()   columns : " << (tit->second).second << std::endl;
-      std::cout << "indexroot.cc : run()   indexing : " << (tit->second).first << std::endl;
+      // std::cout << "indexroot.cc : run() - table : " << tit->first << std::endl;
+      // std::cout << "indexroot.cc : run()   columns : " << (tit->second).second << std::endl;
+      // std::cout << "indexroot.cc : run()   indexing : " << (tit->second).first << std::endl;
       // loop over existing index managers to see if there is one already for this database table
       bool exists = false;
       for (std::vector<IndexManager*>::iterator imit = ims.begin(); imit != ims.end(); imit++) {

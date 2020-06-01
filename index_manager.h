@@ -20,7 +20,6 @@ class IndexManager {
 		char SPS[4];
         std::vector<std::string> langs = {"en","ja","zh","ko","es","de","fr"};
 		std::string SPC;
-        std::map<std::string, int> num_docs;
         // per language map per language frag manager (can be large so put on heap)
         // ie. <lang , fragmanager >
 		std::map<std::string, FragManager*> unigramFragManager;

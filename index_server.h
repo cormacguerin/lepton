@@ -20,6 +20,7 @@ class IndexServer {
         ~IndexServer();
         std::string status;
         void init();
+        void run();
         void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates);
         void execute(std::string lang, std::string query, std::promise<std::string> promiseObj);
         static void search(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryParser);
@@ -27,6 +28,7 @@ class IndexServer {
         std::map<std::string,int> getServingInfo();
         std::map<std::string,int> getPercentLoaded();
         std::mutex m;
+        bool do_run = true;
 
     private:
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> unigramurls_map;
@@ -48,7 +50,6 @@ class IndexServer {
         QueryBuilder queryBuilder;
         const int MAX_CANDIDATES_COUNT = 1000;
         int getTime();
-        bool getLock(int t=100, int n=5);
 };
 
 #endif

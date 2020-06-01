@@ -35,6 +35,10 @@ class Frag {
         std::string lang;
         std::string filename;
 
+        /*
+         * TODO : remove url_id
+         * the url id stored also in the map container so we have duplication in a critical area
+         */
         struct Item {
             int url_id;
             double tf;
@@ -57,7 +61,7 @@ class Frag {
         void loadJsonFrag(std::string filename);
         void loadRawFrag(std::string filename);
         //void addToIndex(phmap::parallel_flat_hash_map<std::string, phmap::flat_hash_map<int, Frag::Item>> &index);
-        void addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index);
+        void addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index, std::mutex &m);
         std::string readFile(std::string filename);
         pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
         void remove();

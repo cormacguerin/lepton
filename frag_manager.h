@@ -43,7 +43,7 @@ class FragManager {
         // frag 2 has 100 terms and so on
         int FRAG_SIZE_MULTIPLIER=100;
         int BATCH_SIZE=100000;
-        void loadFrags();
+        void loadContinueFrags();
         void saveFrags();
         void loadFragIndex();
         std::string readFile(std::string filename);

@@ -17,8 +17,8 @@ FragManager::FragManager(Frag::Type type, std::string db, std::string tb, std::s
     std::replace(path.begin(),path.end(),' ','_');
     lang = l;
     loadFragIndex();
-    std::cout << "path : " << path << std::endl;
-    std::cout << "lang : " << lang << std::endl;
+    std::cout << "frag_manager.cc path : " << path << std::endl;
+    std::cout << "frag_manager.cc lang : " << lang << std::endl;
 }
 
 FragManager::~FragManager()
@@ -55,36 +55,35 @@ void FragManager::syncFrags() {
     time_t beforetime = time(0);
     std::cout << "frag_manager.cc : begin syncFrags " << beforetime << std::endl;
     // load / create frags for new insertions
-    loadFrags();
-    // delete this
-    for (std::map<int,std::unique_ptr<Frag>>::iterator xx = frags.begin(); xx != frags.end(); xx++) {
-        std::cout << "frags " << xx->first << std::endl;
-    }
+    loadContinueFrags();
 
     while (grams_terms.size()>0) {
         phmap::parallel_flat_hash_map<std::string, int>::iterator it = gram_frag_term_index.find(grams_terms.begin()->first);
         if (it != gram_frag_term_index.end()) {
-            
-               std::cout << "DEB last_frag_id " << last_frag_id << std::endl;
-               std::cout << "DEB it->second " << it->second << std::endl;
-               std::cout << "DEB filename " << frags[it->second].get()->filename << std::endl;
-               std::cout << "DEB frag map size " << frags[it->second].get()->frag_map.size() << std::endl;
-               
-            frags[it->second].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
-            grams_terms.erase(grams_terms.begin());
+ /*           
+           std::cout << "DEB last_frag_id " << last_frag_id << std::endl;
+           std::cout << "DEB it->second " << it->second << std::endl;
+           std::cout << "DEB filename " << frags[it->second].get()->filename << std::endl;
+           std::cout << "DEB frag map size " << frags[it->second].get()->frag_map.size() << std::endl;
+ */          
+           // this is a known term so insert into the correct fragment (latest part, as loaded in loadContinueFrags())
+           frags[it->second].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
+           grams_terms.erase(grams_terms.begin());
         } else {
-            gram_frag_term_index.insert(std::pair<std::string,int>(grams_terms.begin()->first, last_frag_id));
-            if (frags[last_frag_id].get()->size() == last_frag_id*FRAG_SIZE_MULTIPLIER) {
-                std::cout << "DEB FRAG " << last_frag_id << " is full" << std::endl;
+           // HERE IS ANOTHER POSSIBLE ERROR
+           // we add last_frag_id into gram_frag_term_index, but if the == condition is not met it will not create the frag.
+           // but in that case.. it should crash at get-> below.. and it seems to crash above not below..
+           gram_frag_term_index.insert(std::pair<std::string,int>(grams_terms.begin()->first, last_frag_id));
+           if (frags[last_frag_id].get()->size() == last_frag_id*FRAG_SIZE_MULTIPLIER) {
                 // this frag is now full so write it's permanent index.
                 frags[last_frag_id].get()->writeIndex();
                 // increment the last/latest frag id and create a new frag for it.
                 last_frag_id = last_frag_id+1;
-                std::cout << "DEB create new FRAG " << last_frag_id << std::endl;
+                // insert into a new main fragment  (part 00001)
                 frags[last_frag_id] = std::make_unique<Frag>(frag_type, last_frag_id, 1, path + lang);
-            }
-            frags[last_frag_id].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
-            grams_terms.erase(grams_terms.begin());
+           }
+           frags[last_frag_id].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
+           grams_terms.erase(grams_terms.begin());
         }
     }
     frags[last_frag_id].get()->writeIndex();
@@ -92,7 +91,6 @@ void FragManager::syncFrags() {
     time_t aftertime = time(0);
     double seconds = difftime(aftertime, beforetime);
     std::cout << "frag_manager.cc : syncFrags of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
-    std::cout << "frag_manager.cc : Index Term Size : "  << gram_frag_term_index.size() << std::endl;
 }
 
 /*
@@ -107,7 +105,7 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
     int syncsize = grams_terms.size();
     time_t beforetime = time(0);
 
-    std::cout << "frag_manager.cc : begin mergeFrags " << beforetime << std::endl;
+    // std::cout << "frag_manager.cc : begin mergeFrags " << beforetime << std::endl;
 
     std::vector<std::string> index_files = getFiles(path,".frag");
     if (index_files.empty()) {
@@ -116,16 +114,13 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
     } else {
         int this_frag_id = 0;
         std::unique_ptr<Frag> main_frag = std::make_unique<Frag>(frag_type, this_frag_id, 1, path + lang);
-        std::cout << "frag_manager.cc : main frag fragmap size " << main_frag.get()->frag_map.size() << std::endl;
+        // std::cout << "frag_manager.cc : main frag fragmap size " << main_frag.get()->frag_map.size() << std::endl;
 
         // bool track if we are in a merge or not.
         bool merged_frag_part = false;
         for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
-
-            std::cout << "fram_manager.cc : merge " << *it << std::endl;
-
+            
             std::string frag_string = (*it).substr((*it).find("gram_")+5,(*it).length());
-            std::cout << "DEBUG frag_string " << frag_string << std::endl;
             std::string frag_lit = frag_string.substr(0, frag_string.find("."));
             int frag_id = stoi(frag_lit);
 
@@ -133,7 +128,6 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
             // skip if we only have one frag (we need more than one to merge)
             if (std::count_if(index_files.begin(), index_files.end(), [frag_lit](const std::string& str) {
                return str.find(frag_lit + ".frag") != std::string::npos; }) < 2) {
-               std::cout << "SKIPPING frag " << frag_lit << std::endl;
                continue;
             }
 
@@ -142,15 +136,15 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
                 if (merged_frag_part == true) {
                     main_frag.get()->addWeights(num_docs, database, lang);
                     main_frag.get()->write();
-                    std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
+                    // std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
                     merged_frag_part = false;
                 }
-                std::cout << "frag_manager.cc : main frag id : " << frag_id << std::endl;
+                // std::cout << "frag_manager.cc : main frag id : " << frag_id << std::endl;
                 main_frag = std::make_unique<Frag>(frag_type, frag_id, 1, path + lang);
             }
             if (frag_string.find(".frag.")!=std::string::npos) {
                 int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
-                std::cout << "frag_manager.cc : frag " << frag_id << " : " << frag_part_id << " : " << *it << std::endl;
+                // std::cout << "frag_manager.cc : frag " << frag_id << " : " << frag_part_id << " : " << *it << std::endl;
                 std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type, frag_id, frag_part_id, path + lang);
                 for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
                     main_frag.get()->update(it->first, it->second);
@@ -231,15 +225,15 @@ std::cout << "frag_manager.cc : Index Term Size : "  << gram_frag_term_index.siz
 
 
 /*
- * Loads all the frags
+ * load new fragments parts for each frag to start where we left off. 
  */
-void FragManager::loadFrags() {
+void FragManager::loadContinueFrags() {
     std::vector<std::string> index_files = getFiles(path,".frag.");
+    std::cout << "start loadContinueFrags" << std::endl;
 
     if (index_files.empty()) {
         std::cout << "no index files create new frag" << std::endl;
         frags[1] = std::make_unique<Frag>(frag_type,1,1,path + lang);
-        std::cout << "DEB frags[1]" << std::endl;
         last_frag_id = 1;
     } else {
         // frag is .frag, frag_part is .0000* file 
@@ -252,29 +246,33 @@ void FragManager::loadFrags() {
             int frag_id = stoi(frag_string.substr(0, frag_string.find('.')));
             int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
 
-            std::cout << "load frag " << *it << " : " << frag_id << " " << frag_part_id << std::endl;
+            // here we find the last part file that was written for each frag and create
+            // a new frag part (incremented by one), and assign it to the frag id
             if (this_frag_id!=frag_id) {
                 frags[this_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1,path + lang);
-                std::cout << "DEB frags["<< this_frag_id <<"]" << std::endl;
+                // std::cout << "DEB frags["<< this_frag_id <<"]" << std::endl;
             }
             this_frag_id=frag_id;
             this_frag_part_id = frag_part_id;
         }
         last_frag_id=this_frag_id;
-        std::cout << "DEB last frags["<< last_frag_id <<"]" << std::endl;
-        frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id+1,this_frag_part_id+1,path + lang);
+        // std::cout << "DEB last frags["<< last_frag_id <<"]" << std::endl;
+        // EDOT this might be wrong, testing new below.
+        // frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id+1,this_frag_part_id+1,path + lang);
+        frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1,path + lang);
     }
 
-    // at this point we should have a frag for every index, however
-    // I encountered a case where there was not, and this casued segfault of course
-    // I think it might happen in the case of a crash during syncFrags
-    // The index is saved but it crashes before saveFrags.
-    // Let's loop over all to make sure a frag exists, if not create it.
+    std::cout << "end loadContinueFrags" << std::endl;
+
+    // If we have a failed fragment, eg. index exists but frag does not.. then we have a priblem,
+    // This could happen say during a crash, so check for orphaned fragments and create on if it doesn't exist.
+    // This could still cause missing items, but if we keep feeding it will fix itself.
+    // If the index is missing, that's not a problem, a new index would be created automatically.
     for (std::vector<int>::iterator iit = indices.begin(); iit != indices.end(); iit++) {
         if (frags.find(*iit) == frags.end()) {
             std::cout << "frag_manager.cc : WARNING frag " << *iit << " not found.. creating." << std::endl;
+            frags[*iit] = std::make_unique<Frag>(frag_type, *iit, 1, path + lang);
         }
-        frags[last_frag_id] = std::make_unique<Frag>(frag_type, *iit, 1, path + lang);
     }
 }
 
@@ -296,7 +294,6 @@ void FragManager::loadFragIndex() {
 
     std::cout << "load frag index" << std::endl;
     std::vector<std::string> index_files = getFiles(path,".idx");
-    std::cout << "path " << path << std::endl;
 
     std::sort(index_files.begin(),index_files.end());
     if (index_files.empty()) {

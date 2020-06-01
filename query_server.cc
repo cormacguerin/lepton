@@ -13,7 +13,6 @@ QueryServer::QueryServer(short p, std::string d, std::string t) : acceptor_(io_c
     database = d;
     table = t;
     indexServer = std::make_shared<IndexServer>(database, table);
-    //run();
 }
 
 QueryServer::~QueryServer()
@@ -49,17 +48,17 @@ std::string QueryServer::do_query(std::string body) {
 // we don't access shared resources so I think we shouldn't need the full implimentation. more at 
 // https://www.boost.org/doc/libs/1_69_0/doc/html/boost_asio/tutorial/tuttimer5.html
 void QueryServer::run() {
-    indexServer.get()->init();
     do_accept();
-    io_context.run();
+    // io_context.run();
     std::cout << "Run QueryServer thread for " << database << " - " << table << std::endl;
     // printer p(io);
     //do_accept();
     //io_context.run();
-    /*
-       std::thread t(std::bind(static_cast<size_t (asio::io_context::*)()>(&asio::io_context::run), &io_context));
-       t.detach();
-       */
+    std::thread t(std::bind(static_cast<size_t (asio::io_context::*)()>(&asio::io_context::run), &io_context));
+    t.detach();
+
+    // start the index server (loads the index)
+    indexServer.get()->run();
 }
 
 std::map<std::string,int> QueryServer::getServingInfo() {

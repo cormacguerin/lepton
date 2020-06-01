@@ -22,7 +22,7 @@ IndexServer::IndexServer(std::string database, std::string table)
 	x = 0;
     db = database;
     tb = table;
-    // todo, you need to enable service here
+    init();
 }
 
 IndexServer::~IndexServer()
@@ -41,19 +41,26 @@ void IndexServer::init() {
     status = "Failed - unable to connect to database.";
 		cerr << e.what() << std::endl;
 	}
+    status = "loading";
 	//std::string ngrams[] = {"uni","bi","tri"};
 	//std::string langs[] = {"en","ja","zh"};
-    status = "loading";
-	std::string ngrams[] = {"uni"};
-    for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
-	  for (const string &ng : ngrams) {
-        m.lock();
-        unigramurls_map[*lit] = phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>();
-        m.unlock();
-        loadIndex(ng, *lit);
-	  }
-	}
-    status = "Serving";
+}
+
+void IndexServer::run() {
+    while (do_run) {
+        for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
+            if (softMutexLock(m)==true) {
+                if (unigramurls_map.find(*lit) == unigramurls_map.end()) {
+                    unigramurls_map[*lit] = phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>();
+                }
+                m.unlock();
+            } else {
+                continue;
+            }
+            loadIndex("uni", *lit);
+        }
+        status = "Serving";
+    }
 }
 
 /*
@@ -96,7 +103,7 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	}
 	closedir(dp);
 
-  double counter = 0;
+    double counter = 0;
 	std::sort(index_files.begin(),index_files.end());
 	if (index_files.empty()) {
 	  std::cout << "no index files" << std::endl;
@@ -104,15 +111,14 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	  return;
 	} else {
 	  // std::cout << "unigramurls_map.size() " << unigramurls_map[lang].size() << std::endl;
-	  for (std::vector<std::string>::iterator it = index_files.begin() ; it != index_files.end(); ++it) {
+	  for (std::vector<std::string>::iterator it = index_files.begin(); it != index_files.end(); ++it) {
+        usleep(10000);
 	    std::cout << *it << std::endl;
 		int frag_id = stoi((*it).substr((*it).find('.')-5,(*it).find('.')));
 		Frag frag(Frag::Type::UNIGRAM, frag_id, 1, path + lang);
-        m.lock();
-		frag.addToIndex(unigramurls_map[lang]);
-        m.unlock();
+		frag.addToIndex(unigramurls_map[lang], m);
         percent_loaded[lang]=std::ceil((counter++/index_files.size())*100);
-		std::cout << counter <<" percent_loaded " << lang<< " " << percent_loaded[lang] << std::endl;
+		std::cout << counter <<" percent_loaded " << lang << " " << percent_loaded[lang] << std::endl;
 	  }
 	}
 
@@ -580,11 +586,11 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		query.term.term.toUTF8String(converted);
 		std::cout << "index_server.cc - looking for " << converted << std::endl;
 
-//		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = indexServer->unigramurls_map[query.lang].find(converted);
-    m.lock();		
+        // hard lock here, we want to always honor incoming queries.
+        // TODO separately we will need to DOS protections
+        m.lock();		
 		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[query.lang].find(converted);
-    m.unlock();		
-//		if (urls != indexServer->unigramurls_map[query.lang].end()) {
+        m.unlock();
 		if (urls != unigramurls_map[query.lang].end()) {
 			std::cout << "index_server.cc Found " << urls->first << std::endl;
 			/*
@@ -673,14 +679,14 @@ int IndexServer::getTime() {
 std::map<std::string,int> IndexServer::getServingInfo() {
     std::map<std::string,int> lang_term_count;
     std::cout << "getServingInfo try lock" << std::endl;
-    if (getLock()==true) {
+    if (softMutexLock(m)==true) {
       std::cout << "getServingInfo lock success" << std::endl;
       for (std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>>::const_iterator it = unigramurls_map.begin(); it != unigramurls_map.end(); it++) {
         std::cout << "getServingInfo : " << it->first << " " << it->second.size() << std::endl;
         lang_term_count[it->first] = it->second.size();
       }
       std::cout << "getServingInfo unlock" << std::endl;
-      // getLock locks, so make sure to unlock before returning.
+      // softMutexLock locks, so make sure to unlock before returning.
       m.unlock();
       std::cout << "getServingInfo return success" << std::endl;
       return lang_term_count;
@@ -693,11 +699,10 @@ std::map<std::string,int> IndexServer::getServingInfo() {
 std::map<std::string,int> IndexServer::getPercentLoaded() {
     std::map<std::string,int> pl;
     std::cout << "getPercentLoaded try lock" << std::endl;
-    if (getLock()==true) {
+    if (softMutexLock(m)==true) {
       std::cout << "getPercentLoaded lock success" << std::endl;
       pl = percent_loaded;
       std::cout << "getPercentLoaded unlock" << std::endl;
-      // getLock locks, so make sure to unlock before returning.
       m.unlock();
       std::cout << "getPercentLoaded return success" << std::endl;
       return pl;
@@ -705,20 +710,5 @@ std::map<std::string,int> IndexServer::getPercentLoaded() {
       std::cout << "getPercentLoaded return fail" << std::endl;
       return pl;
     }
-}
-
-/*
- * Function to get an exclusive lock on urlgrams map
- * options
- * - int time to wait in microseconds. (default 100)
- * - int number of times to try. (default 5) (0 for infinate)
- */
-bool IndexServer::getLock(int t, int n) {
-  for (int i=0; i<=n*t; i+t) {
-    if (m.try_lock()) {
-      return true;
-    }
-  }
-  return false;
 }
 

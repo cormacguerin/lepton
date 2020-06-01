@@ -118,3 +118,19 @@ inline bool hasDigit(const std::string& s)
     return std::any_of(s.begin(), s.end(), ::isdigit);
 }
 
+/*
+ * Function to try to get a lock on a given mutex for a given period of time.
+ * To be used where failure in locking is an option (eg soft index updates)
+ * options
+ * - int time to wait in microseconds. (default 100)
+ * - int number of times to try. (default 5) (0 for infinate)
+ */
+inline bool softMutexLock(std::mutex &m, int t=100, int n=5) {
+  for (int i=0; i<=n*t; i+t) {
+    if (m.try_lock()) {
+      return true;
+    }
+  }
+  return false;
+}
+

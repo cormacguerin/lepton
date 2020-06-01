@@ -74,6 +74,7 @@ void IndexManager::spawnProcessFeeds() {
 }
 
 void IndexManager::processFeeds() {
+
     if (process_feeds == true) {
         // ideally should never get here
         return;
@@ -92,10 +93,8 @@ void IndexManager::processFeeds() {
         std::set<std::string> run_langs;
         int max_doc_id;
         int batch_size = 0;
-        int base_batch_size = 10000;
-        getNumDocs(num_docs);
+        int base_batch_size = 50000;
         getMaxDocId(max_doc_id);
-        std::cout << "indexManager.cc : total num_docs : " << num_docs["total"] << std::endl;
         std::cout << "indexManager.cc : max_doc_id : " << max_doc_id << std::endl;
 
         std::vector<int> ids;
@@ -119,62 +118,60 @@ void IndexManager::processFeeds() {
         //std::string statement = "SELECT lt_id,url,concat(" + columns + ") as document,language FROM \"" + table + "\" WHERE lt_id BETWEEN $1 AND $2 AND (lt_feed_date > lt_index_date OR lt_index_date IS null) LIMIT $3";
         std::string statement = "SELECT lt_id,url,concat(" + columns + ") as document,language FROM \"" + table + "\" WHERE (lt_feed_date > lt_index_date OR lt_index_date IS null) LIMIT $1";
 
-        //int batch_position = 0;
+        pqxx::work txn(*C);
+        C->prepare("process_docs_batch", statement);
 
-        //for (int i = 0; i <= max_doc_id; ) {
-          //  batch_position += batch_size;
+        std::cout << statement << std::endl;
+        pqxx::result r = txn.prepared("process_docs_batch")(base_batch_size).exec();
+        txn.commit();
 
-            pqxx::work txn(*C);
-            C->prepare("process_docs_batch", statement);
+        for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+            const pqxx::field id = (row)[0];
+            const pqxx::field url = (row)[1];
+            const pqxx::field document = (row)[2];
+            const pqxx::field lang = (row)[3];
 
-            std::cout << statement << std::endl;
-            pqxx::result r = txn.prepared("process_docs_batch")(base_batch_size).exec();
-            txn.commit();
-
-            for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-                const pqxx::field id = (row)[0];
-                const pqxx::field url = (row)[1];
-                const pqxx::field document = (row)[2];
-                const pqxx::field lang = (row)[3];
-
-                std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
-                if (url.is_null()) {
-                    std::cout << "skip : url is null" << std::endl;
-                    continue;
-                }
-                if (document.is_null()) {
-                    std::cout << "skip : document is null" << std::endl;
-                    continue;
-                }
-                if (lang.is_null()) {
-                    std::cout << "skip : lang is null" << std::endl;
-                    continue;
-                }
-                if (std::find(langs.begin(), langs.end(), lang.c_str()) == langs.end()) {
-                    continue;
-                }
-                run_langs.insert(lang.c_str());
-                indexDocument(id.c_str(), document.c_str(), lang.c_str());
-                ids.push_back(std::stoi(id.c_str()));
+            std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
+            if (url.is_null()) {
+                std::cout << "skip : url is null" << std::endl;
+                continue;
             }
- //           i = batch_position;
-            // process doc info must be called after mergeFrage(which creates idf)
-            // because mergefrags is now running on a different thread constantly this shouldn't be an issue.
-            // processDocInfo(ids,database,table,getDbPassword());
-            ids.clear();
+            if (document.is_null()) {
+                std::cout << "skip : document is null" << std::endl;
+                continue;
+            }
+            if (lang.is_null()) {
+                std::cout << "skip : lang is null" << std::endl;
+                continue;
+            }
+            if (std::find(langs.begin(), langs.end(), lang.c_str()) == langs.end()) {
+                continue;
+            }
+            run_langs.insert(lang.c_str());
+            indexDocument(id.c_str(), document.c_str(), lang.c_str());
+            ids.push_back(std::stoi(id.c_str()));
+        }
+//           i = batch_position;
+        // process doc info must be called after mergeFrage(which creates idf)
+        // because mergefrags is now running on a different thread constantly this shouldn't be an issue.
+        // processDocInfo(ids,database,table,getDbPassword());
+        ids.clear();
 
-        //}
         // sync the remainder.
-        std::cout << "indexManager.cc : batch finished - sync remaining terms." << std::endl;
         for (std::set<std::string>::iterator lit = run_langs.begin(); lit != run_langs.end(); lit++) {
+            std::cout << "index_manager.cc : start " << *lit << " sync." << std::endl;
             unigramFragManager.at(*lit)->syncFrags();
             bigramFragManager.at(*lit)->syncFrags();
             trigramFragManager.at(*lit)->syncFrags();
         }
         // process doc info must be called after mergeFrags(which creates idf)
         // processDocInfo(ids,database,table,getDbPassword());
+        //
+        // sleep a few seconds, and try again
+        usleep(5000000);
     }
     process_feeds = false;
+    std::cout << "finish process feeds" << std::endl;
     return;
 }
 
@@ -192,12 +189,15 @@ void IndexManager::processFeeds() {
 // I guess we will need to come back to this, how can we have non blocking updates.
 // Perhaps run a separate database or table or use flat files...
 void IndexManager::runFragMerge(IndexManager* indexManager) {
-    std::cout << "runFragMerge begin " << std::endl;
+    std::map<std::string, int> num_docs;
+    indexManager->getNumDocs(num_docs);
+    std::cout << "index_manager.cc : runFragMerge begin " << std::endl;
     indexManager->merge_frags = true;
     while (indexManager->do_run) {
-        std::cout << "runFragMerge while " << std::endl;
+        std::cout << "index_manager.cc : runFragMerge while " << std::endl;
 
-        for (std::map<std::string, int>::iterator lit = indexManager->num_docs.begin(); lit != indexManager->num_docs.end(); lit++) {
+        for (std::map<std::string, int>::iterator lit = num_docs.begin(); lit != num_docs.end(); lit++) {
+            std::cout << "index_manager.cc : runFragMerge  " << std::endl;
             if (indexManager->unigramFragManager.find(lit->first) != indexManager->unigramFragManager.end()) {
                 indexManager->unigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database);
             }
@@ -419,18 +419,30 @@ void IndexManager::exportVocab(std::string lang) {
  */
 
 void IndexManager::getNumDocs(std::map<std::string, int> &count) {
-    prepare_doc_count(*C);
-    pqxx::work txn(*C);
-    pqxx::result r = txn.prepared("doc_count").exec();
-    txn.commit();
-    int total = 0;
-    for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-        const pqxx::field l = (row)[0];
-        const pqxx::field c = (row)[1];
-        count[l.c_str()] = atoi(c.c_str());
-        total += atoi(c.c_str());
+    try {
+        pqxx::connection C__("dbname = \'" + database + "\' user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
+        if (C__.is_open()) {
+            std::cout << "Opened database successfully: " << C__.dbname() << std::endl;
+            pqxx::work txn__(C__);
+            prepare_doc_count(C__);
+            pqxx::result r = txn__.prepared("doc_count").exec();
+            txn__.commit();
+            int total = 0;
+            for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+                const pqxx::field l = (row)[0];
+                const pqxx::field c = (row)[1];
+                count[l.c_str()] = atoi(c.c_str());
+                total += atoi(c.c_str());
+            }
+            count["total"] = total;
+            C__.disconnect();
+        } else {
+            std::cout << "Can't open database" << std::endl;
+        }
+    } catch (const std::exception &e) {
+        std::cerr << e.what() << std::endl;
     }
-    count["total"] = total;
+
 }
 
 void IndexManager::getNumNgrams(int &count, std::string gram, std::string lang) {

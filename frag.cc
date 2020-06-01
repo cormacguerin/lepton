@@ -13,7 +13,6 @@ Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id, std::string p) : pre
     frag_id = _frag_id;
     fragment_id = _fragment_id;
     path = p;
-    std::cout << "frag.cc path " << path << std::endl;
 
     if (prefix_type==Frag::Type::UNIGRAM){
         filename = path + "_unigram_";
@@ -38,7 +37,6 @@ Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id, std::string p) : pre
         filename.append(fragment_id_string.str());
     }
     load();
-    std::cout << "DEB FILENANE " << filename << std::endl;
     /*
        std::cout << "A fragment_id " << fragment_id << std::endl;
        std::cout << "A _fragment_id " << _fragment_id << std::endl;
@@ -81,7 +79,7 @@ void Frag::load() {
  * TODO : Sean to implement.
  */
 void Frag::loadRawFrag(std::string filename) {
-    std::cout << "LOAD RAW " << filename << std::endl;
+    std::cout << "frag.cc : load raw frag " << filename << std::endl;
     std::ifstream in (filename);
     in >> bits(frag_map);
     in.close();
@@ -138,15 +136,24 @@ void Frag::loadJsonFrag(std::string filename) {
     }
 }
 
-void Frag::addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index) {
+void Frag::addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index, std::mutex &m) {
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-        for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
-            index[it->first].push_back(tit->second);
-        }
-        std::sort(index[it->first].begin(), index[it->first].end(),
+            // TODO this could be faster
+            std::vector<Frag::Item> tmp;
+            for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
+                tmp.push_back(tit->second);
+            }
+            std::sort(tmp.begin(), tmp.end(),
                 [](const Frag::Item& l, const Frag::Item& r) {
                 return l.weight > r.weight;
                 });
+        if (softMutexLock(m)==true) {
+            index[it->first].clear();
+            index[it->first]=tmp;
+            m.unlock();
+        } else {
+            continue;
+        }
     }
 }
 
@@ -368,6 +375,7 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
 }
 
 void Frag::insert(std::string s, std::map<int,Frag::Item> m) {
+    /*
        std::cout << "frag_map.size()" << std::endl;
        std::cout << frag_map.size() << std::endl;
        std::cout << "s" << std::endl;
@@ -375,6 +383,7 @@ void Frag::insert(std::string s, std::map<int,Frag::Item> m) {
        for (std::map<int, Frag::Item>::iterator it = m.begin(); it != m.end(); ++it) {
          std::cout << " m : " << it->first << " : "  << it->second.url_id << std::endl;
        }
+    */
        
     frag_map.insert(std::pair<std::string,std::map<int,Frag::Item>>(s,m));
 }
@@ -408,7 +417,6 @@ std::string Frag::readFile(std::string filename) {
 }
 
 void Frag::remove() {
-    std::cout << "remove frag " << filename << std::endl;
     std::string esc_filename = filename;
     //  std::replace(esc_filename.begin(),esc_filename.end(),' ','_');
     if (std::remove(esc_filename.c_str()) != 0) {
