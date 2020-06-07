@@ -58,9 +58,13 @@ std::string ManagementServer::do_management(std::string body) {
     parsed_query.Parse(body.c_str());
     std::string query = parsed_query.FindMember("query")->value.GetString();
     std::cout << "ManagementServer.cc query : " << query << std::endl;
-    std::cout << "ManagementServer.cc getStats : " << getStats() << std::endl;
     if (query == std::string("stats")) {
         return getStats();
+    } else if (query == std::string("toggle_serving")) {
+        std::string database = parsed_query.FindMember("database")->value.GetString();
+        std::string table = parsed_query.FindMember("table")->value.GetString();
+        std::string action = parsed_query.FindMember("action")->value.GetString();
+        return toggleServing(database,table,action);
     } else {
         return query;
     }
@@ -144,13 +148,14 @@ std::string ManagementServer::getStats() {
         si.AddMember("port", rapidjson::Value(std::to_string((*it)->port).c_str(), allocator).Move(), allocator);
         si.AddMember("database", rapidjson::Value(((*it)->database).c_str(), allocator).Move(), allocator);
         si.AddMember("table", rapidjson::Value(((*it)->table).c_str(), allocator).Move(), allocator);
+        si.AddMember("status", rapidjson::Value(((*it)->getServingStatus()).c_str(), allocator).Move(), allocator);
 
         rapidjson::Value si_(rapidjson::kObjectType);
         std::map<std::string,int> s_map = (*it)->getServingInfo();
         for (std::map<std::string,int>::iterator it_ = s_map.begin(); it_ != s_map.end(); it_++) {
             si_.AddMember(rapidjson::Value(it_->first.c_str(), allocator).Move(), rapidjson::Value(std::to_string(it_->second).c_str(), allocator).Move(), allocator);
         }
-        si.AddMember("status", si_, allocator);
+        si.AddMember("terms", si_, allocator);
 
         rapidjson::Value si__(rapidjson::kObjectType);
         std::cout << "get percent loaded" << std::endl;
@@ -168,6 +173,10 @@ std::string ManagementServer::getStats() {
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     stats.Accept(writer);
     return std::string(buffer.GetString());
+}
+
+std::string ManagementServer::toggleServing(std::string database, std::string table, std::string action) {
+    return "stopped";
 }
 
 /*

@@ -8,15 +8,8 @@
         <flex-row
           class="main"
         >
-          <div
-            class="database-icon"
-          >
-            <div class="cylinder" />
-            <div class="cylinder" />
-            <div class="cylinder" />
-          </div>
           <div class="flexgrow">
-            <div class="databasetitle">
+            <div class="title">
               {{ database }}
             </div>
           </div>
@@ -24,7 +17,7 @@
             <CDropdown>
               <template #toggler="toggler">
                 <i
-                  class="fa fa-ellipsis-v pointer"
+                  class="fa fa-ellipsis-v pointer white"
                   aria-hidden="true"
                 />
               </template>
@@ -39,7 +32,7 @@
         </flex-row>
         <flex-col
           justify="end"
-          class="centerflex"
+          class="centerflex contentcontainer"
         >
           <flex-row
             justify="start"
@@ -531,31 +524,12 @@ export default {
 </script>
 
 <style scoped>
-.databasetitle {
-    margin-top: 10px;
-    margin-left: 10px;
-    color: #7f7f7f;
-    text-align: left;
-    font-size: 1.2em;
-}
 .database-icon {
     margin-left: 15px;
     margin-bottom: 10px;
     margin-top: 5px;
     transform: rotate(180deg);
     width: 30px;
-}
-.cylinder {
-    margin-top: -5px;
-    width: 100%;
-    height: 12px;
-    border-top: 2px solid #cfcfcf;
-    border-bottom: 1px solid #39b2d5;
-    border-radius: 50%;
-    background-color: #39b2d5;
-    -webkit-box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
-       -moz-box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
-            box-shadow:0 -4px 4px 0px rgba(0, 0, 0, 0.3), 0 0 0px rgba(0, 0, 0, 0.1) inset;
 }
 .buttons {
   margin: 10px;
@@ -567,11 +541,6 @@ export default {
 }
 .btn {
   color: white;
-}
-.blue {
-  width: 20px;
-  color: #39b2d5;
-  background-color: #fff;
 }
 .datatablebutton {
   color: #2c3e50;
@@ -592,16 +561,25 @@ export default {
     padding: 0px;
 }
 .card {
-    min-height: 125px;
-    margin-left: 10px;
-    margin-right: 10px;
-    margin-bottom: 10px;
-    margin-top: 20px;
-    border-radius: 5px;
-    background-color: #fff;
-    -webkit-box-shadow:0 2px 4px 0 #b2b5be;
-       -moz-box-shadow:0 2px 4px 0 #b2b5be;
-            box-shadow:0 2px 4px 0 #b2b5be;
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  margin-top: 20px;
+  border-radius: 3px;
+  background-color: #fff;
+  border: none;
+}
+.contentcontainer {
+  border: 1px solid #ddd;
+  color: #666;
+}
+.title {
+  text-align: left;
+  width: 100%;
+  text-align: left;
+  padding: 5px 10px 5px 10px;
+  color: white;
+  font-weight: bold;
 }
 .borderpad {
   border: 1px solid #c8ced3;
@@ -610,9 +588,9 @@ export default {
   margin: 10px;
 }
 .main {
-  background-color: #f3f3f3;
-  border-bottom: 4px solid #39b2d5;
   min-width: 100px;
+  border: 1px solid #efefef;
+  background-color: #2c3e50;
 }
 .margin-right {
   margin-right: 10px;
@@ -625,6 +603,9 @@ export default {
 }
 .flexgrow {
     flex-grow: 2;
+}
+.white {
+  color: white;
 }
 .info {
     width: 75%;

@@ -3,20 +3,20 @@
     <div v-if="userinfo.authorized === false">
       <div class="headerContainer">
         <div class="layout">
-          <flex-row>
-            <div>
+          <flex-col class="container">
+            <div class="logo">
               <img
                 alt="logo"
-                src="./assets/uchan_new_128.png"
+                src="./assets/wu2-100x125.png"
               >
             </div>
-            <flex-col class="logo">
-              compudeep
-            </flex-col>
-          </flex-row>
+            <div class="title">
+              compdeep
+            </div>
+            <Login msg="Login" />
+          </flex-col>
         </div>
       </div>
-      <Login msg="Login" />
     </div>
     <div v-else>
       <ControlPanel msg="ControlPanel" />
@@ -81,7 +81,10 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
+body {
+  background-color: #fafbfb;
+}
 #app {
   font-family: 'Avenir', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -90,12 +93,29 @@ export default {
   color: #2c3e50;
   background-color: #fafbfb;
 }
+.container {
+  border: 1px solid #efefef;
+  border-radius: 5px;
+  background-color: #fff;
+  padding: 20px;
+  flex-justify: center;
+}
 .logo {
+  background-color: #9570d3;
+  border-radius: 50%;
+  width: 200px;
+  height: 200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-top: 50px;
+}
+.title {
   color: white;
   margin: 10px;
   font-size: 2em;
   font-family: 'Comfortaa', cursive;
   justify-content: flex-end;
+  color: #2c3e50;
 }
 .layout {
   width:350px;
@@ -108,9 +128,8 @@ export default {
   min-width: 100%;
   padding-top: 20px;
   padding-bottom: 20px;
-  background-color: #2c3e50;
 }
 body {
-  background-color: #fafbfb;
+  background-color: #fafafa;
 }
 </style>

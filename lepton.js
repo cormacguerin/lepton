@@ -26,48 +26,49 @@ app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '5mb'}));
 app.use(bodyParser.raw({type:'image/jpeg',limit: '50mb'}));
 
 app.all('*', function(req, res, next) {
-	res.header("Access-Control-Allow-Origin", "*");
-	res.header("Access-Control-Allow-Headers", "X-Requested-With");
-	next();
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "X-Requested-With");
+  next();
 });
 
 app.post('/login', function(req, res, next) {
-	user.login(req, res, next);
+  user.login(req, res, next);
 });
 app.post('/register', function(req, res, next) {
-	user.register(req, res, next);
+  user.register(req, res, next);
 });
 app.get('/logout', user.authorize, function(req, res, next) {
-	user.logout(req, res, next);
+  user.logout(req, res, next);
 });
 app.get('/api/getDatabases', user.authorize, function(req,res,next) {
-	data.getDatabases(req.user_id,function(d) {
+  data.getDatabases(req.user_id,function(d) {
     res.json(d);
   });
 });
 /*
 app.get('/api/getTables', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
-	data.getTables(queryData.database, function(d) {
+    data.getTables(queryData.database, function(d) {
     res.json(d);
   });
 });
 */
 app.get('/api/getTableSchema', user.authorize, function(req,res,next) {
   var queryData = url.parse(req.url, true).query;
-	data.getTableSchema(req.user_id, queryData.database, queryData.table, function(d) {
+  data.getTableSchema(req.user_id, queryData.database, queryData.table, function(d) {
     res.json({d});
   });
 });
 app.get('/api/getIndexingInfo', user.authorize, function(req,res,next) {
   var queryData = url.parse(req.url, true).query;
-	data.getIndexTables(req.user_id, function(d) {
+  data.getIndexTables(req.user_id, function(d) {
     res.json(d);
   });
 });
 app.get('/api/getServingInfo', user.authorize, function(req,res,next) {
+  console.log('GETSERVINGINFO');
   var queryData = url.parse(req.url, true).query;
-	data.getIndexTables(req.user_id, function(d) {
+  data.getIndexTables(req.user_id, function(d) {
     getStats(function(s) {
       console.log('s');
       console.log(s);
@@ -75,6 +76,7 @@ app.get('/api/getServingInfo', user.authorize, function(req,res,next) {
         for (var i in d) {
           if (s[req.user_id + "_" +d[i].database]) {
             if (s[req.user_id + "_" +d[i].database][d[i].table]) {
+              d[i].terms = s[req.user_id + "_" +d[i].database][d[i].table].terms;
               d[i].status = s[req.user_id + "_" +d[i].database][d[i].table].status;
               d[i].loaded = s[req.user_id + "_" +d[i].database][d[i].table].loaded;
             }
@@ -87,36 +89,36 @@ app.get('/api/getServingInfo', user.authorize, function(req,res,next) {
   });
 });
 app.get('/api/getUserInfo', user.authorize, function(req,res,next) {
-	// get language and locale
-	var language;
-	var region;
-	var languages = langparser.parse(req.headers["accept-language"]);
-	console.log('req.headers["accept-language"] ' + req.headers["accept-language"]);
-	if (languages[0]) {
-		if (languages[0].code) {
-			language=languages[0].code;
-		}
-		if (languages[0].region) {
-			region=languages[0].region.toLowerCase();
-		}
-	}
-	if (languages[1]) {
-		if (languages[1].code && !language) {
-			language=languages[1].code;
-		}
-		if (languages[1].region && !region) {
-			region=languages[1].region.toLowerCase();
-		}
-	}
-	req.language = language;
-	req.region = region;
-	user.authorize(req, res, function() {
-		user.getUserInfo(req, res);
-	});
+  // get language and locale
+  var language;
+  var region;
+  var languages = langparser.parse(req.headers["accept-language"]);
+  console.log('req.headers["accept-language"] ' + req.headers["accept-language"]);
+  if (languages[0]) {
+    if (languages[0].code) {
+      language=languages[0].code;
+    }
+    if (languages[0].region) {
+      region=languages[0].region.toLowerCase();
+    }
+  }
+  if (languages[1]) {
+    if (languages[1].code && !language) {
+      language=languages[1].code;
+    }
+    if (languages[1].region && !region) {
+      region=languages[1].region.toLowerCase();
+    }
+  }
+  req.language = language;
+  req.region = region;
+  user.authorize(req, res, function() {
+    user.getUserInfo(req, res);
+  });
 });
 app.get('/api/addDatabase', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
-	data.addDatabase(req.user_id, queryData.database, function(r) {
+  data.addDatabase(req.user_id, queryData.database, function(r) {
     res.json(r);
   });
 });
@@ -126,13 +128,13 @@ app.get('/api/deleteTable', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.deleteTable(req.user_id, queryData.database, queryData.table, queryData.type, function(r) {
+  data.deleteTable(req.user_id, queryData.database, queryData.table, queryData.type, function(r) {
     res.json(r);
   });
 });
 app.get('/api/deleteDatabase', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
-	data.deleteDatabase(req.user_id, queryData.database, function(r) {
+  data.deleteDatabase(req.user_id, queryData.database, function(r) {
     res.json(r);
   });
 });
@@ -142,7 +144,7 @@ app.get('/api/createTable', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.createTable(req.user_id, queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
+  data.createTable(req.user_id, queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
     res.json(r);
   });
 });
@@ -152,7 +154,7 @@ app.get('/api/createSearchTable', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.createSearchTable(req.user_id, queryData.database, queryData.table, function(r) {
+  data.createSearchTable(req.user_id, queryData.database, queryData.table, function(r) {
     res.json(r);
   });
 });
@@ -162,7 +164,7 @@ app.get('/api/createDataSetTable', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.createDataSetTable(req.user_id, queryData.database, queryData.table, queryData.query, function(r) {
+  data.createDataSetTable(req.user_id, queryData.database, queryData.table, queryData.query, function(r) {
     res.json(r);
   });
 });
@@ -172,7 +174,7 @@ app.get('/api/deleteDataSetTable', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.deleteDataSetTable(req.user_id, queryData.database, queryData.table, function(r) {
+  data.deleteDataSetTable(req.user_id, queryData.database, queryData.table, function(r) {
     res.json(r);
   });
 });
@@ -182,7 +184,7 @@ app.get('/api/addTableColumn', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.addTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
+  data.addTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
     res.json(r);
   });
 });
@@ -192,7 +194,7 @@ app.get('/api/updateTableColumn', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.updateTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, function(r) {
+  data.updateTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, queryData.editColumn, queryData.datatype, queryData.editDatatype, function(r) {
     res.json(r);
   });
 });
@@ -202,7 +204,7 @@ app.get('/api/deleteColumn', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.deleteTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, function(r) {
+  data.deleteTableColumn(req.user_id, queryData.database, queryData.table, queryData.column, function(r) {
     res.json(r);
   });
 });
@@ -212,7 +214,7 @@ app.get('/api/setFTS', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.setFTS(req.user_id, queryData.database, queryData.table, queryData.column, queryData.fts, function(r) {
+  data.setFTS(req.user_id, queryData.database, queryData.table, queryData.column, queryData.fts, function(r) {
     res.json(r);
   });
 });
@@ -222,8 +224,11 @@ app.get('/api/setServing', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.setServing(req.user_id, queryData.database, queryData.table, queryData.serving, function(r) {
-    res.json(r);
+  data.setServing(req.user_id, queryData.database, queryData.table, queryData.serving, function(r) {
+    execute({'query':'toggle_serving','database':queryData.database,'table':queryData.table,'action':queryData.serving}, 3333, function(r_) {
+      console.log(r_);
+      res.json(r);
+    });
   });
 });
 app.get('/api/setFTSDisplayField', user.authorize, function(req, res, next) {
@@ -232,7 +237,7 @@ app.get('/api/setFTSDisplayField', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.setFTSDisplayField(req.user_id, queryData.database, queryData.table, queryData.display_field, function(r) {
+  data.setFTSDisplayField(req.user_id, queryData.database, queryData.table, queryData.display_field, function(r) {
     res.json(r);
   });
 });
@@ -242,7 +247,7 @@ app.get('/api/runQuery', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.runQuery(req.user_id, queryData.database, queryData.query, function(r) {
+  data.runQuery(req.user_id, queryData.database, queryData.query, function(r) {
     res.json(r);
   });
 });
@@ -252,12 +257,12 @@ app.get('/api/addChart', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.addChart(req.user_id, queryData.database, queryData.dataset, queryData.name, queryData.chart, queryData.data, function(r) {
+  data.addChart(req.user_id, queryData.database, queryData.dataset, queryData.name, queryData.chart, queryData.data, function(r) {
     res.json(r);
   });
 });
 app.get('/api/getMyCharts', user.authorize, function(req, res, next) {
-	data.getMyCharts(req.uer_id, function(r) {
+  data.getMyCharts(req.uer_id, function(r) {
     res.json(r);
   });
 });
@@ -267,7 +272,7 @@ app.get('/api/getChartById', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.getChartById(req.user_id, queryData.chart_id, function(r) {
+  data.getChartById(req.user_id, queryData.chart_id, function(r) {
     res.json(r);
   });
 });
@@ -285,7 +290,7 @@ app.get('/api/generateApiKey', user.authorize, function(req, res, next) {
  * Function to get a users api keys
  */
 app.get('/api/getApiKeys', user.authorize, function(req, res, next) {
-	data.getApiKeys(req.user_id, function(r) {
+  data.getApiKeys(req.user_id, function(r) {
     res.json(r);
   });
 });
@@ -298,7 +303,7 @@ app.get('/api/addApiKey', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.addApiKey(req.user_id, queryData.key_name, queryData.key, function(r) {
+  data.addApiKey(req.user_id, queryData.key_name, queryData.key, function(r) {
     res.json(r);
   });
 });
@@ -311,7 +316,7 @@ app.get('/api/addApiScope', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.addApiScope(req.user_id, queryData.key_id, queryData.api, queryData.database, queryData.table, function(r) {
+  data.addApiScope(req.user_id, queryData.key_id, queryData.api, queryData.database, queryData.table, function(r) {
     res.json(r);
   });
 });
@@ -321,7 +326,7 @@ app.get('/api/deleteApiKey', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.deleteApiKey(req.user_id, queryData.key_id, function(r) {
+  data.deleteApiKey(req.user_id, queryData.key_id, function(r) {
     res.json(r);
   });
 });
@@ -331,7 +336,7 @@ app.get('/api/deleteApiScope', user.authorize, function(req, res, next) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
-	data.deleteApiScope(req.user_id, queryData.key_id, queryData.api_scope, queryData.api_database, queryData.api_table, function(r) {
+  data.deleteApiScope(req.user_id, queryData.key_id, queryData.api_scope, queryData.api_database, queryData.api_table, function(r) {
     res.json(r);
   });
 });
@@ -373,11 +378,11 @@ app.get('/api/deleteApiScope', user.authorize, function(req, res, next) {
  *
  */
 app.post('/addTableData', user.authorizeApi, function(req, res, next) {
-	var table_name;
-	var fields=[];
+  var table_name;
+  var fields=[];
   var data_;
   var database;
-	var queryData = url.parse(req.url, true).query;
+  var queryData = url.parse(req.url, true).query;
   if (!queryData.database) {
     res.status(403);
     return res.json({});
@@ -436,15 +441,15 @@ app.post('/addTableData', user.authorizeApi, function(req, res, next) {
  * TODO there is a lot of duplication and stuff here that could be cleaned up
  */
 app.get('/search', user.authorize, function(req, res, next) {
-	try {
-		var queryData = url.parse(req.url, true).query;
+  try {
+    var queryData = url.parse(req.url, true).query;
     var database = req.user_id + "_" + queryData.database;
     var table = queryData.table;
-		var socket = new net.Socket();
-		if (!queryData.query) {
-			res.json({"error":"no query"});
-			return;
-		} else {
+    var socket = new net.Socket();
+    if (!queryData.query) {
+      res.json({"error":"no query"});
+      return;
+    } else {
       console.log('queryServers');
       console.log(queryServers);
       if (Object.keys(queryServers).length === 0) {
@@ -492,28 +497,28 @@ app.get('/search', user.authorize, function(req, res, next) {
           }
         })
       }
-		}
-	} catch(e) {
-		res.send({"error":"\""+e+"\""});
-		console.log(e);
-		return;
-	}
+    }
+  } catch(e) {
+    res.send({"error":"\""+e+"\""});
+    console.log(e);
+    return;
+  }
 });
 
 app.get('/manage', function(req, res, next) {
-	try {
-		var queryData = url.parse(req.url, true).query;
-		var socket = new net.Socket();
-		if (!queryData.query) {
-			res.json({"error":"no query"});
-			return;
-		} else {
-		}
-	} catch(e) {
-		res.send({"error":"\""+e+"\""});
-		console.log(e);
-		return;
-	}
+  try {
+    var queryData = url.parse(req.url, true).query;
+    var socket = new net.Socket();
+    if (!queryData.query) {
+      res.json({"error":"no query"});
+      return;
+    } else {
+    }
+  } catch(e) {
+    res.send({"error":"\""+e+"\""});
+    console.log(e);
+    return;
+  }
 });
 
 function getStats(callback) {
@@ -540,71 +545,71 @@ function toggleServing(database, table, callback) {
 }
 
 function execute(queryData, port, callback) {
-    var tmpQuery = {}
-    tmpQuery.query = queryData.query;
-    tmpQuery.lang = "en";
-    internalQuery = JSON.stringify(tmpQuery);
-    console.log('internalQuery')
-    console.log(internalQuery)
-    
-		var socket = new net.Socket();
-		socket.connect(port, '127.0.0.1', function() {
-      console.log('hit');
-			var data_length = internalQuery.length;
-			var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":";
-			socket.write(header.concat(internalQuery),'utf8', function(r) {
-				console.log('socket.write');
-				console.log(r);
-			});
-			socket.end();
-		});
-		var packet = "";
-		socket.on('data', (data) => {
-			packet += data.toString();
-			console.log('packet - data');
-			console.log(packet);
-			socket.end();
-		});
-		socket.on('end', () => {
-      console.log('end - packet');
-      console.log(packet);
-      if (packet) {
-        var result = {};
-        try {
-          result = JSON.parse(packet);
-        } catch(e) {
-          console.log(e);
-        }
-			  callback(result);
-      } else {
-        callback('{}');
+  var tmpQuery = {}
+  tmpQuery.query = queryData.query;
+  tmpQuery.lang = "en";
+  internalQuery = JSON.stringify(tmpQuery);
+  console.log('internalQuery')
+  console.log(internalQuery)
+
+  var socket = new net.Socket();
+  socket.connect(port, '127.0.0.1', function() {
+    console.log('hit');
+    var data_length = internalQuery.length;
+    var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":";
+    socket.write(header.concat(internalQuery),'utf8', function(r) {
+      console.log('socket.write');
+      console.log(r);
+    });
+    socket.end();
+  });
+  var packet = "";
+  socket.on('data', (data) => {
+    packet += data.toString();
+    console.log('packet - data');
+    console.log(packet);
+    socket.end();
+  });
+  socket.on('end', () => {
+    console.log('end - packet');
+    console.log(packet);
+    if (packet) {
+      var result = {};
+      try {
+        result = JSON.parse(packet);
+      } catch(e) {
+        console.log(e);
       }
-		});
-		socket.on('unhandledRejection', (error, promise) => {
-			callback({"error":error});
-		});
-		socket.on('uncaughtException', (error, promise) => {
-			callback({"error":error});
-		});
-		socket.on('error', (error, promise) => {
-			callback({"error":error});
-		});
+      callback(result);
+    } else {
+      callback('{}');
+    }
+  });
+  socket.on('unhandledRejection', (error, promise) => {
+    callback({"error":error});
+  });
+  socket.on('uncaughtException', (error, promise) => {
+    callback({"error":error});
+  });
+  socket.on('error', (error, promise) => {
+    callback({"error":error});
+  });
 }
 
 /*
 app.get('/', function(req, res, next) {
-	try {
-		var queryData = url.parse(req.url, true).query;
-		if (!queryData.query) {
-			next();
-		} else {
-			execute(req,res);
-		}
-	} catch(e) {
-		res.send({"error":"\""+e+"\""});
-		console.log(e);
-		return;
-	}
+    try {
+        var queryData = url.parse(req.url, true).query;
+        if (!queryData.query) {
+            next();
+        } else {
+            execute(req,res);
+        }
+    } catch(e) {
+        res.send({"error":"\""+e+"\""});
+        console.log(e);
+        return;
+    }
 });
 */
 
@@ -619,5 +624,5 @@ app.use('/', express.static(__dirname + '/vue-app/dist/'));
 
 // start the server.
 var server = app.listen(process.env.PORT || 3000, function () {
-	console.log('Web app listening on port 3000!')
+  console.log('Web app listening on port 3000!')
 });

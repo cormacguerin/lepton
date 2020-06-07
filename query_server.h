@@ -23,6 +23,7 @@ class QueryServer {
 		void run();
     std::map<std::string,int> getPercentLoaded();
     std::map<std::string,int> getServingInfo();
+    std::string getServingStatus();
 };
 #endif
 

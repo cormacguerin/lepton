@@ -85,7 +85,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .result-card-title {
     font-size: 1.2em;
     font-weight: bold;

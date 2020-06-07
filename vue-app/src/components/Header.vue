@@ -38,7 +38,7 @@
         <img
           class="desktopLogo"
           alt="logo"
-          src="../assets/uchan_new_64.png"
+          src="../assets/wu2-64x51.png"
         >
         <flex-col
           justify="end"
@@ -247,7 +247,7 @@ export default {
   margin-top: 0px;
 }
 .header {
-  background-color: #171f24;
+  background-color: #2c3e50;
 }
 .desktopLogo {
   margin: 10px;

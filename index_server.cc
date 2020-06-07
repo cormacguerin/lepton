@@ -38,7 +38,7 @@ void IndexServer::init() {
 			cout << "Can't open database" << endl;
 		}
 	} catch (const std::exception &e) {
-    status = "Failed - unable to connect to database.";
+    status = "failed";
 		cerr << e.what() << std::endl;
 	}
     status = "loading";
@@ -47,6 +47,7 @@ void IndexServer::init() {
 }
 
 void IndexServer::run() {
+    do_run = true;
     while (do_run) {
         for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
             if (softMutexLock(m)==true) {
@@ -59,8 +60,12 @@ void IndexServer::run() {
             }
             loadIndex("uni", *lit);
         }
-        status = "Serving";
+        status = "serving";
     }
+    m.lock();
+    unigramurls_map.clear();
+    m.unlock();
+    status = "shutdown";
 }
 
 /*
@@ -85,7 +90,7 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	if (dp == NULL) {
 	  perror("opendir");
 	  std::cout << "frag_manager.cc : Error , unable to load last frag" << std::endl;;
-      status = "Failed - unable to load index.";
+      status = "failed";
       return;
 	}
 	std::string ext = ".frag.00001";
@@ -107,12 +112,11 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	std::sort(index_files.begin(),index_files.end());
 	if (index_files.empty()) {
 	  std::cout << "no index files" << std::endl;
-      status = "No index.";
+      status = "noindex";
 	  return;
 	} else {
 	  // std::cout << "unigramurls_map.size() " << unigramurls_map[lang].size() << std::endl;
 	  for (std::vector<std::string>::iterator it = index_files.begin(); it != index_files.end(); ++it) {
-        usleep(10000);
 	    std::cout << *it << std::endl;
 		int frag_id = stoi((*it).substr((*it).find('.')-5,(*it).find('.')));
 		Frag frag(Frag::Type::UNIGRAM, frag_id, 1, path + lang);
@@ -356,7 +360,6 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		if (std::next(tit) != candidates.end()) {
 			prepstr_ += ",";
 		}
-        std::cout << "c_map : " << item.url_id << std::endl;
 		c_map[item.url_id]=x;
 		x++;
 	}
@@ -460,7 +463,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 			time_t afterload_ = getTime();
 			double seconds = difftime(afterload_, beforeload_);
 			getResultTime += seconds;
-			std::cout << "index_server.cc : result  " << last_id << " processed in " << seconds << std::endl;
+			// std::cout << "index_server.cc : result  " << last_id << " processed in " << seconds << std::endl;
 		}
 		last_id = id;
 
@@ -710,5 +713,9 @@ std::map<std::string,int> IndexServer::getPercentLoaded() {
       std::cout << "getPercentLoaded return fail" << std::endl;
       return pl;
     }
+}
+
+std::string IndexServer::getServingStatus() {
+    return status;
 }
 

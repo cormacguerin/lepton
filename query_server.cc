@@ -69,3 +69,7 @@ std::map<std::string,int> QueryServer::getServingInfo() {
 std::map<std::string,int> QueryServer::getPercentLoaded() {
     return indexServer->getPercentLoaded();
 }
+
+std::string QueryServer::getServingStatus() {
+    return indexServer->getServingStatus();
+}

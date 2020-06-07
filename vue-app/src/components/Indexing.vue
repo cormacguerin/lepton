@@ -9,7 +9,7 @@
         :key="item.database"
         :database="item.database"
         :table="item.table"
-        :column="item.column"
+        :column="item.column.join(',')"
         :display-field="item.display_field"
         :indexing="item.indexing"
         :serving="item.serving"

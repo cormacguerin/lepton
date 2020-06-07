@@ -136,17 +136,25 @@ void Frag::loadJsonFrag(std::string filename) {
     }
 }
 
+/*
+ * Function to load fragments into the main index map
+ * Options
+ * index: reference to the main index map.
+ * m : reference to the mutex used to allow access.
+ * TODO, only update fragments that have been updated.
+ */
 void Frag::addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index, std::mutex &m) {
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-            // TODO this could be faster
-            std::vector<Frag::Item> tmp;
-            for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
-                tmp.push_back(tit->second);
-            }
-            std::sort(tmp.begin(), tmp.end(),
-                [](const Frag::Item& l, const Frag::Item& r) {
-                return l.weight > r.weight;
-                });
+        usleep(1000);
+        // TODO this could be faster
+        std::vector<Frag::Item> tmp;
+        for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
+            tmp.push_back(tit->second);
+        }
+        std::sort(tmp.begin(), tmp.end(),
+            [](const Frag::Item& l, const Frag::Item& r) {
+            return l.weight > r.weight;
+            });
         if (softMutexLock(m)==true) {
             index[it->first].clear();
             index[it->first]=tmp;

@@ -19,6 +19,7 @@ class IndexServer {
         IndexServer(std::string database, std::string table);
         ~IndexServer();
         std::string status;
+        std::mutex m;
         void init();
         void run();
         void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates);
@@ -27,8 +28,8 @@ class IndexServer {
         std::vector<std::string> langs = {"en","ja","zh","ko","es","de","fr"};
         std::map<std::string,int> getServingInfo();
         std::map<std::string,int> getPercentLoaded();
-        std::mutex m;
-        bool do_run = true;
+        std::string getServingStatus();
+        bool do_run;
 
     private:
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> unigramurls_map;

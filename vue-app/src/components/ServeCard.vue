@@ -5,39 +5,36 @@
       class="container"
     >
       <div class="database">
-        <flex-row
-          class="left"
+        <div class="flexgrow servetitle">
+          {{ database }} - {{ table }}
+        </div>
+        <flex-col
+          class="contentcontainer"
         >
-          <div class="flexgrow servetitle">
-            {{ database }} - {{ table }}
-          </div>
-        </flex-row>
-        <flex-row class="info">
-          <label
-            class="switch"
-          >
-            <input
-              type="checkbox"
-              :checked="serving"
-              @click="setServing(item)"
+          <flex-row class="info">
+            <label
+              class="switch"
             >
-            <span class="toggle" />
-          </label>
-          <div class="enabled">
-            <div v-if="serving">
-              Serving: Enabled
+              <input
+                type="checkbox"
+                :checked="serving"
+                @click="setServing(item)"
+              >
+              <span class="toggle" />
+            </label>
+            <div class="enabled">
+              <div v-if="serving">
+                Enabled
+              </div>
+              <div v-else>
+                Disabled
+              </div>
             </div>
-            <div v-else>
-              Serving: Disabled
+            <div class="backendstatus">
+              Backend Status : <span :class="statusclass">{{ getStatus() }}</span>
             </div>
-          </div>
-          <div>
-            {{ status }}
-          </div>
-          <div>
-            {{ loaded }}
-          </div>
-        </flex-row>
+          </flex-row>
+        </flex-col>
       </div>
     </flex-col>
   </div>
@@ -85,11 +82,9 @@ export default {
       type: Number,
       default: 0
     },
-    status: {
-      type: Object,
-      default: function () {
-        return {}
-      }
+    servingstatus: {
+      type: String,
+      default: ''
     },
     loaded: {
       type: Object,
@@ -100,6 +95,7 @@ export default {
   },
   data () {
     return {
+      statusclass: ''
     }
   },
   watch: {
@@ -133,6 +129,21 @@ export default {
             }
           }
         })
+    },
+    getStatus () {
+      if (this.servingstatus === 'serving') {
+        this.statusclass = 'serving'
+        return 'Serving'
+      } else if (this.servingstatus === 'loading') {
+        this.statusclass = 'loading'
+        return 'Loading'
+      } else if (this.servingstatus === 'shutdown') {
+        this.statusclass = 'shutdown'
+        return 'Shutdown'
+      } else {
+        this.statusclass = 'error'
+        return 'No backend response'
+      }
     }
   }
 }
@@ -146,16 +157,17 @@ export default {
   position: absolute;
 }
 .card {
-  min-height: 125px;
   margin-left: 10px;
   margin-right: 10px;
   margin-bottom: 10px;
   margin-top: 20px;
   border-radius: 3px;
   background-color: #fff;
-  -webkit-box-shadow:0 2px 4px 0 #b2b5be;
-     -moz-box-shadow:0 2px 4px 0 #b2b5be;
-          box-shadow:0 2px 4px 0 #b2b5be;
+  border: none;
+}
+.contentcontainer {
+  border: 1px solid #efefef;
+  color: #666;
 }
 .servetitle {
   width: 100%;
@@ -163,15 +175,25 @@ export default {
   border-radius-right-top: 3px;
   text-align: left;
   background-color: #ffc107;
-  padding: 5px;
+  padding: 5px 10px 5px 10px;
   color: #23282c;
   font-weight: bold;
 }
+.serving {
+  color: #33b13d;
+}
+.loading {
+  color: #ffc000;
+}
+.error {
+  color: #ff5733;
+}
 .enabled {
   margin-left: 5px;
-  color: #333333;
 }
-
+.backendstatus {
+  margin-left: 10px;
+}
 .info {
   margin: 10px;
 }
@@ -182,7 +204,6 @@ label.checkbox {
   -ms-user-select: none;
   user-select: none;
 }
-
 .switch {
   position: relative;
   display: inline-block;
@@ -190,16 +211,12 @@ label.checkbox {
   height: 16px;
   margin: 2px;
 }
-
-/* Hide default HTML checkbox */
 .switch input {
   opacity: 0;
   width: 0;
   height: 0;
   border: 2px solid #efefef;
 }
-
-/* The toggle */
 .toggle {
   position: absolute;
   cursor: pointer;
@@ -212,7 +229,6 @@ label.checkbox {
   transition: .4s;
   border-radius: 5px;
 }
-
 .toggle:before {
   position: absolute;
   content: "";
@@ -226,15 +242,12 @@ label.checkbox {
   border-radius: 5px;
   border: 2px solid #fff;
 }
-
 input:checked + .toggle {
   background-color: #2eadd3;
 }
-
 input:focus + .toggle {
   box-shadow: 0 0 1px #2196F3;
 }
-
 input:checked + .toggle:before {
   -webkit-transform: translateX(10px);
   -ms-transform: translateX(10px);
