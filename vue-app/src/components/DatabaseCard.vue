@@ -104,6 +104,33 @@
             </CModal>
             <CButton
               class="datatablebutton active"
+              color="success"
+              variant="outline"
+              @click="addMemoryTableModal = true"
+            >
+              <span>
+                <i
+                  class="fa fa-plus"
+                  aria-hidden="true"
+                />
+              </span>
+              Memory Table
+            </CButton>
+            <CModal
+              title="Add Memory Table"
+              color="success"
+              :show.sync="addMemoryTableModal"
+            >
+              <template #footer-wrapper>
+                <div class="hidden" />
+              </template>
+              <AddMemoryTable
+                :key="index"
+                :database="database"
+              />
+            </CModal>
+            <CButton
+              class="datatablebutton active"
               color="danger"
               variant="outline"
               @click="addDataSetTableModal = true"
@@ -302,6 +329,7 @@
 
 import AddTable from './AddTable.vue'
 import AddSearchTable from './AddSearchTable.vue'
+import AddMemoryTable from './AddMemoryTable.vue'
 import AddDataSetTable from './AddDataSetTable.vue'
 import EditDataSetTable from './EditDataSetTable.vue'
 import EditTableColumn from './EditTableColumn.vue'
@@ -311,6 +339,7 @@ export default {
   components: {
     AddTable,
     AddSearchTable,
+    AddMemoryTable,
     AddDataSetTable,
     EditDataSetTable,
     EditTableColumn
@@ -339,6 +368,7 @@ export default {
       collapse: false,
       addTableModal: false,
       addSearchTableModal: false,
+      addMemoryTableModal: false,
       addDataSetTableModal: false,
       addTableColumnModal: false,
       editTableColumnModal: false,

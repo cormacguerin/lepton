@@ -1029,9 +1029,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   runQuery(q,callback) {
-    // var query = "SELECT " + c + " FROM " + t + ";"
-    // var query = "select customer.customer_name, count(keg.keg_status) FROM ag_e_keg AS keg INNER JOIN ag_e_customer AS customer on customer.customer_id = keg.keg_cache_is_shipment_is_customer_id GROUP BY customer_name, keg_status, keg_updated HAVING keg_status='Shipped' AND keg_updated < '2014-06-01' ORDER BY count(keg.keg_status) DESC";
-    var query = "select count(keg.keg_status), customer.customer_name FROM ag_e_keg AS keg INNER JOIN ag_e_customer AS customer on customer.customer_id = keg.keg_cache_is_shipment_is_customer_id GROUP BY customer_name, keg_status, keg_updated HAVING keg_status='Shipped' AND keg_updated < '2014-06-01' ORDER BY count(keg.keg_status) DESC LIMIT 50";
+    console.log(q);
 
     this.execute(q, null, function(e,r) {
       console.log(e);

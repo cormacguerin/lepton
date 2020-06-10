@@ -284,7 +284,7 @@ exports.createDataSetTable = function(u,d,t,q,callback) {
   }
   const db = u + '_' + d;
   initDB(db, function() {
-    db_pg[db].runQuery(u,q,function(err,r) {
+    db_pg[db].runQuery(q,function(err,r) {
       if (err){
         console.log("unable to create search table");
         console.log(err);

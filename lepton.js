@@ -208,6 +208,19 @@ app.get('/api/deleteColumn', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
+app.get('/api/createMemoryTable', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.column && queryData.datatype)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+  data.createMemoryTable(req.user_id, queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
+    execute({'query':'toggle_serving','database':queryData.database,'table':queryData.table,'action':queryData.serving}, 3333, function(r_) {
+      console.log(r_);
+      res.json(r);
+    });
+  });
+});
 app.get('/api/setFTS', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   if (!(queryData.database && queryData.table && queryData.column && queryData.fts)) {
