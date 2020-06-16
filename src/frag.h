@@ -36,11 +36,11 @@ class Frag {
         std::string filename;
 
         /*
-         * TODO : remove url_id
+         * TODO : remove doc_id
          * the url id stored also in the map container so we have duplication in a critical area
          */
         struct Item {
-            int url_id;
+            int doc_id;
             double tf;
             double weight;
         };

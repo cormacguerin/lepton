@@ -455,7 +455,12 @@ app.post('/addTableData', user.authorizeApi, function(req, res, next) {
  */
 app.get('/search', user.authorize, function(req, res, next) {
   try {
+    console.log(req)
     var queryData = url.parse(req.url, true).query;
+    // vuejs adds stupid brackets on array so we need to check.
+    if (queryData["filter[]"]) {
+      queryData.filter = queryData["filter[]"];
+    }
     var database = req.user_id + "_" + queryData.database;
     var table = queryData.table;
     var socket = new net.Socket();
@@ -560,6 +565,7 @@ function toggleServing(database, table, callback) {
 function execute(queryData, port, callback) {
   var tmpQuery = {}
   tmpQuery.query = queryData.query;
+  tmpQuery.filter = queryData.filter;
   tmpQuery.lang = "en";
   internalQuery = JSON.stringify(tmpQuery);
   console.log('internalQuery')
@@ -567,7 +573,6 @@ function execute(queryData, port, callback) {
 
   var socket = new net.Socket();
   socket.connect(port, '127.0.0.1', function() {
-    console.log('hit');
     var data_length = internalQuery.length;
     var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":";
     socket.write(header.concat(internalQuery),'utf8', function(r) {

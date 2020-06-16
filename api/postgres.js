@@ -317,7 +317,7 @@ console.log("promises finished in " + totaltime + "ms");
       + "status VARCHAR(64),"
       + "last_modified TIMESTAMP,"
       + "document text,"
-      + "metadata text,"
+      + "metadata jsonb,"
       + "lt_id SERIAL PRIMARY KEY,"
       + "lt_uuid uuid,"
       + "lt_docscore real,"

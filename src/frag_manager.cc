@@ -30,15 +30,15 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_grams) {
     for (std::map<std::string, Frag::Item>::const_iterator it = doc_grams.begin(); it != doc_grams.end(); ++it) {
         std::map<std::string, std::map<int, Frag::Item>>::iterator tit = grams_terms.find(it->first);
         if (tit != grams_terms.end()) {
-            std::map<int, Frag::Item>::iterator iit = (tit->second).find((it->second).url_id);
+            std::map<int, Frag::Item>::iterator iit = (tit->second).find((it->second).doc_id);
             if (iit != (tit->second).end()) {
-                (tit->second).at((it->second).url_id) = it->second;
+                (tit->second).at((it->second).doc_id) = it->second;
             } else {
-                (tit->second).insert(std::pair<int,Frag::Item>((it->second).url_id,it->second));
+                (tit->second).insert(std::pair<int,Frag::Item>((it->second).doc_id,it->second));
             }
         } else {
             std::map<int,Frag::Item> termap;
-            termap.insert(std::pair<int,Frag::Item>((it->second).url_id,it->second));
+            termap.insert(std::pair<int,Frag::Item>((it->second).doc_id,it->second));
             grams_terms.insert(std::pair<std::string,std::map<int,Frag::Item>>(it->first,termap));
         }
         //std::cout << "grams_terms.size(): " << grams_terms.size() << std::endl;
@@ -158,69 +158,6 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
             this_frag_id=frag_id;
         }
     }
-
-    /*
-       std::unordered_set<std::string> unigram_term_index;
-       for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=grams_terms.begin(); it!=grams_terms.end(); it++) {
-
-       if (unigram_term_index.find(it->first) != unigram_term_index.end()) {
-//			std::cout << "frag_manager.cc " << it->first  << " indexed" << std::endl;
-continue;
-} else {
-    //			std::cout << "frag_manager.cc " << it->first  << " not indexed" << std::endl;
-    }
-    phmap::parallel_flat_hash_map<std::string, int>::iterator iit = gram_frag_term_index.find(it->first);
-
-    if (iit != gram_frag_term_index.end()) {
-
-// std::cout << "Existing term " << it->first << " found in frag " << it->second << std::endl;
-// load frag
-Frag frag(frag_type, iit->second);
-
-// find and move / merge all terms into the frag.
-std::vector<std::string> frag_keys = frag.getTermKeys();
-int counter=0;
-for (std::vector<std::string>::iterator kit=frag_keys.begin(); kit!=frag_keys.end(); kit++) {
-std::map<std::string, std::map<int, Frag::Item>>::iterator tit = grams_terms.find(*kit);
-if (tit != grams_terms.end()) {
-// insert the term and data into the last frag.
-frag.update(tit->first, tit->second);
-// insert the frag number for the term to the index.
-unigram_term_index.insert(tit->first);
-// erase the completed terms
-// grams_terms.erase(tit++);
-counter++;
-}
-}
-std::cout << "frag_manager.cc : " << counter << " url terms synced into frag " << frag.frag_id << std::endl;
-// were should be finished with this frag, so write it.
-frag.write();
-std::cout << "frag_manager.cc : " << grams_terms.size() << " terms left to sync." << std::endl;
-} else {
-    // this is a new term. find the next available frag.
-    if (last_frag.get()->size() == FRAG_SIZE) {
-//	std::cout << "frag_manager.cc : max frag size reached, write this frag and create new." << std::endl;
-last_frag.get()->write();
-last_frag = std::make_unique<Frag>(frag_type, last_frag_id+1);
-}
-// insert the term and data into the last frag.
-// std::cout << "frag_manager.cc : insert to last frag (" << last_frag.get()->id <<  ")" << it->first << " " << std::endl;
-
-last_frag.get()->insert(it->first, it->second);
-// insert the frag number for the term to the index.
-gram_frag_term_index.insert(std::pair<std::string,int>(it->first, last_frag.get()->frag_id));
-// remove the term from the current map
-// grams_terms.erase(grams_terms.begin());
-}
-}
-grams_terms.clear();
-// finially write our last (probably not full) frag.
-last_frag.get()->write();
-time_t aftertime = time(0);
-double seconds = difftime(aftertime, beforetime);
-std::cout << "frag_manager.cc : syncFrags of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
-std::cout << "frag_manager.cc : Index Term Size : "  << gram_frag_term_index.size() << std::endl;
-*/
 }
 
 

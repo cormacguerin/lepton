@@ -25,9 +25,9 @@ class IndexManager {
 		std::map<std::string, FragManager*> unigramFragManager;
 		std::map<std::string, FragManager*> bigramFragManager;
         std::map<std::string, FragManager*> trigramFragManager;
-        std::map<std::string, Frag::Item> doc_unigram_map;
-        std::map<std::string, Frag::Item> doc_bigram_map;
-        std::map<std::string, Frag::Item> doc_trigram_map;
+//        std::map<std::string, Frag::Item> doc_unigram_map;
+//        std::map<std::string, Frag::Item> doc_bigram_map;
+//        std::map<std::string, Frag::Item> doc_trigram_map;
 
 
         // these two bools control the status of running threads

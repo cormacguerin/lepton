@@ -65,7 +65,7 @@ void Session::do_read_body() {
 				} else {
 					std::cout << ec << std::endl;
 				}
-				free(req.body);
+				// free(req.body);
 	});
 }
 

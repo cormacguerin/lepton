@@ -30,30 +30,50 @@ void QueryServer::do_accept() {
             std::cout << "EC" << std::endl;
             std::cout << ec << std::endl;
         }
-            do_accept();
+        do_accept();
     });
 }
 
 std::string QueryServer::do_query(std::string body) {
     rapidjson::Document parsed_query;
     parsed_query.Parse(body.c_str());
-    std::string lang = parsed_query.FindMember("lang")->value.GetString();
-    std::string query = parsed_query.FindMember("query")->value.GetString();
+    std::string lang, query, filter;
+    
+    std::cout << body <<std::endl;
+
+    rapidjson::Value::ConstMemberIterator lit = parsed_query.FindMember("lang");
+    if (lit != parsed_query.MemberEnd()) {
+        lang = lit->value.GetString();
+    } else {
+        std::cout << "unable to parse query lang " << std::endl;
+    }
+    rapidjson::Value::ConstMemberIterator qit = parsed_query.FindMember("query");
+    if (qit != parsed_query.MemberEnd()) {
+        query = qit->value.GetString();
+    } else {
+        std::cout << "unable to parse query query " << std::endl;
+    }
+    rapidjson::Value::ConstMemberIterator fit = parsed_query.FindMember("filter");
+    if (fit != parsed_query.MemberEnd()) {
+        filter = fit->value.GetString();
+    } else {
+        std::cout << "unable to parse query filter " << std::endl;
+    }
+
     std::promise<std::string> promiseObj;
     std::future<std::string> futureObj = promiseObj.get_future();
-    indexServer.get()->execute(lang, query, std::move(promiseObj));
+    indexServer.get()->execute(lang, query, filter, std::move(promiseObj));
     return futureObj.get();
 }
 
-// we don't access shared resources so I think we shouldn't need the full implimentation. more at 
 // https://www.boost.org/doc/libs/1_69_0/doc/html/boost_asio/tutorial/tuttimer5.html
 void QueryServer::run() {
     do_accept();
     // io_context.run();
     std::cout << "Run QueryServer thread for " << database << " - " << table << std::endl;
     // printer p(io);
-    //do_accept();
-    //io_context.run();
+    // do_accept();
+    // io_context.run();
     std::thread t(std::bind(static_cast<size_t (asio::io_context::*)()>(&asio::io_context::run), &io_context));
     t.detach();
 

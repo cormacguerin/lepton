@@ -86,7 +86,7 @@ void Frag::loadRawFrag(std::string filename) {
     /*
        for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
        for (std::map<int, Frag::Item>::const_iterator vit = (it->second).begin() ; vit != (it->second).end(); ++vit) {
-       std::cout << filename << " : " << it->first << " : " << vit->first << " : " << (vit->second).url_id << std::endl;
+       std::cout << filename << " : " << it->first << " : " << vit->first << " : " << (vit->second).doc_id << std::endl;
        }
        }
        */
@@ -117,9 +117,9 @@ void Frag::loadJsonFrag(std::string filename) {
             //				std::cout << "frag.cc  nc : " << jtit->name.GetString() << std::endl;
             for (rapidjson::Value::ConstMemberIterator jtit_ = jtit->value.MemberBegin(); jtit_ != jtit->value.MemberEnd(); ++jtit_) {
                 //					std::cout << "TEST " << jtit_->name.GetString() << std::endl;
-                if (strcmp(jtit_->name.GetString(),"url_id")==0) {
-                    //						std::cout << "frag.cc  url_id : " << jtit_->value.GetInt() << std::endl;
-                    item.url_id=jtit_->value.GetInt();
+                if (strcmp(jtit_->name.GetString(),"doc_id")==0) {
+                    //						std::cout << "frag.cc  doc_id : " << jtit_->value.GetInt() << std::endl;
+                    item.doc_id=jtit_->value.GetInt();
                 }
                 if (strcmp(jtit_->name.GetString(),"tf")==0) {
                     //						std::cout << "frag.cc  tf : " << jtit_->value.GetDouble() << std::endl;
@@ -272,7 +272,7 @@ void Frag::serializeJSON(rapidjson::Document &serialized_frag) {
         for (tit = it->second.begin(); tit != it->second.end(); tit++) {
             rapidjson::Value item_;
             item_.SetObject();
-            item_.AddMember("url_id", rapidjson::Value().SetInt((tit->second).url_id), allocator);
+            item_.AddMember("doc_id", rapidjson::Value().SetInt((tit->second).doc_id), allocator);
             item_.AddMember("tf", rapidjson::Value().SetDouble((tit->second).tf), allocator);
             item_.AddMember("weight", rapidjson::Value().SetDouble((tit->second).weight), allocator);
             fragItem_.AddMember(rapidjson::Value(const_cast<char*>(std::to_string(tit->first).c_str()), allocator).Move(), item_, allocator);
@@ -389,7 +389,7 @@ void Frag::insert(std::string s, std::map<int,Frag::Item> m) {
        std::cout << "s" << std::endl;
        std::cout << s << std::endl;
        for (std::map<int, Frag::Item>::iterator it = m.begin(); it != m.end(); ++it) {
-         std::cout << " m : " << it->first << " : "  << it->second.url_id << std::endl;
+         std::cout << " m : " << it->first << " : "  << it->second.doc_id << std::endl;
        }
     */
        

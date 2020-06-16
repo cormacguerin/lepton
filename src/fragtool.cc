@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
   /*
 	for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
 		for (std::map<int, Frag::Item>::const_iterator vit = (it->second).begin() ; vit != (it->second).end(); ++vit) {
-			std::cout << "term : " << it->first << " : url_id : " << vit->second.url_id << std::endl;
+			std::cout << "term : " << it->first << " : doc_id : " << vit->second.doc_id << std::endl;
 		}
 	}
   */

@@ -296,7 +296,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 					Frag::Item frag_term;
 					if ((git->first).size() == 1 && git->second.size() > 0) {
 						double tf = (double)git->second.size()/sqrt(gramcount);
-						frag_term.url_id = atoi(id.c_str());
+						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
 						doc_unigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
@@ -311,7 +311,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 						// unsure about this, should we compensate for fequency with ngrams..
 						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
 						double tf = (double)git->second.size()/sqrt((gramcount));
-						frag_term.url_id = atoi(id.c_str());
+						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
 						doc_bigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
@@ -324,7 +324,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 					if ((git->first).size() > 2 && git->second.size() > 2) {
 						// same as above.
 						double tf = (double)git->second.size()/sqrt((gramcount));
-						frag_term.url_id = atoi(id.c_str());
+						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
 						doc_trigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));

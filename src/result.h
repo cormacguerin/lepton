@@ -60,7 +60,7 @@ class Result {
 			double docscore;
 			double score;
 			double wscore;
-			int url_id;
+			int doc_id;
 			std::string lang;
 			std::string url;
 			std::string snippet;
