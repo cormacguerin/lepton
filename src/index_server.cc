@@ -306,6 +306,10 @@ void IndexServer::getResultInfo(Result& result) {
 
 void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidates) {
 
+    if (filter == "") {
+      return;
+    }
+
     if (candidates.size() == 0) {
       return;
     }

@@ -29,16 +29,16 @@ struct Message;
 template<class T>
 struct Message<true, T> : BaseMessage {
 	const bool decode_message() {
-		// std::cout << "message.h : header "<< header << std::endl;
+		std::cout << "message.h : header "<< header << std::endl;
 		strncpy(len, header+strlen("length:"), 13);
-		// std::cout << "message.h : message len " << len << std::endl;
+		std::cout << "message.h : message len " << len << std::endl;
 		if (body_length > max_body_length) {
 			body_length = 0;
 			return false;
 		} else {
 			body_length = atoi(len);
-			// std::cout << "message.h : request message body_length " << body_length << std::endl;
-			body = (char*)malloc(body_length);
+		    std::cout << "message.h : request message body_length " << body_length << std::endl;
+			body = (char*)malloc((body_length+1)*sizeof(char));
 			// memset(body, 0, sizeof body);
 			body[body_length] = '\0';
 			return true;
@@ -52,15 +52,11 @@ template<class T>
 struct Message<false, T> : BaseMessage {
 	const bool encode_message(std::string msg) {
 		if (body_length > max_body_length) {
-//			body_length = 0;
 			return false;
 		} else {
 			body = msg;
-			//body_length = strlen(msg);
-//			body = (char*)malloc(body_length);
-			//memset(body, 0, sizeof body);
 //			memcpy(body, msg, body_length);
-			//body[body_length] = '\0';
+//			body[body_length] = '\0';
 			return true;
 		}
 	}

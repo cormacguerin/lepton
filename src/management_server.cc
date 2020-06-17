@@ -46,7 +46,7 @@ void ManagementServer::do_accept() {
             sptr->set_callback(std::bind(&ManagementServer::do_management, this, std::placeholders::_1));
             sptr->do_read_header();
         } else {
-            std::cout << "EC" << std::endl;
+            std::cout << "management_server.cc EC" << std::endl;
             std::cout << ec << std::endl;
         }
         do_accept();

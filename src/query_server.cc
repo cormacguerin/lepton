@@ -22,12 +22,12 @@ QueryServer::~QueryServer()
 void QueryServer::do_accept() {
     acceptor_.async_accept([this](std::error_code ec, asio::ip::tcp::socket socket) {
         if (!ec) {
-            std::cout << "accept" << std::endl;
+            std::cout << "query_server.cc accept" << std::endl;
             std::shared_ptr sptr = std::make_shared<Session>(std::move(socket));
             sptr->set_callback(std::bind(&QueryServer::do_query, this, std::placeholders::_1));
             sptr->do_read_header();
         } else {
-            std::cout << "EC" << std::endl;
+            std::cout << "query_server.cc EC" << std::endl;
             std::cout << ec << std::endl;
         }
         do_accept();
@@ -36,40 +36,47 @@ void QueryServer::do_accept() {
 
 std::string QueryServer::do_query(std::string body) {
     rapidjson::Document parsed_query;
+    std::cout << " DEBUG query_server.cc - body.length() " << body.length() << std::endl;
+    std::cout << " DEBUG query_server.cc - " << body.c_str() << " - " << std::endl;
+    const char* m = body.c_str();
+    std::cout << " DEBUG query_server.cc - m - " << m << " - " << std::endl;
     parsed_query.Parse(body.c_str());
+    std::cout << " DEBUG query_server.cc - x - " << std::endl;
+
     std::string lang, query, filter;
     
-    std::cout << body <<std::endl;
+    std::cout << "query_server.cc body " << body <<std::endl;
 
     rapidjson::Value::ConstMemberIterator lit = parsed_query.FindMember("lang");
     if (lit != parsed_query.MemberEnd()) {
         lang = lit->value.GetString();
     } else {
-        std::cout << "unable to parse query lang " << std::endl;
+        std::cout << "query_server.cc unable to parse query lang " << std::endl;
     }
     rapidjson::Value::ConstMemberIterator qit = parsed_query.FindMember("query");
     if (qit != parsed_query.MemberEnd()) {
         query = qit->value.GetString();
     } else {
-        std::cout << "unable to parse query query " << std::endl;
+        std::cout << "query_server.cc unable to parse query query " << std::endl;
     }
     rapidjson::Value::ConstMemberIterator fit = parsed_query.FindMember("filter");
     if (fit != parsed_query.MemberEnd()) {
         filter = fit->value.GetString();
     } else {
-        std::cout << "unable to parse query filter " << std::endl;
+        std::cout << "query_server.cc unable to parse query filter " << std::endl;
     }
 
     std::promise<std::string> promiseObj;
+    std::cout << " DEBUG query_server.cc - about to get futureObj " << std::endl;
     std::future<std::string> futureObj = promiseObj.get_future();
     indexServer.get()->execute(lang, query, filter, std::move(promiseObj));
+    std::cout << " DEBUG query_server.cc - done indexServer.get " << std::endl;
     return futureObj.get();
 }
 
 // https://www.boost.org/doc/libs/1_69_0/doc/html/boost_asio/tutorial/tuttimer5.html
 void QueryServer::run() {
     do_accept();
-    // io_context.run();
     std::cout << "Run QueryServer thread for " << database << " - " << table << std::endl;
     // printer p(io);
     // do_accept();

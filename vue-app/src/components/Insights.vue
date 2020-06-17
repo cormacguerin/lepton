@@ -97,7 +97,7 @@
             >
               <CDropdown
                 ref="tableDropDown"
-                toggler-text="equals"
+                :toggler-text="selectedOperator"
                 title="operator"
               >
                 <CDropdownItem
@@ -121,8 +121,8 @@
             </div>
             <CButton
               color="info"
-              @click="addFilter"
               class="addfilter active"
+              @click="addFilter"
             >
               Add
             </CButton>
@@ -143,12 +143,11 @@
           <div
             class="filter"
           >
-            {{f.key}} : {{f.operator}} : {{f.value}}
+            {{ f.key }} : {{ f.operator }} : {{ f.value }}
           </div>
           <div
             class="deletefilter"
-          >
-          </div>
+          />
         </flex-row>
       </div>
     </flex-row>
@@ -200,7 +199,7 @@ export default {
       results: [],
       selectedDatabase: 'select',
       selectedTable: 'select',
-      filterOperator: 'equals',
+      selectedOperator: 'equals',
       addFilterModal: false,
       error: '',
       tables: [],
@@ -249,11 +248,11 @@ export default {
       console.log(l)
     },
     addFilter () {
-      if (this.filterKey && this.filterValue && this.filterOperator) {
+      if (this.filterKey && this.filterValue && this.selectedOperator) {
         var filter = {
           key: this.filterKey,
           value: this.filterValue,
-          operator: this.filterOperator
+          operator: this.selectedOperator
         }
       }
       this.filters.push(filter)
@@ -287,7 +286,7 @@ export default {
     },
     selectOperator (o) {
       if (o) {
-        this.filterOperator = o
+        this.selectedOperator = o
       }
     }
   }
