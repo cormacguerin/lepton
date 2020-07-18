@@ -208,6 +208,31 @@ app.get('/api/deleteColumn', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
+app.get('/api/addModel', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  var id = queryData.id;
+  var model = queryData.model;
+  var language = queryData.language;
+  var program = queryData.program;
+  var dataset = queryData.dataset;
+  console.log("id")
+  console.log(id)
+  if (parseInt(id)) {
+    data.saveModel(req.user_id, id, language, model, program, dataset, function(r) {
+      res.json(r);
+    });
+  } else {
+    data.addModel(req.user_id, language, model, function(r) {
+      res.json(r);
+    });
+  }
+});
+app.get('/api/getModels', user.authorize, function(req,res,next) {
+  var queryData = url.parse(req.url, true).query;
+  data.getModels(req.user_id, function(d) {
+    res.json(d);
+  });
+});
 app.get('/api/createMemoryTable', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   if (!(queryData.database && queryData.table && queryData.column && queryData.datatype)) {
@@ -448,7 +473,6 @@ app.post('/addTableData', user.authorizeApi, function(req, res, next) {
   }
 });
 
-
 /*
  * Search for a document
  * TODO there is a lot of duplication and stuff here that could be cleaned up
@@ -457,6 +481,7 @@ app.get('/search', user.authorize, function(req, res, next) {
   try {
     console.log(req)
     var queryData = url.parse(req.url, true).query;
+    queryData.type = "search";
     // vuejs adds stupid brackets on array so we need to check.
     if (queryData["filter[]"]) {
       queryData.filter = queryData["filter[]"];
@@ -471,49 +496,17 @@ app.get('/search', user.authorize, function(req, res, next) {
       console.log('queryServers');
       console.log(queryServers);
       if (Object.keys(queryServers).length === 0) {
-        getStats(function() {
-          if (queryServers[database]) {
-            if (queryServers[database][table]) {
-              execute(queryData,queryServers[database][table].port,function(r) {
-                res.json(r);
-              });
-            } else {
-              res.json({});
-            }
-          } else {
-            res.json({});
-          }
-        });
+        doGetStats(database,table,queryData,res);
       } else if (queryServers[database]) {
         if (queryServers[database][table]) {
           execute(queryData,queryServers[database][table].port,function(r) {
             res.json(r);
           });
         } else {
-          getStats(function() {
-            if (queryServers[database][table]) {
-              execute(queryData,queryServers[database][table].port,function(r) {
-                res.json(r);
-              });
-            } else {
-              res.json({});
-            }
-          });
+          doGetStats(database,table,queryData,res);
         }
       } else {
-        getStats(function() {
-          if (queryServers[database]) {
-            if (queryServers[database][table]) {
-              execute(queryData,queryServers[database][table].port,function(r) {
-                res.json(r);
-              });
-            } else {
-              res.json({});
-            }
-          } else {
-            res.json({});
-          }
-        })
+        doGetStats(database,table,queryData,res);
       }
     }
   } catch(e) {
@@ -522,6 +515,65 @@ app.get('/search', user.authorize, function(req, res, next) {
     return;
   }
 });
+
+/*
+ * Search for a document
+ * TODO there is a lot of duplication and stuff here that could be cleaned up
+ */
+app.get('/suggest', user.authorize, function(req, res, next) {
+  try {
+    console.log(req)
+    var queryData = url.parse(req.url, true).query;
+    queryData.type = "suggest";
+    // vuejs adds stupid brackets on array so we need to check.
+    if (queryData["filter[]"]) {
+      queryData.filter = queryData["filter[]"];
+    }
+    var database = req.user_id + "_" + queryData.database;
+    var table = queryData.table;
+    var socket = new net.Socket();
+    if (!queryData.query) {
+      res.json({"error":"no query"});
+      return;
+    } else {
+      console.log('queryServers');
+      console.log(queryServers);
+      if (Object.keys(queryServers).length === 0) {
+        doGetStats(database,table,queryData,res);
+      } else if (queryServers[database]) {
+        if (queryServers[database][table]) {
+          execute(queryData,queryServers[database][table].port,function(r) {
+            res.json(r);
+          });
+        } else {
+          doGetStats(database,table,queryData,res);
+        }
+      } else {
+        doGetStats(database,table,queryData,res);
+      }
+    }
+  } catch(e) {
+    res.send({"error":"\""+e+"\""});
+    console.log(e);
+    return;
+  }
+});
+
+function doGetStats(database,table,queryData,res) {
+  getStats(function() {
+    if (queryServers[database]) {
+      if (queryServers[database][table]) {
+        execute(queryData,queryServers[database][table].port,function(r) {
+          res.json(r);
+        });
+      } else {
+        res.json({});
+      }
+    } else {
+      res.json({});
+    }
+  })
+}
 
 app.get('/manage', function(req, res, next) {
   try {
@@ -543,6 +595,7 @@ function getStats(callback) {
   console.log('getStats');
   execute({'query':'stats'}, 3333, function(r) {
     if (r['error']) {
+      console.log(r);
       console.log('getStats error');
       return callback();
     }
@@ -564,12 +617,8 @@ function toggleServing(database, table, callback) {
 
 function execute(queryData, port, callback) {
   var tmpQuery = {}
-  tmpQuery.query = queryData.query;
-  tmpQuery.filter = queryData.filter;
-  tmpQuery.lang = "en";
-  internalQuery = JSON.stringify(tmpQuery);
-  console.log('internalQuery')
-  console.log(internalQuery)
+  queryData.lang = "en";
+  internalQuery = JSON.stringify(queryData);
 
   var socket = new net.Socket();
   socket.connect(port, '127.0.0.1', function() {
@@ -636,6 +685,8 @@ app.use('/dashboard/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/apikeys/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/indexing/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/serving/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/models/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/inference/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/insights/', express.static(__dirname + '/vue-app/dist/'));
 // web root
 app.use('/', express.static(__dirname + '/vue-app/dist/'));

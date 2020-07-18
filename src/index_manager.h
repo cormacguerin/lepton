@@ -31,9 +31,7 @@ class IndexManager {
 
 
         // these two bools control the status of running threads
-        // process_feeds - the actual process feeds run status.
         // merge_frags - the actual merge frags run status.
-        bool process_feeds;
         bool merge_frags;
 
 	public:

@@ -313,12 +313,13 @@ console.log("promises finished in " + totaltime + "ms");
       + table
       + "\" ("
       + "language VARCHAR(2),"
+      + "url VARCHAR(2048) PRIMARY KEY,"
       + "title VARCHAR(2048),"
       + "status VARCHAR(64),"
       + "last_modified TIMESTAMP,"
       + "document text,"
       + "metadata jsonb,"
-      + "lt_id SERIAL PRIMARY KEY,"
+      + "lt_id SERIAL UNIQUE,"
       + "lt_uuid uuid,"
       + "lt_docscore real,"
       + "lt_tdscore real,"
@@ -558,7 +559,9 @@ console.log("promises finished in " + totaltime + "ms");
         results: []
       }
       // set the current feed_date
-      data['lt_feed_date'] = 'NOW()::TIMESTAMP';
+      for (var i=0; i<data.length; i++) {
+        data[i]['lt_feed_date'] = "NOW()";
+      }
 
       var keys = Object.keys(data[0]);
       var insert_prep = '';
@@ -594,7 +597,8 @@ console.log("promises finished in " + totaltime + "ms");
         + values_prep 
         + ";"
 
-      console.log(statement);
+      // console.log(statement);
+      // console.log(data);
       this_.batch_execute(statement, data, function(e,r) {
         var this__ = this_;
         if (e) {
@@ -918,6 +922,42 @@ console.log("promises finished in " + totaltime + "ms");
     var query = "UPDATE text_tables_index SET display_field = $3 WHERE id = (SELECT id FROM tables where database = $1 AND tablename = $2 AND owner = $4)"
 
     var values = [d,t,df,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  addModel(u,l,m, callback) {
+    var query = "INSERT INTO ml_models(model,language,owner) VALUES($1,$2,$3)"
+
+    var values = [m,l,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  saveModel(u,i,l,m,p,d, callback) {
+    var query = "UPDATE ml_models(model,language,program,dataset) VALUES($1,$2,$3,$4) WHERE owner = $5 and id = $6"
+
+    var values = [m,l,p,d,u,i]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  getModels(u, callback) {
+    var query = "SELECT * FROM ml_models WHERE u = $1"
+
+    var values = [u]
 
     this.execute(query, values, function(e,r) {
       console.log(e);

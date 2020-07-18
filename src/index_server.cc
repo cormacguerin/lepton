@@ -19,8 +19,7 @@ using namespace pqxx;
 
 IndexServer::IndexServer(std::string database, std::string table)
 {
-	q = 0;
-	x = 0;
+	_q_ = 0;
     db = database;
     tb = table;
     init();
@@ -59,7 +58,10 @@ void IndexServer::run() {
             } else {
                 continue;
             }
-            loadIndex("uni", *lit);
+            loadIndex(Frag::Type::UNIGRAM, *lit);
+            loadIndex(Frag::Type::BIGRAM, *lit);
+            loadIndex(Frag::Type::TRIGRAM, *lit);
+            buildSuggestions(*lit);
         }
         status = "serving";
     }
@@ -72,11 +74,20 @@ void IndexServer::run() {
 /*
  * load the index files for the specified ngram and language into the map
  */
-void IndexServer::loadIndex(std::string ng, std::string lang) {
+void IndexServer::loadIndex(Frag::Type type, std::string lang) {
+    std::string ng;
+    if (type == Frag::Type::UNIGRAM) {
+      ng = "uni";
+    }
+    if (type == Frag::Type::BIGRAM) {
+      ng = "bi";
+    }
+    if (type == Frag::Type::TRIGRAM) {
+      ng = "tri";
+    }
 
 	time_t beforeload = getTime();
 	std::cout << "loading index " << lang << " ... (this might take a while)." << std::endl;
-
 
 	std::vector<std::string> index_files;
 
@@ -120,10 +131,10 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	  for (std::vector<std::string>::iterator it = index_files.begin(); it != index_files.end(); ++it) {
 	    std::cout << *it << std::endl;
 		int frag_id = stoi((*it).substr((*it).find('.')-5,(*it).find('.')));
-		Frag frag(Frag::Type::UNIGRAM, frag_id, 1, path + lang);
+		Frag frag(type, frag_id, 1, path + lang);
 		frag.addToIndex(unigramurls_map[lang], m);
         percent_loaded[lang]=std::ceil((counter++/index_files.size())*100);
-		std::cout << counter <<" percent_loaded " << lang << " " << percent_loaded[lang] << std::endl;
+		std::cout << counter << " percent_loaded " << lang << " " << percent_loaded[lang] << std::endl;
 	  }
 	}
 
@@ -193,12 +204,17 @@ void IndexServer::loadIndex(std::string ng, std::string lang) {
 	*/
 }
 
-void IndexServer::execute(std::string lang, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj) {
+void IndexServer::execute(std::string lang, std::string type, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj) {
 
 	time_t beforeload = getTime();
 
-	std::thread t(search, lang, parsed_query, filter, std::move(promiseObj), this, queryBuilder);
-	t.detach();
+    if (type == "search") {
+	    std::thread t(search, lang, parsed_query, filter, std::move(promiseObj), this, queryBuilder);
+	    t.detach();
+    } else if (type == "suggest") {
+	    std::thread t(suggest, lang, parsed_query, filter, std::move(promiseObj), this);
+	    t.detach();
+    }
 
 	time_t afterload = getTime();
 	double seconds = difftime(afterload, beforeload);
@@ -275,6 +291,78 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
 	std::cout << "index_server.cc getResultInfo " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
 
 	promiseObj.set_value(result.serialize());
+}
+
+/*
+ * similar to above but we scan for potential suggestions.
+ */
+void IndexServer::suggest(std::string lang, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj, IndexServer *indexServer) {
+
+	time_t beforeload = indexServer->getTime();
+	time_t afterload = indexServer->getTime();
+	double seconds = difftime(afterload, beforeload);
+    std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator sit = indexServer->suggestions[lang].find(parsed_query);
+	if (sit != indexServer->suggestions[lang].end()) {
+        rapidjson::Document suggest_response;
+        suggest_response.Parse("{}");
+        rapidjson::Document::AllocatorType& allocator = suggest_response.GetAllocator();
+        rapidjson::Value suggest_array(rapidjson::kArrayType);
+        for (std::vector<std::pair<std::string,int>>::const_iterator it = sit->second.begin(); it != sit->second.end(); it++) {
+            std::cout << it->first << std::endl;
+            suggest_array.PushBack(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), allocator);
+        }
+        suggest_response.AddMember("suggestions", rapidjson::Value(suggest_array, allocator).Move(), allocator);
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        suggest_response.Accept(writer);
+        promiseObj.set_value((std::string)buffer.GetString());
+    } else {
+        promiseObj.set_value("");
+    }
+}
+
+/*
+ * build suggestions
+ */
+void IndexServer::buildSuggestions(std::string lang) {
+    int j = 0;
+    std::cout << "unigramurls_map[lang].size() " << unigramurls_map[lang].size() << std::endl;
+    for (phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[lang].begin(); urls != unigramurls_map[lang].end(); urls++) {
+        if (urls->second.size() > 1) {
+            // std::map<std::string, std::map<std::string, std::vector<std::pair<std::string,int>>>> suggestions;
+            for (int i=1; i<urls->first.length(); i++) {
+                std::string sug = (urls->first).substr(0,i);
+                // std::cout << "sug " << sug << std::endl;
+                if (suggestions[lang][sug].size() == 0) {
+                    suggestions[lang][sug].push_back(std::pair<std::string,int>(urls->first,urls->second.size()));
+                } else {
+                    int index = 0;
+                    int place = 0;
+                    for (std::vector<std::pair<std::string,int>>::iterator it = suggestions[lang][sug].begin(); it != suggestions[lang][sug].end(); it++) {
+                        // std::cout << sug << " it->first " << it->first << " it->second " << it->second << std::endl;
+                        // std::cout << sug << " urls->first " << urls->first << " urls->second " << urls->second.size() << std::endl;
+                        if (it->second < urls->second.size()) {
+                            if (it->first == urls->first) {
+                                it->second = urls->second.size();
+                            } else {
+                                suggestions[lang][sug].insert(suggestions[lang][sug].begin()+place, std::pair<std::string,int>(urls->first,urls->second.size()));
+                                // std::cout << "suggestions[lang][sug].size " << suggestions[lang][sug].size() << std::endl;
+                                if (suggestions[lang][sug].size() == 11) {
+                                    suggestions[lang][sug].pop_back();
+                                }
+                            }
+                            break;
+                        }
+                        index++;
+                    }
+                }
+            }
+        }
+        j++;
+        if (j%1000 == 0) {
+          std::cout << j << " loading suggestions " << ((float)j*100/unigramurls_map[lang].size()) << " % " << std::endl;
+        }
+    }
 }
 
 /*
@@ -477,7 +565,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		return result;
 	}
 
-	q++;
+	_q_++;
 	int p = 0;
 	std::string prepstr="(";
 	pqxx::work txn(*C);
@@ -507,7 +595,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		x++;
 	}
 
-	C->prepare("get_docinfo"+q,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE d.lt_id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr);
+	C->prepare("get_docinfo"+_q_,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE d.lt_id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr);
     std::cout << "prepstr_ " << prepstr_ << std::endl;
     std::cout << "prepstr " << prepstr << std::endl;
 
@@ -518,7 +606,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 	time_t beforeload = getTime();
 	time_t getResultTime = 0;
 
-	pqxx::prepare::invocation w_invocation = txn.prepared("get_docinfo"+q);
+	pqxx::prepare::invocation w_invocation = txn.prepared("get_docinfo"+_q_);
 	prep_dynamic(terms, w_invocation);
 	pqxx::result r = w_invocation.exec();
 
@@ -764,6 +852,7 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 				std::vector<Frag::Item> new_candidates;
 				// AND/OR is counter intuitive, AND means intersect of results while OR is union.
 				if (query.op==Query::Operator::AND) {
+                    std::cout << "DEBUG AND " << candidates_.size() << std::endl;
 					for (std::vector<Frag::Item>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
 						// introduce AND , OR logic here.
 						auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Frag::Item r) {
@@ -778,9 +867,17 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 					if (new_candidates.empty()) {
 						node_candidates.clear();
 					} else {
-						node_candidates = new_candidates;
+                        auto the_end = query.leafNodes.end();
+                        --the_end;
+                        if (it != the_end) {
+                            std::cout << "DEBUG - not the end" << std::endl;
+						    node_candidates = new_candidates;
+                        } else {
+                            std::cout << "DEBUG - the end" << std::endl;
+                        }
 					}
 				} else if (query.op==Query::Operator::OR) {
+                    std::cout << "DEBUG OR " << candidates_.size() << std::endl;
 					for (std::vector<Frag::Item>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
 						// introduce AND , OR logic here.
 						auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Frag::Item r) {

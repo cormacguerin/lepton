@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import base64
-import datetime
 import json
 import pycurl
 import re
@@ -13,7 +12,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Comment
 from multiprocessing.dummy import Pool as ThreadPool
 import hmac
-import datetime
+from datetime import datetime
 from os import path
 from argparse import ArgumentParser
 from hashlib import sha256
@@ -48,7 +47,7 @@ starturls = []
 urlpatterns = []
 geturls = set([])
 goturls = set([])
-num_threads = 5
+num_threads = 4
 
 # The following values are used in the request authorization signing process
 # Please update as necessary (ie create an api key on the frontend and copy
@@ -59,9 +58,9 @@ num_threads = 5
 # Request Method, Host and Path. Path is the api endpoint including leading forward slash
 
 KeyId = '2'
-KeyName = 'wikipieda'
+KeyName = 'demo'
 ApiScope = 'data'
-SecretKey = 'ZDH3A2H4-EJLMAMLZ-ZZG5Y243-A3G2CJN3'
+SecretKey = 'BJYYDW94-ZMC3YWI1-NWDSNDG1-CTE3YWPJ'
 Method = 'POST'
 Host = 'cormac.io'
 Path = '/addTableData'
@@ -160,11 +159,11 @@ def runCrawl(url):
                 geturls.remove(url);
 
             # UTC date
-            Date = datetime.datetime.utcnow()
+            Date = datetime.utcnow()
             Timestamp = Date.strftime('%Y%m%dT%H%M%SZ')
             Datestamp = Date.strftime('%Y%m%d')
 
-            # required headers (for signing) are date, content-tpye and host (note headers need to be sorted by code point)
+            # required headers (for signing) are date-tpye and host (note headers need to be sorted by code point)
             Headers = { 'Content-Type': 'application/json', 'Accept-Charset': 'UTF-8', 'Date': Timestamp, 'Host': Host }
 
             Headers['Authorization']  = genSignature(Headers, Datestamp)
@@ -172,7 +171,7 @@ def runCrawl(url):
             # print(' - Headers')
             # print(Headers)
 
-            base_url = 'https://35.239.29.200/addTableData?'
+            base_url = 'https://34.67.102.230/addTableData?'
             post_url = base_url + urllib.parse.urlencode(Params, quote_via=urllib.parse.quote)
 
             FormattedHeaders = ([':'.join((k,v)) for k, v in Headers.items()])
@@ -182,10 +181,15 @@ def runCrawl(url):
 
             c = pycurl.Curl()
             c.setopt(c.URL, post_url)
+            c.setopt(c.FOLLOWLOCATION, 1)
             c.setopt(c.SSL_VERIFYPEER, 0)
             c.setopt(c.SSL_VERIFYHOST, 0)
             c.setopt(c.HTTPHEADER, FormattedHeaders)
             # c.setopt(c.POSTFIELDS, json.dumps(data))
+            if data:
+                print(data)
+            else:
+                return
             c.setopt(c.POSTFIELDS, data)
 
             try:
@@ -230,11 +234,43 @@ def buildPayload(url, soup, head):
     text = text_from_html(soup)
     html = soup.find('html')
 
-    if soup.find('title') is None:
-        title = "";
-        return ""
+    if soup.find("meta",  property="og:title") is None:
+        title = ""
     else:
-        title = soup.find('title').text
+        title = soup.find("meta",  property="og:title")
+
+    if soup.find("meta",  property="og:url") is None:
+        url = ""
+    else:
+        url = soup.find("meta",  property="og:url")
+
+    if soup.find("meta",  property="og:type") is None:
+        type = ""
+    else:
+        type = soup.find("meta",  property="og:type")
+
+    if soup.find("meta", property="og:article:modified_time") is None:
+        published_date = ""
+    else:
+        published_date = soup.find("meta", property="og:article:modified_time")
+
+    if soup.find("meta", property="og:locale") is None:
+        return
+    else:
+        locale = soup.find("meta", property="og:locale")
+
+    if locale:
+        if locale["content"]:
+            language = locale["content"][0:2]
+        else:
+            return
+
+    metadata = {}
+    metadata["source"] = "reuters"
+    if type:
+        metadata["type"] = type["content"]
+    if published_date:
+        metadata["published_date"] = datetime.fromisoformat(published_date["content"][0:10]).timestamp()*1000
 
     divs = soup.find_all("div", class_="reflist")
     for d in divs:
@@ -254,7 +290,8 @@ def buildPayload(url, soup, head):
 
     lang = ''
     data = "";
-    data += title;
+    if title:
+        data += title["content"];
     data += text;
 
     try:
@@ -271,20 +308,31 @@ def buildPayload(url, soup, head):
         return None
 
     urldata = {}
-    urldata["url"] = url
+    if url:
+       urldata["url"] = url["content"]
+    else:
+        return None
     # urldata["shell"] = ""
     # urldata["tags"] = ""
-    urldata["title"] = title.strip()
-    urldata["metadata"] = ""
+    if title:
+        urldata["title"] = title["content"]
+    else:
+        return None
+
+
+
+
     urldata["last_modified"] = last_modified.strip()
+    urldata["language"] = language
     # urldata["crawl_date"] = ""
     # urldata["fetch_status"] = ""
     # urldata["crawl_language"] = lang
-    urldata["language"] = content_language.strip()
+    # urldata["language"] = content_language.strip()
     # urldata["content_type"] = content_type
     # urldata["encoding"] = "base64"
     # urldata["body"] = base64_string
     urldata["document"] = data.strip()
+    urldata["metadata"] = json.dumps(metadata)
     # data = {url:urldata}
     json_data = json.dumps(urldata)
     return json_data
@@ -305,18 +353,24 @@ def getUrl(url):
         'cache-control:max-age=0',
         ])
     c.setopt(c.HEADERFUNCTION, headers.write)
+    print('deb 0')
     try:
+        print('deb a')
         c.perform()
     except pycurl.error:
+        print('deb b')
         return None
     c.close()
     body = buffer.getvalue()
     head = headers.getvalue()
     try:
+        print('deb c')
         data = UrlData(body.decode('UTF-8'),head.decode('UTF-8'))
     except UnicodeEncodeError as e:
+        print('deb d')
         print(str(e))
         return None
+    print('deb e')
     return data
 
 

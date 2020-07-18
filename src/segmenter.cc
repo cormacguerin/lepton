@@ -8,7 +8,7 @@
 
 Segmenter::Segmenter()
 {
-#define N_GRAM_SIZE 3
+#define N_GRAM_SIZE 5
 #define IS_CJK false
 }
 

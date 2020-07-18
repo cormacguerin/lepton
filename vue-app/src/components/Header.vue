@@ -100,6 +100,34 @@
               <h2
                 class="nav-h2"
               >
+                Machine Learning |
+              </h2>
+              <div class="nav-menu-container">
+                <div class="nav-top-border">
+                  <div class="nav-top" />
+                </div>
+                <div class="nav-menu">
+                  <div
+                    class="nav-item"
+                    @click="gotoTab('models')"
+                  >
+                    Models
+                  </div>
+                  <div
+                    class="nav-item"
+                    @click="gotoTab('inference')"
+                  >
+                    Inference
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="nav-tab"
+            >
+              <h2
+                class="nav-h2"
+              >
                 Search |
               </h2>
               <div class="nav-menu-container">

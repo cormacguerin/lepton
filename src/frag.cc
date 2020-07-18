@@ -144,8 +144,9 @@ void Frag::loadJsonFrag(std::string filename) {
  * TODO, only update fragments that have been updated.
  */
 void Frag::addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index, std::mutex &m) {
+    usleep(20);
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-        usleep(1000);
+        usleep(1);
         // TODO this could be faster
         std::vector<Frag::Item> tmp;
         for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {

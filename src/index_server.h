@@ -23,8 +23,9 @@ class IndexServer {
         void init();
         void run();
         void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates);
-        void execute(std::string lang, std::string query, std::string filter, std::promise<std::string> promiseObj);
+        void execute(std::string lang, std::string type, std::string query, std::string filter, std::promise<std::string> promiseObj);
         static void search(std::string lang, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryParser);
+        static void suggest(std::string lang, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj, IndexServer *indexServer);
         std::vector<std::string> langs = {"en","ja","zh","ko","es","de","fr"};
         std::map<std::string,int> getServingInfo();
         std::map<std::string,int> getPercentLoaded();
@@ -32,14 +33,18 @@ class IndexServer {
         bool do_run;
 
     private:
+        // this is the reverse index
+        // a map of langages to a parallel flat hash map of terms(words) to fragments (url id and weight) 
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> unigramurls_map;
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> bigramurls_map;
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> trigramurls_map;
         std::map<std::string,int> percent_loaded;
+        // a map of languages to a map of strings (partial words)) to a map of suggestions (the int is the number of occurrences in the corpus)
+        std::map<std::string, std::map<std::string, std::vector<std::pair<std::string,int>>>> suggestions;
         std::string db;
         std::string tb;
-        int q;
-        int x;
+        int _q_;
+//        int x;
         pqxx::connection* C;
         pqxx::work* txn;
         std::vector<std::string> getDocInfo(int doc_id);
@@ -48,9 +53,10 @@ class IndexServer {
         void doFilter(std::string filter, std::vector<Frag::Item> &candidates);
         void getResultInfo(Result& result);
         pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
-        void loadIndex(std::string gram, std::string lang);
+        void loadIndex(Frag::Type type, std::string lang);
+        void buildSuggestions(std::string lang);
         QueryBuilder queryBuilder;
-        const int MAX_CANDIDATES_COUNT = 1000;
+        const int MAX_CANDIDATES_COUNT = 10000;
         int getTime();
 };
 

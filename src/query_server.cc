@@ -43,7 +43,7 @@ std::string QueryServer::do_query(std::string body) {
     parsed_query.Parse(body.c_str());
     std::cout << " DEBUG query_server.cc - x - " << std::endl;
 
-    std::string lang, query, filter;
+    std::string lang, query, filter, type;
     
     std::cout << "query_server.cc body " << body <<std::endl;
 
@@ -52,6 +52,12 @@ std::string QueryServer::do_query(std::string body) {
         lang = lit->value.GetString();
     } else {
         std::cout << "query_server.cc unable to parse query lang " << std::endl;
+    }
+    rapidjson::Value::ConstMemberIterator tit = parsed_query.FindMember("type");
+    if (tit != parsed_query.MemberEnd()) {
+        type = tit->value.GetString();
+    } else {
+        std::cout << "query_server.cc unable to parse query type " << std::endl;
     }
     rapidjson::Value::ConstMemberIterator qit = parsed_query.FindMember("query");
     if (qit != parsed_query.MemberEnd()) {
@@ -69,7 +75,7 @@ std::string QueryServer::do_query(std::string body) {
     std::promise<std::string> promiseObj;
     std::cout << " DEBUG query_server.cc - about to get futureObj " << std::endl;
     std::future<std::string> futureObj = promiseObj.get_future();
-    indexServer.get()->execute(lang, query, filter, std::move(promiseObj));
+    indexServer.get()->execute(lang, type, query, filter, std::move(promiseObj));
     std::cout << " DEBUG query_server.cc - done indexServer.get " << std::endl;
     return futureObj.get();
 }

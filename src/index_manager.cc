@@ -75,13 +75,6 @@ void IndexManager::spawnProcessFeeds() {
 
 void IndexManager::processFeeds() {
 
-    if (process_feeds == true) {
-        // ideally should never get here
-        return;
-    } else {
-        process_feeds = true;
-    }
-
     // start the merge frags thread if it's not already running
     if (merge_frags == false) {
         std::thread t(runFragMerge, this);
@@ -117,6 +110,8 @@ void IndexManager::processFeeds() {
         */
         //std::string statement = "SELECT lt_id,url,concat(" + columns + ") as document,language FROM \"" + table + "\" WHERE lt_id BETWEEN $1 AND $2 AND (lt_feed_date > lt_index_date OR lt_index_date IS null) LIMIT $3";
         std::string statement = "SELECT lt_id,url,concat(" + columns + ") as document,language FROM \"" + table + "\" WHERE (lt_feed_date > lt_index_date OR lt_index_date IS null) LIMIT $1";
+        std::cout << "statement" << std::endl;
+        std::cout << statement << std::endl;
 
         pqxx::work txn(*C);
         C->prepare("process_docs_batch", statement);
@@ -170,7 +165,6 @@ void IndexManager::processFeeds() {
         // sleep a few seconds, and try again
         usleep(5000000);
     }
-    process_feeds = false;
     std::cout << "finish process feeds" << std::endl;
     return;
 }
