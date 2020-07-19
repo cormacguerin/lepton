@@ -56,7 +56,7 @@ class IndexServer {
         void loadIndex(Frag::Type type, std::string lang);
         void buildSuggestions(std::string lang);
         QueryBuilder queryBuilder;
-        const int MAX_CANDIDATES_COUNT = 10000;
+        const int MAX_CANDIDATES_COUNT = 1000;
         int getTime();
 };
 

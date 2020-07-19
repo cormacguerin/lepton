@@ -4,7 +4,8 @@
 #include "texttools.h"
 
 static const std::string OperatorList[5] = { "TERM", "AND", "OR", "NOT", "RESTRICT" };
-static const std::string TypeList[4] = { "ORIGINAL", "SYNONYM", "CONCEPT" };
+static const std::string TypeList[3] = { "ORIGINAL", "SYNONYM", "CONCEPT" };
+static const std::string GramList[4] = { "UNIGRAM", "BIGRAM", "TRIGRAM", "NGRAM" };
 static const std::string ModifierList[5] = { "LITERAL", "CONFIDENCE", "COLLECTION", "SYNCONF", "STOPWORD" };
 
 Query::Query(bool root, std::string raw_query)
@@ -46,6 +47,9 @@ void Query::Node::serialize_(rapidjson::Document &serialized_query) {
 
 	if (!TypeList[this->term.type].empty()) {
 	       serialized_query.AddMember("type", rapidjson::Value(const_cast<char*>((TypeList[this->term.type]).c_str()), allocator).Move(), allocator);
+	}
+	if (!GramList[this->term.gram].empty()) {
+	       serialized_query.AddMember("gram", rapidjson::Value(const_cast<char*>((GramList[this->term.gram]).c_str()), allocator).Move(), allocator);
 	}
 	for (std::vector<std::pair<Modifier, AttributeValue>>::iterator it = this->term.mods.begin() ; it != this->term.mods.end(); ++it) {
 		if (it->first == Query::Modifier::STOPWORD) {
@@ -91,9 +95,10 @@ std::vector<std::string> Query::Node::getTerms() {
 void Query::Node::getTerms_(std::vector<std::string> &terms) {
 	std::cout << this->leafNodes.size() << std::endl;
 	std::cout << OperatorList[this->op] << std::endl;
-	if (this->op==Query::Operator::TERM) {
+	if (this->op==Query::Operator::TERM && this->term.gram==Query::Gram::UNIGRAM) {
 		std::string converted;
 		this->term.term.toUTF8String(converted);
+        std::cout << "get terms : " << converted << std::endl;
 		terms.push_back(converted);
 		for (std::vector<std::pair<Modifier, AttributeValue>>::iterator it = this->term.mods.begin() ; it != this->term.mods.end(); ++it) {
 			if (it->first == Query::Modifier::STOPWORD) {

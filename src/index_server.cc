@@ -252,6 +252,20 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
 	double seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc gathered " << candidates.size() << " candidates for " << parsed_query << " in " << seconds << " miliseconds." << std::endl;
 
+    // new
+	std::sort(candidates.begin(), candidates.end(),
+		[](const Frag::Item& l, const Frag::Item& r) {
+		return l.weight > r.weight;
+	});
+    std::vector<Frag::Item>::const_iterator bit = candidates.begin();
+    std::vector<Frag::Item>::const_iterator eit;
+    if (candidates.size() > indexServer->MAX_CANDIDATES_COUNT) {
+        eit = candidates.begin() + indexServer->MAX_CANDIDATES_COUNT;
+    } else {
+        eit = candidates.end();
+    }
+    candidates=std::vector(bit,eit);
+
     // filter the candidates against supplied filters
     // TODO ACLs can be done in the same way.
 	beforeload = indexServer->getTime();
@@ -806,7 +820,7 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 	if (query.leafNodes.empty()) {
 		std::string converted;
 		query.term.term.toUTF8String(converted);
-		std::cout << "index_server.cc - looking for " << converted << std::endl;
+		std::cout << "index_server.cc - looking for \'" << converted << "\'" << std::endl;
 
         // hard lock here, we want to always honor incoming queries.
         // TODO separately we will need to DOS protections
@@ -822,8 +836,8 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 			*/
 			std::vector<Frag::Item>::const_iterator bit = urls->second.begin();
 			std::vector<Frag::Item>::const_iterator eit;
-			if (urls->second.size() > MAX_CANDIDATES_COUNT) {
-				eit = urls->second.begin() + MAX_CANDIDATES_COUNT;
+			if (urls->second.size() > MAX_CANDIDATES_COUNT*10) {
+				eit = urls->second.begin() + MAX_CANDIDATES_COUNT*10;
 			} else {
 				eit = urls->second.end();
 			}

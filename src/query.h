@@ -36,6 +36,7 @@ class Query {
 
 		enum Operator { TERM=0, AND=1, OR=2, NOT=3, RESTRICT=4 };
 		enum Type { ORIGINAL=0, SYNONYM=1, CONCEPT=2 };
+        enum Gram { UNIGRAM=0, BIGRAM=1, TRIGRAM=2, NGRAM=3 };
 		enum Modifier { LITERAL=0, CONFIDENCE=1, COLLECTION=2, SYNCONF=3, STOPWORD=4 };
 
 //		static const std::string OperatorList[4];
@@ -51,6 +52,7 @@ class Query {
 
 		struct Term {
 			Type type;
+            Gram gram;
 			icu::UnicodeString term;
 			std::vector<std::pair<Modifier, AttributeValue>> mods;
 		};
