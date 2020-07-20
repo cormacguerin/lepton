@@ -47,7 +47,7 @@ starturls = []
 urlpatterns = []
 geturls = set([])
 goturls = set([])
-num_threads = 4
+num_threads = 1
 
 # The following values are used in the request authorization signing process
 # Please update as necessary (ie create an api key on the frontend and copy

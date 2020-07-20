@@ -70,8 +70,6 @@ app.get('/api/getServingInfo', user.authorize, function(req,res,next) {
   var queryData = url.parse(req.url, true).query;
   data.getIndexTables(req.user_id, function(d) {
     getStats(function(s) {
-      console.log('s');
-      console.log(s);
       if (s) {
         for (var i in d) {
           if (s[req.user_id + "_" +d[i].database]) {
@@ -83,7 +81,6 @@ app.get('/api/getServingInfo', user.authorize, function(req,res,next) {
           }
         }
       }
-      console.log(d);
       res.json(d);
     });
   });
@@ -215,8 +212,6 @@ app.get('/api/addModel', user.authorize, function(req, res, next) {
   var language = queryData.language;
   var program = queryData.program;
   var dataset = queryData.dataset;
-  console.log("id")
-  console.log(id)
   if (parseInt(id)) {
     data.saveModel(req.user_id, id, language, model, program, dataset, function(r) {
       res.json(r);
@@ -241,7 +236,6 @@ app.get('/api/createMemoryTable', user.authorize, function(req, res, next) {
   }
   data.createMemoryTable(req.user_id, queryData.database, queryData.table, queryData.column, queryData.datatype, function(r) {
     execute({'query':'toggle_serving','database':queryData.database,'table':queryData.table,'action':queryData.serving}, 3333, function(r_) {
-      console.log(r_);
       res.json(r);
     });
   });
@@ -264,7 +258,6 @@ app.get('/api/setServing', user.authorize, function(req, res, next) {
   }
   data.setServing(req.user_id, queryData.database, queryData.table, queryData.serving, function(r) {
     execute({'query':'toggle_serving','database':queryData.database,'table':queryData.table,'action':queryData.serving}, 3333, function(r_) {
-      console.log(r_);
       res.json(r);
     });
   });
@@ -479,7 +472,6 @@ app.post('/addTableData', user.authorizeApi, function(req, res, next) {
  */
 app.get('/search', user.authorize, function(req, res, next) {
   try {
-    console.log(req)
     var queryData = url.parse(req.url, true).query;
     queryData.type = "search";
     // vuejs adds stupid brackets on array so we need to check.
@@ -619,11 +611,18 @@ function execute(queryData, port, callback) {
   var tmpQuery = {}
   queryData.lang = "en";
   internalQuery = JSON.stringify(queryData);
+  console.log("internalQuery")
+  console.log(internalQuery)
 
   var socket = new net.Socket();
   socket.connect(port, '127.0.0.1', function() {
-    var data_length = internalQuery.length;
+    // var data_length = Array.from(internalQuery).length;
+    var data_length = Buffer.byteLength(internalQuery, 'utf8')
+    console.log("data length a " + internalQuery.length)
+    console.log("data length b " + data_length)
     var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":";
+    console.log("header")
+    console.log(header)
     socket.write(header.concat(internalQuery),'utf8', function(r) {
       console.log('socket.write');
       console.log(r);

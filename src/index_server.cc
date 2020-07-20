@@ -828,7 +828,7 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[query.lang].find(converted);
         m.unlock();
 		if (urls != unigramurls_map[query.lang].end()) {
-			std::cout << "index_server.cc Found " << urls->first << std::endl;
+			std::cout << "index_server.cc Found " << urls->second.size() << " candidates for " << urls->first << std::endl;
 			/*
 			for (std::vector<Frag::Item>::const_iterator it = (urls->second).begin() ; it != (urls->second).end(); ++it) {
 				std::cout << "index_server.cc - at " << (urls->second).begin() - it << " : " << it->doc_id << std::endl;
@@ -883,12 +883,12 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 					} else {
                         auto the_end = query.leafNodes.end();
                         --the_end;
-                        if (it != the_end) {
+//                        if (it != the_end) {
                             std::cout << "DEBUG - not the end" << std::endl;
 						    node_candidates = new_candidates;
-                        } else {
+//                        } else {
                             std::cout << "DEBUG - the end" << std::endl;
-                        }
+//                        }
 					}
 				} else if (query.op==Query::Operator::OR) {
                     std::cout << "DEBUG OR " << candidates_.size() << std::endl;

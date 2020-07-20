@@ -37,24 +37,26 @@ void QueryServer::do_accept() {
 std::string QueryServer::do_query(std::string body) {
     rapidjson::Document parsed_query;
     std::cout << " DEBUG query_server.cc - body.length() " << body.length() << std::endl;
-    std::cout << " DEBUG query_server.cc - " << body.c_str() << " - " << std::endl;
     const char* m = body.c_str();
-    std::cout << " DEBUG query_server.cc - m - " << m << " - " << std::endl;
     parsed_query.Parse(body.c_str());
-    std::cout << " DEBUG query_server.cc - x - " << std::endl;
 
     std::string lang, query, filter, type;
     
-    std::cout << "query_server.cc body " << body <<std::endl;
-
+    std::cout << "query_server.cc DEB 0 " << body <<std::endl;
+    std::cout << body.c_str() <<std::endl;
     rapidjson::Value::ConstMemberIterator lit = parsed_query.FindMember("lang");
+    std::cout << "query_server.cc DEB 1 " << body <<std::endl;
     if (lit != parsed_query.MemberEnd()) {
+        std::cout << "query_server.cc DEB 2 " << body <<std::endl;
         lang = lit->value.GetString();
     } else {
         std::cout << "query_server.cc unable to parse query lang " << std::endl;
     }
+    std::cout << "query_server.cc DEB 3 " << body <<std::endl;
     rapidjson::Value::ConstMemberIterator tit = parsed_query.FindMember("type");
+    std::cout << "query_server.cc DEB 4 " << body <<std::endl;
     if (tit != parsed_query.MemberEnd()) {
+    std::cout << "query_server.cc DEB 5 " << body <<std::endl;
         type = tit->value.GetString();
     } else {
         std::cout << "query_server.cc unable to parse query type " << std::endl;

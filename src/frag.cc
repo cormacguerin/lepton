@@ -316,15 +316,18 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
 
     std::string update_gram_idf;
     std::string gram;
+    float gram_boost = 1.0;
     if (prefix_type==Frag::Type::UNIGRAM){
         update_gram_idf = "update_unigram_idf";
         gram = "lt_unigrams";
     } else if (prefix_type==Frag::Type::BIGRAM){
         update_gram_idf = "update_bigram_idf";
         gram = "lt_bigrams";
+        gram_boost = 2.0;
     } else if (prefix_type==Frag::Type::TRIGRAM){
         update_gram_idf = "update_trigram_idf";
         gram = "lt_trigrams";
+        gram_boost = 3.0;
     } else {
         C->disconnect();
         delete C;
@@ -344,7 +347,7 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
 
         double idf = log((double)num_docs/(double)it->second.size());
         for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
-            tit->second.weight = idf*tit->second.tf;
+            tit->second.weight = idf*tit->second.tf*gram_boost;
         }
         pqxx::result r = txn.prepared(update_gram_idf)(std::to_string(idf))(it->first.c_str())(lang).exec();
         /*
