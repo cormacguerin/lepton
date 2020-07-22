@@ -15,6 +15,26 @@
         </a>
       </div>
     </flex-col>
+    <flex-row class="debug">
+      <div class="debugitem">
+        weight : {{ weight }}
+      </div>
+      <div class="debugitem">
+        tf : {{ tf }}
+      </div>
+      <div class="debugitem">
+        tdscore : {{ tdscore }}
+      </div>
+      <div class="debugitem">
+        wscore : {{ wscore }}
+      </div>
+      <div class="debugitem">
+        docscore : {{ docscore }}
+      </div>
+      <div class="debugitem">
+        score : {{ score }}
+      </div>
+    </flex-row>
   </div>
 </template>
 
@@ -36,12 +56,36 @@ export default {
     snippet: {
       type: String,
       default: ''
+    },
+    weight: {
+      type: String,
+      default: ''
+    },
+    tf: {
+      type: String,
+      default: ''
+    },
+    tdscore: {
+      type: String,
+      default: ''
+    },
+    wscore: {
+      type: String,
+      default: ''
+    },
+    docscore: {
+      type: String,
+      default: ''
+    },
+    score: {
+      type: String,
+      default: ''
     }
   }
 }
 </script>
 
-<style>
+<style scoped>
 .result-card-title {
     font-size: 1.2em;
     font-weight: bold;
@@ -62,5 +106,14 @@ a.result-link {
     text-decoration: underline;
     color: #efefef;
     font-weight: bold;
+}
+.debug {
+    margin-top: 10px;
+}
+.debugitem {
+    padding: 5px;
+    font-weight: bold;
+    background-color: white;
+    color: grey;
 }
 </style>

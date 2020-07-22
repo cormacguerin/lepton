@@ -101,3 +101,27 @@ CREATE TABLE api_scopes (
     _table INT REFERENCES tables (id) ON DELETE CASCADE
 );
 
+DROP TABLE IF EXISTS ml_models CASCADE;
+CREATE TABLE ml_models (
+    id serial PRIMARY KEY,
+    model VARCHAR (256) NOT NULL,
+    language VARCHAR (64) NOT NULL,
+    program TEXT,
+    dataset INT REFERENCES tables (id),
+    owner INT REFERENCES users (id) ON DELETE CASCADE NOT NULL,
+    UNIQUE (model, owner)
+);
+
+DROP TABLE IF EXISTS ml_trainings CASCADE;
+CREATE TABLE ml_trainings (
+    id serial PRIMARY KEY,
+    model INT REFERENCES ml_models(id),
+    name VARCHAR (256) NOT NULL,
+    status VARCHAR (256),
+    schedule VARCHAR (256),
+    run_date BIGINT,
+    options TEXT,
+    modelfile VARCHAR (256),
+    owner INT REFERENCES users (id) ON DELETE CASCADE NOT NULL
+);
+

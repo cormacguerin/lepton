@@ -208,9 +208,9 @@ console.log("promises finished in " + totaltime + "ms");
     var query = "CREATE DATABASE \""
       + database
       + "\" WITH owner postgres"
-      + " ENCODING 'UTF8'"
-      + " LC_COLLATE = 'en_US.UTF-8'"
-      + " LC_CTYPE = 'en_US.UTF-8';"
+      + " ENCODING 'UTF8'";
+    //  + " LC_COLLATE = 'en_US.UTF-8'"
+    //  + " LC_CTYPE = 'en_US.UTF-8';"
 
     var vm = this;
     this.execute(query, null, function(e,r) {
@@ -282,7 +282,9 @@ console.log("promises finished in " + totaltime + "ms");
       + column
       + "\""
       + getDataType(datatype)
-      + " PRIMARY KEY, lt_uuid uuid);"
+      + " PRIMARY KEY,"
+      + "lt_feed_date TIMESTAMP,"
+      + "lt_uuid uuid);"
 
     this.execute(query, null, function(e,r) {
       callback(e,r);
@@ -311,18 +313,19 @@ console.log("promises finished in " + totaltime + "ms");
       + table
       + "\" ("
       + "language VARCHAR(2),"
+      + "url VARCHAR(2048) PRIMARY KEY,"
       + "title VARCHAR(2048),"
       + "status VARCHAR(64),"
       + "last_modified TIMESTAMP,"
       + "document text,"
-      + "metadata text,"
-      + "lt_id SERIAL PRIMARY KEY,"
+      + "metadata jsonb,"
+      + "lt_id SERIAL UNIQUE,"
       + "lt_uuid uuid,"
       + "lt_docscore real,"
       + "lt_tdscore real,"
       + "lt_entities text,"
       + "lt_atf real,"
-      + "lt_crawl_date TIMESTAMP,"
+      + "lt_feed_date TIMESTAMP,"
       + "lt_index_date TIMESTAMP,"
       + "lt_update BOOL,"
       + "lt_segmented_grams jsonb);"
@@ -430,7 +433,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   getTableIndexStats(table, callback) {
-    var query = "SELECT COUNT(*) AS total, sum(case when lt_index_date IS NOT NULL then 1 else 0 end) AS indexed, sum(case when lt_index_date >= lt_crawl_date then 1 else 0 end) AS refreshed FROM \"" + table+ "\"";
+    var query = "SELECT COUNT(*) AS total, sum(case when lt_index_date IS NOT NULL then 1 else 0 end) AS indexed, sum(case when lt_index_date < lt_feed_date then 1 else 0 end) AS stale FROM \"" + table+ "\"";
     this.execute(query, null, function(e,r) {
       callback(e,r);
     });
@@ -555,6 +558,10 @@ console.log("promises finished in " + totaltime + "ms");
         errors: [],
         results: []
       }
+      // set the current feed_date
+      for (var i=0; i<data.length; i++) {
+        data[i]['lt_feed_date'] = "NOW()";
+      }
 
       var keys = Object.keys(data[0]);
       var insert_prep = '';
@@ -590,7 +597,8 @@ console.log("promises finished in " + totaltime + "ms");
         + values_prep 
         + ";"
 
-      console.log(statement);
+      // console.log(statement);
+      // console.log(data);
       this_.batch_execute(statement, data, function(e,r) {
         var this__ = this_;
         if (e) {
@@ -922,6 +930,42 @@ console.log("promises finished in " + totaltime + "ms");
     });
   }
 
+  addModel(u,l,m, callback) {
+    var query = "INSERT INTO ml_models(model,language,owner) VALUES($1,$2,$3)"
+
+    var values = [m,l,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  saveModel(u,i,l,m,p,d, callback) {
+    var query = "UPDATE ml_models(model,language,program,dataset) VALUES($1,$2,$3,$4) WHERE owner = $5 and id = $6"
+
+    var values = [m,l,p,d,u,i]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  getModels(u, callback) {
+    var query = "SELECT * FROM ml_models WHERE u = $1"
+
+    var values = [u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
   getApiKeys(u, callback) {
     var query = "SELECT api_keys.id, owner, name, concat(LEFT(key,5),'...'), api_scopes.api, (SELECT database FROM databases WHERE id = api_scopes.database), (SELECT tablename FROM tables WHERE id = api_scopes._table) AS table FROM api_keys FULL OUTER JOIN api_scopes ON api_keys.id = api_scopes.id WHERE owner = $1;"
 
@@ -947,16 +991,18 @@ console.log("promises finished in " + totaltime + "ms");
       key.scope = []
       const reg = /^[0-9]+_/gi;
       for (var i in r) {
-        key.id = r[i].id;
-        key.owner = r[i].owner;
-        key.name = r[i].name;
-        key.key = r[i].key;
-        var scope = {}
-        scope.api = r[i].api;
-        scope._database = r[i].database;
-        scope.database = r[i].database.replace(reg,'');
-        scope.table = r[i].table;
-        key.scope.push(scope);
+        if (r[i].id && r[i].key && r[i].database) {
+          key.id = r[i].id;
+          key.owner = r[i].owner;
+          key.name = r[i].name;
+          key.key = r[i].key;
+          var scope = {}
+          scope.api = r[i].api;
+          scope._database = r[i].database;
+          scope.database = r[i].database.replace(reg,'');
+          scope.table = r[i].table;    
+          key.scope.push(scope);
+        }
       }
       console.log('key')
       console.log(key)
@@ -1025,9 +1071,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   runQuery(q,callback) {
-    // var query = "SELECT " + c + " FROM " + t + ";"
-    // var query = "select customer.customer_name, count(keg.keg_status) FROM ag_e_keg AS keg INNER JOIN ag_e_customer AS customer on customer.customer_id = keg.keg_cache_is_shipment_is_customer_id GROUP BY customer_name, keg_status, keg_updated HAVING keg_status='Shipped' AND keg_updated < '2014-06-01' ORDER BY count(keg.keg_status) DESC";
-    var query = "select count(keg.keg_status), customer.customer_name FROM ag_e_keg AS keg INNER JOIN ag_e_customer AS customer on customer.customer_id = keg.keg_cache_is_shipment_is_customer_id GROUP BY customer_name, keg_status, keg_updated HAVING keg_status='Shipped' AND keg_updated < '2014-06-01' ORDER BY count(keg.keg_status) DESC LIMIT 50";
+    console.log(q);
 
     this.execute(q, null, function(e,r) {
       console.log(e);

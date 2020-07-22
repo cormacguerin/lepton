@@ -90,7 +90,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 @media (max-width: 576px) {
   .desktopNav {
     display: none!important;

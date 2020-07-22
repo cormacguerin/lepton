@@ -163,7 +163,7 @@ exports.getIndexTables = function(u,c) {
 //            var d = Object.assign({},r[x]);
             d.total = parseInt(s[0].total);
             d.indexed = parseInt(s[0].indexed);
-            d.refreshed = parseInt(s[0].refreshed);
+            d.refreshed = parseInt(s[0].stale);
             d.database = d.database.replace(re,'');
             reply.push(d);
             if (reply.length === r.length) {
@@ -188,7 +188,7 @@ exports.addDatabase = function(u,d,c) {
 		if (e){
 			console.log("unable to retrieve user_clients");
 			console.log(e);
-      c({status:'failed',error:e})
+            c({status:'failed',error:e})
 		} else {
       if (r.length === 0) {
         // add hidden search ngram tables (we do not register these so not visible by end user)
@@ -284,7 +284,7 @@ exports.createDataSetTable = function(u,d,t,q,callback) {
   }
   const db = u + '_' + d;
   initDB(db, function() {
-    db_pg[db].runQuery(u,q,function(err,r) {
+    db_pg[db].runQuery(q,function(err,r) {
       if (err){
         console.log("unable to create search table");
         console.log(err);
@@ -502,6 +502,42 @@ exports.setFTSDisplayField = function(u,d,t,df,callback) {
       }
     })
   })
+}
+
+exports.addModel = function(u,l,m,c) {
+	db_pg['admin'].addModel(u,l,m, function(e,r) {
+		if (e){
+			console.log("unable to retrieve user_clients");
+			console.log(e);
+            c({status:'failed',error:e})
+        } else {
+          c({status:'success'})
+        }
+	});
+}
+
+exports.saveModel = function(u,i,l,m,p,d,c) {
+	db_pg['admin'].saveModel(u, i, l, m, p, d , function(e,r) {
+		if (e){
+			console.log("unable to retrieve user_clients");
+			console.log(e);
+            c({status:'failed',error:e})
+        } else {
+          c({status:'success'})
+        }
+	});
+}
+
+exports.getModels = function(u,c) {
+	db_pg['admin'].getModels(u, function(e,r) {
+		if (e){
+			console.log("unable to retrieve user_clients");
+			console.log(e);
+            c([])
+        } else {
+          c(r)
+        }
+	});
 }
 
 exports.deleteTableColumn = function(u,d,t,c,callback) {

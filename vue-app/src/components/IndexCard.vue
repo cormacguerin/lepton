@@ -5,12 +5,12 @@
       class="container"
     >
       <div class="database">
-        <flex-row
-          class="left"
+        <div class="flexgrow indextitle">
+          {{ database }} - {{ table }}
+        </div>
+        <flex-col
+          class="contentcontainer"
         >
-          <div class="flexgrow indextitle">
-            {{ database }} - {{ table }}
-          </div>
           <div class="statusbarcontainer">
             <flex-col class="statusbar">
               <div
@@ -43,21 +43,21 @@
               </div>
             </flex-row>
           </div>
-        </flex-row>
-        <flex-row class="info">
-          <div v-if="indexing">
-            Indexing: <span class="enabled">Enabled</span>
-          </div>
-          <div v-else>
-            Indexing: <span class="disabled">Disabled</span>
-          </div>
-          <div class="space">
-           -
-          </div>
-          <div>
-            Columns : {{ column }}
-          </div>
-        </flex-row>
+          <flex-row class="info">
+            <div v-if="indexing">
+              Indexing : <span class="enabled">Enabled</span>
+            </div>
+            <div v-else>
+              Indexing : <span class="disabled">Disabled</span>
+            </div>
+            <div class="space">
+             -
+            </div>
+            <div>
+              Columns : {{ column }}
+            </div>
+          </flex-row>
+        </flex-col>
       </div>
     </flex-col>
     <!--
@@ -167,28 +167,24 @@ export default {
 .container {
   padding: 0px;
 }
-.absolute {
-  position: absolute;
-}
 .card {
-  min-height: 125px;
   margin-left: 10px;
   margin-right: 10px;
   margin-bottom: 10px;
   margin-top: 20px;
   border-radius: 3px;
   background-color: #fff;
-  -webkit-box-shadow:0 2px 4px 0 #b2b5be;
-     -moz-box-shadow:0 2px 4px 0 #b2b5be;
-          box-shadow:0 2px 4px 0 #b2b5be;
+  border: none;
+}
+.contentcontainer {
+  border: 1px solid #efefef;
+  color: #666;
 }
 .indextitle {
   width: 100%;
-  border-radius-left-top: 3px;
-  border-radius-right-top: 3px;
   text-align: left;
   background-color: #3285b9;
-  padding: 5px;
+  padding: 5px 10px 5px 10px;
   color: white;
   font-weight: bold;
 }
@@ -266,7 +262,7 @@ export default {
   margin-right: 10px;
 }
 .enabled {
-  color: #3ee500;
+  color: #33b13d;
 }
 .disabled {
   color: #ff4000;

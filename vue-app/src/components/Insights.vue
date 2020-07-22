@@ -54,22 +54,116 @@
           </CDropdown>
         </div>
       </flex-row>
+      <flex-row>
+        <div
+          class="search-margin"
+        >
+          <CButton
+            color="success"
+            class="addfilterbutton active"
+            @click="addFilterModal = true"
+          >
+            <span>
+              <i
+                class="fa
+                fa-plus"
+                aria-hidden="true"
+              />
+              Filter
+            </span>
+          </CButton>
+        </div>
+        <CModal
+          title="Add Metadata Filter"
+          color="info"
+          :show.sync="addFilterModal"
+        >
+          <flex-col
+            justify="start"
+          >
+            <div
+              class="filterbox"
+              nowrap
+            >
+              <input
+                v-model="filterKey"
+                class="filter"
+                placeholder=""
+              >
+            </div>
+            <div
+              class="filterdropdown"
+              justify="start"
+            >
+              <CDropdown
+                ref="tableDropDown"
+                :toggler-text="selectedOperator"
+                title="operator"
+              >
+                <CDropdownItem
+                  v-for="o in operators"
+                  :key="o"
+                  @click.native="selectOperator(o)"
+                >
+                  {{ o }}
+                </CDropdownItem>
+              </CDropdown>
+            </div>
+            <div
+              class="filterbox"
+              nowrap
+            >
+              <input
+                v-model="filterValue"
+                class="filter"
+                placeholder=""
+              >
+            </div>
+            <CButton
+              color="info"
+              class="addfilter active"
+              @click="addFilter"
+            >
+              Add
+            </CButton>
+          </flex-col>
+          <template #footer-wrapper>
+            <div class="hidden" />
+          </template>
+        </CModal>
+      </flex-row>
+    </flex-row>
+    <flex-row>
+      <div
+        v-for="f in filters"
+        :key="f.key"
+        class="filtercontainer"
+      >
+        <flex-row>
+          <div
+            class="filter"
+          >
+            {{ f.key }} : {{ f.operator }} : {{ f.value }}
+          </div>
+          <div
+            class="deletefilter"
+          />
+        </flex-row>
+      </div>
     </flex-row>
     <div class="results">
-      <!--
-      <li
-        v-for="item in results"
-        :key="item.url"
-      >
-        {{ item.url }}
-      </li>
-      -->
       <ResultCard
         v-for="item in results"
         :key="item.url"
         :url="item.url"
         :title="item.title"
         :snippet="item.snippet"
+        :weight="item.weight"
+        :tf="item.tf"
+        :tdscore="item.tdscore"
+        :docscore="item.docscore"
+        :wscore="item.wscore"
+        :score="item.score"
         @click.native="open(item)"
       />
     </div>
@@ -105,8 +199,12 @@ export default {
       results: [],
       selectedDatabase: 'select',
       selectedTable: 'select',
+      selectedOperator: 'equals',
+      addFilterModal: false,
       error: '',
       tables: [],
+      operators: ['equals', 'contains', 'less_than', 'greater_than'],
+      filters: [],
       dbs: {},
       hasResults: true,
       hasError: false
@@ -117,11 +215,7 @@ export default {
   },
   methods: {
     search () {
-      console.log('this.results a')
-      console.log(this.results)
       this.results = []
-      console.log('this.results b')
-      console.log(this.results)
       var vm = this
 
       this.$axios.get(this.$SERVER_URI + '/search', {
@@ -129,19 +223,16 @@ export default {
           query: vm.query,
           database: vm.selectedDatabase,
           table: vm.selectedTable,
+          filter: JSON.stringify(vm.filters),
           lang: 'en'
         }
       })
         .then(function (response) {
-          console.log('c')
-          console.log(response)
           if (response.data) {
             console.log('d')
             if (response.data.items) {
               vm.hasError = false
               vm.results = response.data.items
-              console.log('this.results c')
-              console.log(vm.results)
               if (vm.results.length > 0) {
                 vm.hasResults = true
               } else {
@@ -155,6 +246,16 @@ export default {
     },
     open (l) {
       console.log(l)
+    },
+    addFilter () {
+      if (this.filterKey && this.filterValue && this.selectedOperator) {
+        var filter = {
+          key: this.filterKey,
+          value: this.filterValue,
+          operator: this.selectedOperator
+        }
+      }
+      this.filters.push(filter)
     },
     getDatabases () {
       var vm = this
@@ -182,6 +283,11 @@ export default {
       if (t) {
         this.selectedTable = t
       }
+    },
+    selectOperator (o) {
+      if (o) {
+        this.selectedOperator = o
+      }
     }
   }
 }
@@ -203,7 +309,7 @@ export default {
     margin-left: 10px;
 }
 .searchbox {
-    width: 60%;
+    width: 50%;
     margin: 20px;
 }
 input.search {
@@ -213,6 +319,26 @@ input.search {
     border: 1px #efefef solid;
     border-radius: 5px;
     background: white;
+}
+.filtercontainer {
+    padding: 5px;
+    margin-left: 20px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    border: 1px solid #efefef;
+    border-radius: 3px;
+}
+.filterdropdown {
+    margin: 20px;
+    width: 100px;
+}
+.filterbox {
+    width: 200px;
+    margin: 10px;
+}
+.addfilter {
+    margin: 20px;
+    width: 100px;
 }
 .hasresults {
     font-size: 2em;

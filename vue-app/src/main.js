@@ -9,6 +9,8 @@ import { cilPlus } from '@coreui/icons'
 import { CDropdown, CDropdownItem } from './components/celements/celements.ts'
 import Home from './components/Home.vue'
 import Database from './components/Database.vue'
+import Inference from './components/Inference.vue'
+import Models from './components/Models.vue'
 import Chart from './components/Chart.vue'
 import Dashboard from './components/Dashboard.vue'
 import Insights from './components/Insights.vue'
@@ -52,7 +54,7 @@ Vue.component('CNavItem', CNavItem)
 Vue.config.productionTip = false
 
 // Vue.prototype.$SERVER_URI = 'http://127.0.0.1:3000'
-Vue.prototype.$SERVER_URI = 'https://35.239.29.200'
+Vue.prototype.$SERVER_URI = 'https://34.67.102.230'
 
 Vue.prototype.$axios = Axios
 
@@ -67,6 +69,8 @@ Vue.config.productionTip = false
 const routes = [
   { path: '/', name: 'home', component: Home },
   { path: '/database', name: 'database', component: Database },
+  { path: '/models', name: 'models', component: Models },
+  { path: '/inference', name: 'inference', component: Inference },
   { path: '/charts', name: 'charts', component: Chart },
   { path: '/dashboard', name: 'dashboard', component: Dashboard },
   { path: '/indexing', name: 'indexing', component: Indexing },

@@ -15,7 +15,7 @@ INCLUDES = -I$(INC) -I$(LOCALINC) -I$(REDISINC) -I$(PQXXINC) -I$(PQXXINCLOCAL) -
 #
 # Compiler and Linker Options.
 #
-COMPOPTS = -O0 -c -g -std=c++17 -lpthread -lpqxx -lpq -lstdc++fs
+COMPOPTS = -O0 -c -g -std=c++17 -lpthread -lpqxx -lpq -lstdc++fs -o build/$@
 #LINKOPTS = -O0 -g -lstdc++ -lm -std=c++17 -lpthread -lpqxx -lpq $(ICUOPTS) -lstdc++fs
 LINKOPTS = -O0 -g -lm -std=c++17 -lpthread -lpqxx -lpq $(ICUOPTS)
 STATIC_LINKER = -lstdc++fs
@@ -44,58 +44,61 @@ CFLAGS    = ${INCLUDES}
 COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES) 
 LINKER = $(COMPILER) $(LINKOPTS)
 
-all: serveroot indexroot
+all: bin/serveroot bin/indexroot
 
-serveroot: serveroot.o query.o query_builder.o index_server.o management_server.o query_server.o session.o segmenter.o frag_manager.o frag.o result.o
-	${LINKER} -o serveroot serveroot.o query.o query_builder.o index_server.o management_server.o query_server.o session.o segmenter.o frag_manager.o frag.o result.o $(LD_FLAGS)
+bin/serveroot: serveroot.o base64.o query.o query_builder.o index_server.o management_server.o query_server.o session.o segmenter.o frag_manager.o frag.o result.o
+	${LINKER} -o bin/serveroot build/serveroot.o build/base64.o build/query.o build/query_builder.o build/index_server.o build/management_server.o build/query_server.o build/session.o build/segmenter.o build/frag_manager.o build/frag.o build/result.o $(LD_FLAGS)
 
-indexroot: indexroot.o index_manager.o base64.o segmenter.o frag_manager.o frag.o murmur_hash3.o
-	${LINKER} -o indexroot indexroot.o index_manager.o base64.o segmenter.o frag_manager.o frag.o murmur_hash3.o $(LD_FLAGS) 
+bin/indexroot: indexroot.o index_manager.o base64.o segmenter.o frag_manager.o frag.o murmur_hash3.o
+	${LINKER} -o bin/indexroot build/indexroot.o build/index_manager.o build/base64.o build/segmenter.o build/frag_manager.o build/frag.o build/murmur_hash3.o $(LD_FLAGS) 
 
-index_manager.o : index_manager.cc index_manager.h
-	${COMPILE} index_manager.cc
+index_manager.o : src/index_manager.cc src/index_manager.h
+	${COMPILE} src/index_manager.cc
 
-query.o : query.cc query.h
-	${COMPILE} query.cc
+#score_document.o : score_document.cc score_document.h
+#	${COMPILE} score_document.cc
 
-result.o : result.cc result.h
-	${COMPILE} result.cc
+query.o : src/query.cc src/query.h
+	${COMPILE} src/query.cc
 
-query_builder.o : query_builder.cc query_builder.h
-	${COMPILE} query_builder.cc
+result.o : src/result.cc src/result.h
+	${COMPILE} src/result.cc
 
-index_server.o : index_server.cc index_server.h
-	${COMPILE} index_server.cc
+query_builder.o : src/query_builder.cc src/query_builder.h
+	${COMPILE} src/query_builder.cc
 
-session.o : session.cc session.h
-	${COMPILE} session.cc
+index_server.o : src/index_server.cc src/index_server.h
+	${COMPILE} src/index_server.cc
 
-management_server.o : management_server.cc management_server.h
-	${COMPILE} management_server.cc
+session.o : src/session.cc src/session.h
+	${COMPILE} src/session.cc
 
-query_server.o : query_server.cc query_server.h
-	${COMPILE} query_server.cc
+management_server.o : src/management_server.cc src/management_server.h
+	${COMPILE} src/management_server.cc
 
-murmur_hash3.o : murmur_hash3.cc murmur_hash3.h
-	${COMPILE} murmur_hash3.cc
+query_server.o : src/query_server.cc src/query_server.h
+	${COMPILE} src/query_server.cc
 
-frag.o : frag.cc frag.h
-	${COMPILE} frag.cc
+murmur_hash3.o : src/murmur_hash3.cc src/murmur_hash3.h
+	${COMPILE} src/murmur_hash3.cc
 
-frag_manager.o : frag_manager.cc frag_manager.h
-	${COMPILE} frag_manager.cc
+frag.o : src/frag.cc src/frag.h
+	${COMPILE} src/frag.cc
 
-indexroot.o : indexroot.cc
-	${COMPILE} indexroot.cc
+frag_manager.o : src/frag_manager.cc src/frag_manager.h
+	${COMPILE} src/frag_manager.cc
 
-serveroot.o : serveroot.cc
-	${COMPILE} serveroot.cc
+indexroot.o : src/indexroot.cc
+	${COMPILE} src/indexroot.cc
 
-segmenter.o : segmenter.cc segmenter.h
-	${COMPILE} segmenter.cc
+serveroot.o : src/serveroot.cc
+	${COMPILE} src/serveroot.cc
 
-base64.o : base64.cc
-	${COMPILE} base64.cc base64.h
+segmenter.o : src/segmenter.cc src/segmenter.h
+	${COMPILE} src/segmenter.cc
+
+base64.o : src/base64.cc src/base64.h
+	${COMPILE} src/base64.cc
 
 #sentence_piece_processor.o : sentence_piece_processor.cc
 #	${COMPILE} sentence_piece_processor.cc sentence_piece_processor.h
@@ -104,4 +107,4 @@ base64.o : base64.cc
 .PHONY: clean
 
 clean:
-	rm *.o serveroot indexroot
+	rm build/*.o bin/serveroot bin/indexroot

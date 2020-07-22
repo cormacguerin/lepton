@@ -38,7 +38,7 @@
         <img
           class="desktopLogo"
           alt="logo"
-          src="../assets/uchan_new_64.png"
+          src="../assets/wu2-64x51.png"
         >
         <flex-col
           justify="end"
@@ -90,6 +90,34 @@
                     @click="gotoTab('dashboard')"
                   >
                     Dashboards
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="nav-tab"
+            >
+              <h2
+                class="nav-h2"
+              >
+                Machine Learning |
+              </h2>
+              <div class="nav-menu-container">
+                <div class="nav-top-border">
+                  <div class="nav-top" />
+                </div>
+                <div class="nav-menu">
+                  <div
+                    class="nav-item"
+                    @click="gotoTab('models')"
+                  >
+                    Models
+                  </div>
+                  <div
+                    class="nav-item"
+                    @click="gotoTab('inference')"
+                  >
+                    Inference
                   </div>
                 </div>
               </div>
@@ -247,7 +275,7 @@ export default {
   margin-top: 0px;
 }
 .header {
-  background-color: #171f24;
+  background-color: #2c3e50;
 }
 .desktopLogo {
   margin: 10px;

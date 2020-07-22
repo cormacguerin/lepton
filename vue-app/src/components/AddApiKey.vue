@@ -2,7 +2,7 @@
   <div class="input">
     <flex-col>
       <div class="key">
-        {{apiKey}}
+        {{ apiKey }}
       </div>
       <div class="about">
         This is your API Key, store it somewhere secure for use with the API.

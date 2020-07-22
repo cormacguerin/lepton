@@ -119,9 +119,9 @@ def crawl():
 #  my way .. to do threading below but the threadpool seems nice too
 #  so leaving that for now.
 #
-#    for t in range(num_threads):
-#        if (urls):
-#            runCrawl(urls.pop(0))
+#   for t in range(num_threads):
+#       if (urls):
+#           runCrawl(urls.pop(0))
 
     pool = ThreadPool(num_threads) 
     results = pool.map(runCrawl, urls)
@@ -152,6 +152,8 @@ def runCrawl(url):
                 link = link.split("#")[0]
                 if (not link in goturls) and (len(geturls) < 10000):
                     geturls.add(link)
+
+            print(data)
 
             # lets just remove now incase we get stuck in a loop
             if url in geturls:
