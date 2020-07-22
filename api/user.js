@@ -110,10 +110,34 @@ exports.genApiKey = function() {
 }
 
 /*
+ * Authorization wrapper
+ * determine if this is API or token.
+ */
+exports.authorize = function(req, res, next) {
+    console.log('req.headers')
+    console.log(req.headers)
+    console.log('req.headers.authorization')
+    console.log(req.headers.authorization)
+
+    if (req.headers.authorization) {
+        console.log('api auth');
+        authorizeApi(req, res, next);
+    } else if (req.cookies) {
+        console.log('token auth');
+        authorizeToken(req, res, next);
+    } else {
+        res.json({
+            authorized: false,
+            message: "invalid cookie"
+        });
+    }
+}
+
+/*
  * Function to authorize user requests based 
  * on a cookie/stored signed token.
  */
-exports.authorize = function(req, res, next) {
+function authorizeToken(req, res, next) {
 	// First check that the cookie is present. If not bail.
 	if (req.cookies['petcookie'] === undefined) {
 		console.log('petcookie is undefined!');
@@ -233,7 +257,7 @@ exports.authorize = function(req, res, next) {
  * different things. Instead it's the endpoints responsibility to refute if 
  * req.scope is not satisfied.
  */
-exports.authorizeApi = function(req, res, next) {
+function authorizeApi(req, res, next) {
   var parsedurl = url.parse(req.url, true);
   const auth_re = /^LT-HMAC-SHA256 /gi;
   const cred_re = /^Credential=/gi;
@@ -334,33 +358,39 @@ exports.authorizeApi = function(req, res, next) {
   // TODO add datetime window auth logic
 
   // get the key details from the backend and authorize the request
-	pg.getApiKeyById(key_id, function (errors, apiKey) {
-		if (errors) {
-      res.status(403)
-      return res.json({error:errors})
-		} else {
-      const signing_key = getSigningKey(apiKey.key, key_datestamp, apiKey.name, key_scope)
-      const request_signature = hmac(signing_key, signing_string, 'hex')
-
-      console.log(3)
-      // add the key into the request
-      req.scope = apiKey.scope;
-      
-      console.log('signing_key hex')
-      console.log(Buffer.from(signing_key, 'utf8').toString('hex'))
-      console.log('request_signature')
-      console.log(request_signature)
-      console.log('client_signature')
-      console.log(client_signature)
-      
-      console.log(3)
-      if (request_signature !== client_signature) {
+  pg.getApiKeyById(key_id, function (errors, apiKey) {
+    if (apiKey.id && apiKey.scope.length > 0) {
+      console.log('apiKey');
+      console.log(apiKey);
+      if (errors) {
         res.status(403)
         return res.json({error:errors})
       } else {
-        next()
+        const signing_key = getSigningKey(apiKey.key, key_datestamp, apiKey.name, key_scope)
+        const request_signature = hmac(signing_key, signing_string, 'hex')
+
+        console.log(3)
+        // add the key into the request
+        req.scope = apiKey.scope;
+        
+        console.log('signing_key hex')
+        console.log(Buffer.from(signing_key, 'utf8').toString('hex'))
+        console.log('request_signature')
+        console.log(request_signature)
+        console.log('client_signature')
+        console.log(client_signature)
+        
+        console.log(3)
+        if (request_signature !== client_signature) {
+          res.status(403)
+          return res.json({error:errors})
+        } else {
+          next()
+        }
       }
-		}
+    } else {
+      return res.json({error:'inavlid api key or scope'})
+    }
   })
 }
 
@@ -454,7 +484,6 @@ function addNewUser(username, email, password, defaultview, facebook_user_id, fa
 		}
 	});
 }
-
 
 /*
  * Endpoint and control to test if user/email exists.

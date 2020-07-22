@@ -991,16 +991,18 @@ console.log("promises finished in " + totaltime + "ms");
       key.scope = []
       const reg = /^[0-9]+_/gi;
       for (var i in r) {
-        key.id = r[i].id;
-        key.owner = r[i].owner;
-        key.name = r[i].name;
-        key.key = r[i].key;
-        var scope = {}
-        scope.api = r[i].api;
-        scope._database = r[i].database;
-        scope.database = r[i].database.replace(reg,'');
-        scope.table = r[i].table;
-        key.scope.push(scope);
+        if (r[i].id && r[i].key && r[i].database) {
+          key.id = r[i].id;
+          key.owner = r[i].owner;
+          key.name = r[i].name;
+          key.key = r[i].key;
+          var scope = {}
+          scope.api = r[i].api;
+          scope._database = r[i].database;
+          scope.database = r[i].database.replace(reg,'');
+          scope.table = r[i].table;    
+          key.scope.push(scope);
+        }
       }
       console.log('key')
       console.log(key)

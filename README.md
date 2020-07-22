@@ -28,6 +28,7 @@ sudo apt-get install libasio-dev
 sudo apt-get install rapidjson-dev
 sudo apt-get install screen
 sudo apt-get install npm
+sudo apt-get install python3-pip
 
 # setup the ssd
 
@@ -199,6 +200,13 @@ service apache2 restart
 # Otherwise we should be good to go, acceess the public IP or domain name
 # you will get an insecure error of course if it's a self signed cert but should be good for testing.
 
+# Installing and configuring PM2
+sudo npm install pm2@latest -g
+pm2 startup
+# you should get a command like this..
+sudo env PATH=$PATH:/usr/bin /usr/local/lib/node_modules/pm2/bin/pm2 startup systemd -u compdeep --hp /home/compdeep
+# run that.
+
 # TESTING AND UsING THE API
 
  - testing indexing api.
@@ -211,6 +219,11 @@ curl 'https://35.239.29.200/search?query=test%20timing%202' -H 'accept: applicat
  add your start urls (start.urls) and start url follow patters (patterns.urls)
  - to start the crawler type the below (ensure node lepton.js is running first!)
  python crawler.py
+
+# Installing pytorch (depending on gpu or not the instructions may change see here for up to date instructions.)
+# https://pytorch.org/get-started/locally/
+
+pip3 install torch==1.5.1+cpu torchvision==0.6.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
 # THE FOLLOWING IS NOT NECESSARY - skip to DEBIAN INSTALL INSTRUCTION
  - export the vocabulary.

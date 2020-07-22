@@ -408,9 +408,8 @@ app.get('/api/deleteApiScope', user.authorize, function(req, res, next) {
  *	i.e KEY_VALUE is a non nestible field type.
  *
  */
-app.post('/addTableData', user.authorizeApi, function(req, res, next) {
+app.post('/addTableData', user.authorize, function(req, res, next) {
   var table_name;
-  var fields=[];
   var data_;
   var database;
   var queryData = url.parse(req.url, true).query;
@@ -471,35 +470,72 @@ app.post('/addTableData', user.authorizeApi, function(req, res, next) {
  * TODO there is a lot of duplication and stuff here that could be cleaned up
  */
 app.get('/search', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  var database;
+
+  if (!queryData.query) {
+    res.json({"error":"no query provided"});
+    return;
+  } else {
+    table = queryData.table;
+  }
+  if (!queryData.database) {
+    res.json({"error":"no database provided"});
+    return;
+  } else {
+    database = queryData.database;
+  }
+  if (!queryData.table) {
+    res.json({"error":"no table provided"});
+    return;
+  } else {
+    table = queryData.table;
+  }
+  // handle user or token request
+  if (req.user_id) {
+      database = req.user_id + "_" + queryData.database;
+  } else {
+    // validate scope
+    var access = false;
+    for (var i in req.scope) {
+      if (queryData.database === req.scope[i].database) {
+        if (req.scope[i].table) {
+          if (queryData.table === req.scope[i].table) {
+            access = true;
+            database = req.scope[i]._database;
+          }
+        } else {
+          access = true;
+          database = req.scope[i]._database;
+        }
+      }
+    }
+    if (access != true) {
+      res.status(403);
+      return res.json({});
+    }
+  }
   try {
-    var queryData = url.parse(req.url, true).query;
     queryData.type = "search";
     // vuejs adds stupid brackets on array so we need to check.
     if (queryData["filter[]"]) {
       queryData.filter = queryData["filter[]"];
     }
-    var database = req.user_id + "_" + queryData.database;
-    var table = queryData.table;
     var socket = new net.Socket();
-    if (!queryData.query) {
-      res.json({"error":"no query"});
-      return;
-    } else {
-      console.log('queryServers');
-      console.log(queryServers);
-      if (Object.keys(queryServers).length === 0) {
-        doGetStats(database,table,queryData,res);
-      } else if (queryServers[database]) {
-        if (queryServers[database][table]) {
-          execute(queryData,queryServers[database][table].port,function(r) {
-            res.json(r);
-          });
-        } else {
-          doGetStats(database,table,queryData,res);
-        }
+    console.log('queryServers');
+    console.log(queryServers);
+    if (Object.keys(queryServers).length === 0) {
+      doGetStats(database,table,queryData,res);
+    } else if (queryServers[database]) {
+      if (queryServers[database][table]) {
+        execute(queryData,queryServers[database][table].port,function(r) {
+          res.json(r);
+        });
       } else {
         doGetStats(database,table,queryData,res);
       }
+    } else {
+      doGetStats(database,table,queryData,res);
     }
   } catch(e) {
     res.send({"error":"\""+e+"\""});
@@ -513,36 +549,68 @@ app.get('/search', user.authorize, function(req, res, next) {
  * TODO there is a lot of duplication and stuff here that could be cleaned up
  */
 app.get('/suggest', user.authorize, function(req, res, next) {
-  try {
-    console.log(req)
-    var queryData = url.parse(req.url, true).query;
-    queryData.type = "suggest";
-    // vuejs adds stupid brackets on array so we need to check.
-    if (queryData["filter[]"]) {
-      queryData.filter = queryData["filter[]"];
-    }
-    var database = req.user_id + "_" + queryData.database;
-    var table = queryData.table;
-    var socket = new net.Socket();
-    if (!queryData.query) {
-      res.json({"error":"no query"});
-      return;
-    } else {
-      console.log('queryServers');
-      console.log(queryServers);
-      if (Object.keys(queryServers).length === 0) {
-        doGetStats(database,table,queryData,res);
-      } else if (queryServers[database]) {
-        if (queryServers[database][table]) {
-          execute(queryData,queryServers[database][table].port,function(r) {
-            res.json(r);
-          });
+  var queryData = url.parse(req.url, true).query;
+  var database;
+
+  if (!queryData.query) {
+    res.json({"error":"no query provided"});
+    return;
+  } else {
+    table = queryData.table;
+  }
+  if (!queryData.database) {
+    res.json({"error":"no database provided"});
+    return;
+  } else {
+    database = queryData.database;
+  }
+  if (!queryData.table) {
+    res.json({"error":"no table provided"});
+    return;
+  } else {
+    table = queryData.table;
+  }
+  // handle user or token request
+  if (req.user_id) {
+      database = req.user_id + "_" + queryData.database;
+  } else {
+    // validate scope
+    var access = false;
+    for (var i in req.scope) {
+      if (queryData.database === req.scope[i].database) {
+        if (req.scope[i].table) {
+          if (queryData.table === req.scope[i].table) {
+            access = true;
+            database = req.scope[i]._database;
+          }
         } else {
-          doGetStats(database,table,queryData,res);
+          access = true;
+          database = req.scope[i]._database;
         }
+      }
+    }
+    if (access != true) {
+      res.status(403);
+      return res.json({});
+    }
+  }
+  try {
+    queryData.type = "suggest";
+    var socket = new net.Socket();
+    console.log('queryServers');
+    console.log(queryServers);
+    if (Object.keys(queryServers).length === 0) {
+      doGetStats(database,table,queryData,res);
+    } else if (queryServers[database]) {
+      if (queryServers[database][table]) {
+        execute(queryData,queryServers[database][table].port,function(r) {
+          res.json(r);
+        });
       } else {
         doGetStats(database,table,queryData,res);
       }
+    } else {
+      doGetStats(database,table,queryData,res);
     }
   } catch(e) {
     res.send({"error":"\""+e+"\""});
@@ -552,6 +620,9 @@ app.get('/suggest', user.authorize, function(req, res, next) {
 });
 
 function doGetStats(database,table,queryData,res) {
+  console.log('database ' + database);
+  console.log('table ' + table);
+  console.log(queryData);
   getStats(function() {
     if (queryServers[database]) {
       if (queryServers[database][table]) {
@@ -559,10 +630,10 @@ function doGetStats(database,table,queryData,res) {
           res.json(r);
         });
       } else {
-        res.json({});
+        return res.json({});
       }
     } else {
-      res.json({});
+      return res.json({});
     }
   })
 }
@@ -584,11 +655,8 @@ app.get('/manage', function(req, res, next) {
 });
 
 function getStats(callback) {
-  console.log('getStats');
   execute({'query':'stats'}, 3333, function(r) {
     if (r['error']) {
-      console.log(r);
-      console.log('getStats error');
       return callback();
     }
     if (r.servers) {
@@ -618,8 +686,6 @@ function execute(queryData, port, callback) {
   socket.connect(port, '127.0.0.1', function() {
     // var data_length = Array.from(internalQuery).length;
     var data_length = Buffer.byteLength(internalQuery, 'utf8')
-    console.log("data length a " + internalQuery.length)
-    console.log("data length b " + data_length)
     var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":";
     console.log("header")
     console.log(header)
