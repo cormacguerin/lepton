@@ -17,10 +17,16 @@ def hmacSha256(secret, msg):
 parser = ArgumentParser()
 parser.add_argument("-f", "--filename",
                     help="file name")
+parser.add_argument("-e", "--endpoint",
+                    help="search or suggest")
 
 args = parser.parse_args()
 
 filename = args.filename
+endpoint = args.endpoint
+
+if not endpoint:
+    endpoint = 'search'
 
 if (filename):
     with open(filename) as json_file:
@@ -35,7 +41,7 @@ if data['table'] is None:
 if data['database'] is None:
     print("Please provide a database")
 if data['query'] is None:
-    print("Please provide a search query")
+    print("Please provide a query")
 
 # UTC date
 Date = datetime.datetime.utcnow()
@@ -53,10 +59,10 @@ Datestamp = Date.strftime('%Y%m%d')
 Host = "34.67.102.230"
 KeyId = '3'
 KeyName = 'demo'
-ApiScope = 'search'
+ApiScope = endpoint
 SecretKey = 'OWJRZWLY-YMPWZ3B4-YNFZYJFX-AWJ6EM13'
 Method = 'GET'
-Path = '/search'
+Path = '/' + endpoint
 
 # note params need to be sorted by code point
 QueryParameters = urllib.parse.urlencode(data, quote_via=urllib.parse.quote)

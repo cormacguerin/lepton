@@ -50,12 +50,12 @@ Datestamp = Date.strftime('%Y%m%d')
 # In addition to key and scope information you also need to provide the 
 # Request Method, Host and Path. Path is the api endpoint including leading forward slash
 
-KeyId = '2'
-KeyName = 'wikipieda'
+Host = "34.67.102.230"
+KeyId = '1'
+KeyName = 'wiki'
 ApiScope = 'data'
-SecretKey = 'ZDH3A2H4-EJLMAMLZ-ZZG5Y243-A3G2CJN3'
+SecretKey = 'Z2ROMWTR-AJC1ATEW-NMRTMGC3-Z3EYZ2Y3'
 Method = 'POST'
-Host = 'cormac.io'
 Path = '/addTableData'
 
 # note params need to be sorted by code point
@@ -111,7 +111,7 @@ Headers['Authorization']  = genSignature()
 print(' - Headers')
 print(Headers)
 
-base_url = 'https://35.239.29.200/addTableData?'
+base_url = 'https://' + Host + '/addTableData?'
 url = base_url + urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
 
 FormattedHeaders = ([':'.join((k,v)) for k, v in Headers.items()])
