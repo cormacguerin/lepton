@@ -576,10 +576,7 @@ std::string Segmenter::getSnippet(std::string text, std::string lang, int positi
 		}
         // std::cout << converted << " " << gramcount << std::endl;
 		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
-        if (gramcount >= position-15 && start == false) {
-            if (converted == ".") {
-                start = true;
-            }
+        if (gramcount >= position-25 && start == false) {
             if (skipgram = true) {
                 start = true;
             }
@@ -591,8 +588,17 @@ std::string Segmenter::getSnippet(std::string text, std::string lang, int positi
             if (converted != " ") {
                 snippet += converted;
                 // should be for cjk not just japanese
-                if (lang != "ja") {
+                if (lang == "ja") {
+                } else {
                     snippet += " ";
+                }
+            }
+            if (gramcount < position) {
+                if (lang == "ja") {
+                } else {
+                    if (converted == ".") {
+                        snippet = "";
+                    }
                 }
             }
         }
