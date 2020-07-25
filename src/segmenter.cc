@@ -28,16 +28,18 @@ void Segmenter::init(std::string database) {
 	std::ifstream ja_stop_words_dict("data/japanese_stop_words.txt");
 	std::ifstream en_stop_words_dict("data/english_stop_words.txt");
 
-	try {
-		C = new pqxx::connection("dbname = " + database + " user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
-	if (C->is_open()) {
-		  std::cout << "Opened database successfully: " << C->dbname() << std::endl;
-	} else {
-		  std::cout << "Can't open database" << std::endl;
-		}
-	} catch (const std::exception &e) {
-		std::cerr << e.what() << std::endl;
-	}
+    if (!database.empty()) {
+        try {
+            C = new pqxx::connection("dbname = " + database + " user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
+        if (C->is_open()) {
+              std::cout << "Opened database successfully: " << C->dbname() << std::endl;
+        } else {
+              std::cout << "Can't open database" << std::endl;
+            }
+        } catch (const std::exception &e) {
+            std::cerr << e.what() << std::endl;
+        }
+    }
 
 	std::string line;
 
@@ -114,8 +116,14 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 	icu::UnicodeString uni_str = str_in.c_str();
 
 	UErrorCode status = U_ZERO_ERROR;
+
+    icu::BreakIterator *wordIterator;
 	// BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("ja","JAPAN"), status);
-	icu::BreakIterator *wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("en","US"), status);
+    if (lang == "ja") {
+	    wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("ja","JP"), status);
+    } else {
+	    wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("en","US"), status);
+    }
 	wordIterator->setText(uni_str);
 	int32_t p = wordIterator->first();
 	int32_t l = p;
@@ -146,14 +154,6 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 		tmp.toUTF8String(converted);
 		l=p;
 		
-		// insert the vector occurrence position.
-		trimInPlace(converted);
-		if (converted.empty()) {
-			continue;
-		} else {
-			gramcount++;
-		}
-		
 		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
 		if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
 			continue;
@@ -166,6 +166,14 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 			converted.erase (std::remove(converted.begin(), converted.end(), specchars[i]), converted.end());
 		}
 
+		// insert the vector occurrence position.
+		trimInPlace(converted);
+		if (converted.empty()) {
+			continue;
+		} else {
+			gramcount++;
+		}
+		
 //		UnicodeString uc = UnicodeString::fromUTF8(converted);
 //		grams.push_back(uc);
 
@@ -498,6 +506,102 @@ void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {
 }
 
 void Segmenter::detokenize(std::vector<std::string> pieces, std::string text) {
+}
+
+std::string Segmenter::getSnippet(std::string text, std::string lang, int position) {
+
+	icu::UnicodeString uni_str = text.c_str();
+
+	UErrorCode status = U_ZERO_ERROR;
+    icu::BreakIterator *wordIterator;
+
+    // in this reparse, each space is considered a char, so if you want to match the segmented positions, you need to double.
+	// BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("ja","JAPAN"), status);
+    if (lang == "ja") {
+	    wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("ja","JP"), status);
+    } else {
+	    wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("en","US"), status);
+    }
+	wordIterator->setText(uni_str);
+	int32_t p = wordIterator->first();
+	int32_t l = p;
+
+    bool start;
+    if (position == 0) {
+      start = true;
+    } else {
+      start = false;
+    }
+
+	// for simplicity were going to just count every term (for caculating term frequency)
+	int gramcount=0;
+    int end_position=position+50;
+    std::string snippet = "";
+
+	while (p != icu::BreakIterator::DONE) {
+		bool isStopWord = false;
+        bool skipgram = false;
+		p = wordIterator->next();
+		std::string converted;
+		icu::UnicodeString tmp = uni_str.tempSubString(l,p-l);
+		tmp.toUTF8String(converted);
+		l=p;
+		
+		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
+		if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
+            // continue;
+		    skipgram = true;
+		}
+		if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
+            // continue;
+		    skipgram = true;
+		}
+        /*
+		char specchars[] = "()-,'\"";
+		for (unsigned int i = 0; i < strlen(specchars); ++i) {
+			converted.erase (std::remove(converted.begin(), converted.end(), specchars[i]), converted.end());
+		}
+        */
+
+		// insert the vector occurrence position.
+		trimInPlace(converted);
+		if (converted.empty()) {
+            //continue;
+		    skipgram = true;
+		}  else {
+			// gramcount++;
+        }
+        if (skipgram == false) {
+			gramcount++;
+		}
+        // std::cout << converted << " " << gramcount << std::endl;
+		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
+        if (gramcount >= position-15 && start == false) {
+            if (converted == ".") {
+                start = true;
+            }
+            if (skipgram = true) {
+                start = true;
+            }
+            if (gramcount >= position-5) {
+                start = true;
+            }
+        }
+        if (start == true) {
+            if (converted != " ") {
+                snippet += converted;
+                // should be for cjk not just japanese
+                if (lang != "ja") {
+                    snippet += " ";
+                }
+            }
+        }
+        if (gramcount >= end_position) {
+            break;
+        }
+    }
+	delete wordIterator;
+    return snippet;
 }
 
 std::string Segmenter::concat_positions(std::vector<int> pos) {

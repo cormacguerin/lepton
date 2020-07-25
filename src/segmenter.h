@@ -47,6 +47,7 @@ class Segmenter {
 				   std::map<std::string, Frag::Item> &doc_trigram_map);
 		void tokenize(std::string text, std::vector<std::string> *pieces);
 		void detokenize(std::vector<std::string> pieces, std::string text);
+        std::string getSnippet(std::string text, std::string lang, int position);
 };
 
 #endif

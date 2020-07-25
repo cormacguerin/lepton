@@ -12,12 +12,14 @@
 #include "frag.h"
 #include "result.h"
 #include "parallel_hashmap/phmap.h"
+#include "segmenter.h"
 
 class IndexServer {
 
     public:
         IndexServer(std::string database, std::string table);
         ~IndexServer();
+		Segmenter seg;
         std::string status;
         std::mutex m;
         void init();
@@ -51,7 +53,7 @@ class IndexServer {
         std::map<std::string,std::vector<int>> getTermPositions(int doc_id, std::vector<std::string> terms);
         Result getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates);
         void doFilter(std::string filter, std::vector<Frag::Item> &candidates);
-        void getResultInfo(Result& result);
+        void getResultInfo(Result& result, std::vector<std::string> terms, std::string lang);
         pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
         void loadIndex(Frag::Type type, std::string lang);
         void buildSuggestions(std::string lang);

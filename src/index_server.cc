@@ -42,6 +42,7 @@ void IndexServer::init() {
 		cerr << e.what() << std::endl;
 	}
     status = "loading";
+    seg.init("");
 	//std::string ngrams[] = {"uni","bi","tri"};
 	//std::string langs[] = {"en","ja","zh"};
 }
@@ -299,7 +300,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
 	std::cout << "index_server.cc sort and resize " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
 
 	beforeload = indexServer->getTime();
-	indexServer->getResultInfo(result);
+	indexServer->getResultInfo(result,terms,lang);
 	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc getResultInfo " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
@@ -344,30 +345,37 @@ void IndexServer::buildSuggestions(std::string lang) {
     for (phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[lang].begin(); urls != unigramurls_map[lang].end(); urls++) {
         if (urls->second.size() > 1) {
             // std::map<std::string, std::map<std::string, std::vector<std::pair<std::string,int>>>> suggestions;
-            for (int i=1; i<urls->first.length(); i++) {
+            for (int i=1; i<=urls->first.length(); i++) {
                 std::string sug = (urls->first).substr(0,i);
                 // std::cout << "sug " << sug << std::endl;
                 if (suggestions[lang][sug].size() == 0) {
                     suggestions[lang][sug].push_back(std::pair<std::string,int>(urls->first,urls->second.size()));
                 } else {
                     int index = 0;
-                    int place = 0;
+                    int place = -1;
+                    bool add = false;
+                    bool found = false;
+                    std::pair<std::string,int> value;
                     for (std::vector<std::pair<std::string,int>>::iterator it = suggestions[lang][sug].begin(); it != suggestions[lang][sug].end(); it++) {
-                        // std::cout << sug << " it->first " << it->first << " it->second " << it->second << std::endl;
-                        // std::cout << sug << " urls->first " << urls->first << " urls->second " << urls->second.size() << std::endl;
+                        //std::cout << sug << " it->first " << it->first << " it->second " << it->second << std::endl;
+                        //std::cout << sug << " urls->first " << urls->first << " urls->second " << urls->second.size() << std::endl;
+                        if (it->first == urls->first) {
+                            it->second = urls->second.size();
+                            found = true;
+                        }
                         if (it->second < urls->second.size()) {
-                            if (it->first == urls->first) {
-                                it->second = urls->second.size();
-                            } else {
-                                suggestions[lang][sug].insert(suggestions[lang][sug].begin()+place, std::pair<std::string,int>(urls->first,urls->second.size()));
-                                // std::cout << "suggestions[lang][sug].size " << suggestions[lang][sug].size() << std::endl;
-                                if (suggestions[lang][sug].size() == 11) {
-                                    suggestions[lang][sug].pop_back();
-                                }
+                            if (place == -1) {
+                                add = true;
+                                place = index;
                             }
-                            break;
                         }
                         index++;
+                    }
+                    if (add == true && found == false) {
+                        suggestions[lang][sug].insert(suggestions[lang][sug].begin()+place, std::pair<std::string,int>(urls->first,urls->second.size()));
+                    }
+                    if (suggestions[lang][sug].size() == 11) {
+                      suggestions[lang][sug].pop_back();
                     }
                 }
             }
@@ -381,25 +389,71 @@ void IndexServer::buildSuggestions(std::string lang) {
 
 /*
  * Get the snippet, metadata, entities etc.
+ * the code works well engough but it pretty unintelligable if someone can rewrite it somethime
  */
-void IndexServer::getResultInfo(Result& result) {
+void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, std::string lang) {
+    std::cout << "DEBUG 1" << std::endl;
 	if (result.items.empty()) {
 		return;
 	}
+    int snippet_size = 50;
+    std::cout << "DEBUG 2" << std::endl;
 
 	pqxx::work txn(*C);
-	C->prepare("get_docinfo_deep", "SELECT lt_id, lt_entities, (WITH S AS (SELECT jsonb_array_elements_text(lt_segmented_grams->'raw_text') AS snippet FROM \"" + tb + "\"WHERE lt_id=D.lt_id OFFSET 50 ROWS LIMIT 100) SELECT string_agg(snippet, ' ') FROM S) FROM \"" + tb + "\" AS D WHERE lt_id = $1");
-	for (std::vector<Result::Item>::iterator tit = result.items.begin(); tit != result.items.end(); ++tit) {
-      std::cout << tit->doc_id << std::endl;
-		pqxx::result r = txn.prepared("get_docinfo_deep")(tit->doc_id).exec();
+	// C->prepare("get_docinfo_deep", "SELECT lt_id, lt_entities, document, (WITH S AS (SELECT jsonb_array_elements_text(lt_segmented_grams->'raw_text') AS snippet FROM \"" + tb + "\") SELECT string_agg(snippet, ' ') FROM S) FROM \"" + tb + "\" AS D WHERE lt_id = $1");
+	C->prepare("get_docinfo_deep", "SELECT lt_id, lt_entities, document FROM \"" + tb + "\" AS D WHERE lt_id = $1");
+	for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
+	    for (std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.begin(); tit__ != rit->terms.end(); tit__++) {
+	        for (std::vector<int>::iterator tit___ = tit__->second.begin(); tit___ != tit__->second.end(); tit___++) {
+                std::cout << tit__->first << " " << *tit___ << std::endl;
+            }
+        }
+        std::cout << "doc_id : " << rit->doc_id << std::endl;
+        std::map<int,int> best_match;
+        int position = 0;
+        int tophits = 0;
+        if (terms.size() > 1) {
+            for (std::vector<std::string>::iterator tit = terms.begin(); tit != terms.end()-1; ++tit) {
+			    std::map<std::string,std::vector<int>>::iterator tit_ = rit->terms.find(*tit);
+                if (tit_ != rit->terms.end()) {
+                    for (std::vector<int>::iterator xit = rit->terms.at(*tit).begin(); xit != rit->terms.at(*tit).end(); ++xit) {
+                        for (std::vector<int>::iterator nit = rit->terms.at(*std::next(tit)).begin(); nit != rit->terms.at(*std::next(tit)).end(); ++nit) {
+                            if (*xit == *nit-1) {
+                                best_match[*xit] +=3;
+                            } else if (*xit > *nit && *xit < *nit+50) {
+                                best_match[*xit]++;
+                            }
+                            if (best_match[*xit] > tophits) {
+                                tophits = best_match[*xit];
+                                position = *xit;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // there is only one term so get the first occurrence of the term as the snippet position.
+            // this could be better, we should look for meaningful prose..
+            position = rit->terms.at(terms[0])[0];
+        }
+        /*
+        // std::cout << "position " << " " << rit->doc_id << " " << position << std::endl;
+        // std::cout << "tophits " << tophits << std::endl;
+        // std::cout << "position " << tophits << std::endl;
+        for (std::map<int,int>::iterator it = best_match.begin(); it != best_match.end(); ++it) {
+            std::cout << "best match " << it->first << " : " << it->second << std::endl;
+        }
+        */
+		pqxx::result r = txn.prepared("get_docinfo_deep")(rit->doc_id).exec();
 		const pqxx::field i = r.back()[0];
-		const pqxx::field t = r.back()[1];
-		const pqxx::field s = r.back()[2];
+		const pqxx::field e = r.back()[1];
+		const pqxx::field t = r.back()[2];
 
-		std::string entities = std::string(t.c_str());
-		std::string snippet = std::string(s.c_str());
-		tit->entities = entities;
-		tit->snippet = snippet;
+		std::string entities = std::string(e.c_str());
+		std::string text = std::string(t.c_str());
+        rit->snippet = seg.getSnippet(text,lang,position);
+		rit->entities = entities;
+        std::cout << "DEBUG 5" << std::endl;
 	}
 
 	txn.commit();
@@ -836,8 +890,8 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 			*/
 			std::vector<Frag::Item>::const_iterator bit = urls->second.begin();
 			std::vector<Frag::Item>::const_iterator eit;
-			if (urls->second.size() > MAX_CANDIDATES_COUNT*10) {
-				eit = urls->second.begin() + MAX_CANDIDATES_COUNT*10;
+			if (urls->second.size() > MAX_CANDIDATES_COUNT*3) {
+				eit = urls->second.begin() + MAX_CANDIDATES_COUNT*3;
 			} else {
 				eit = urls->second.end();
 			}
