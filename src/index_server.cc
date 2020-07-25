@@ -392,22 +392,22 @@ void IndexServer::buildSuggestions(std::string lang) {
  * the code works well engough but it pretty unintelligable if someone can rewrite it somethime
  */
 void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, std::string lang) {
-    std::cout << "DEBUG 1" << std::endl;
 	if (result.items.empty()) {
 		return;
 	}
     int snippet_size = 50;
-    std::cout << "DEBUG 2" << std::endl;
 
 	pqxx::work txn(*C);
 	// C->prepare("get_docinfo_deep", "SELECT lt_id, lt_entities, document, (WITH S AS (SELECT jsonb_array_elements_text(lt_segmented_grams->'raw_text') AS snippet FROM \"" + tb + "\") SELECT string_agg(snippet, ' ') FROM S) FROM \"" + tb + "\" AS D WHERE lt_id = $1");
 	C->prepare("get_docinfo_deep", "SELECT lt_id, lt_entities, document FROM \"" + tb + "\" AS D WHERE lt_id = $1");
 	for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
+      /*
 	    for (std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.begin(); tit__ != rit->terms.end(); tit__++) {
 	        for (std::vector<int>::iterator tit___ = tit__->second.begin(); tit___ != tit__->second.end(); tit___++) {
                 std::cout << tit__->first << " " << *tit___ << std::endl;
             }
         }
+      */
         std::cout << "doc_id : " << rit->doc_id << std::endl;
         std::map<int,int> best_match;
         int position = 0;
@@ -417,15 +417,18 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
 			    std::map<std::string,std::vector<int>>::iterator tit_ = rit->terms.find(*tit);
                 if (tit_ != rit->terms.end()) {
                     for (std::vector<int>::iterator xit = rit->terms.at(*tit).begin(); xit != rit->terms.at(*tit).end(); ++xit) {
-                        for (std::vector<int>::iterator nit = rit->terms.at(*std::next(tit)).begin(); nit != rit->terms.at(*std::next(tit)).end(); ++nit) {
-                            if (*xit == *nit-1) {
-                                best_match[*xit] +=3;
-                            } else if (*xit > *nit && *xit < *nit+50) {
-                                best_match[*xit]++;
-                            }
-                            if (best_match[*xit] > tophits) {
-                                tophits = best_match[*xit];
-                                position = *xit;
+			            std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.find(*std::next(tit));
+                        if (tit__ != rit->terms.end()) {
+                            for (std::vector<int>::iterator nit = rit->terms.at(*std::next(tit)).begin(); nit != rit->terms.at(*std::next(tit)).end(); ++nit) {
+                                if (*xit == *nit-1) {
+                                    best_match[*xit] +=3;
+                                } else if (*xit > *nit && *xit < *nit+50) {
+                                    best_match[*xit]++;
+                                }
+                                if (best_match[*xit] > tophits) {
+                                    tophits = best_match[*xit];
+                                    position = *xit;
+                                }
                             }
                         }
                     }
@@ -453,7 +456,6 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
 		std::string text = std::string(t.c_str());
         rit->snippet = seg.getSnippet(text,lang,position);
 		rit->entities = entities;
-        std::cout << "DEBUG 5" << std::endl;
 	}
 
 	txn.commit();
