@@ -4,6 +4,7 @@
 #include "texttools.h"
 #include "c_plus_plus_serializer.h"
 #include "util.h"
+#include <chrono>
 
 rapidjson::Document serialized_frag;
 
@@ -333,12 +334,15 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
         delete C;
         return;
     }
+	time_t beforeload = getTime();
+    std::cout << "start addWeights for " << update_gram_idf << std::endl;
 
     pqxx::work txn(*C);
 
     C->prepare(update_gram_idf, "INSERT INTO " + gram + " (idf,gram,lang) VALUES ($1,$2,$3) ON CONFLICT "
             "ON CONSTRAINT " + gram + "_gram_key DO UPDATE SET idf = $1, lang = $3 WHERE " + gram + ".gram = $2");
 
+    std::cout << "proceed to add weights " << std::endl;
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
         int counter = 1;
         std::string pn_str = "(";
@@ -349,6 +353,7 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
         for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
             tit->second.weight = idf*tit->second.tf*gram_boost;
         }
+        // std::cout << "frag.cc addWeights it->first.c_str() " << " " << gram << " " << it->first.c_str() << std::endl;
         pqxx::result r = txn.prepared(update_gram_idf)(std::to_string(idf))(it->first.c_str())(lang).exec();
         /*
            int n = pv.size();
@@ -380,6 +385,9 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
            pv.clear();
            */
     }
+	time_t afterload = getTime();
+	double seconds = difftime(afterload, beforeload);
+	std::cout << "finish addWeights for " << update_gram_idf << " executed in " << seconds << " miliseconds." << std::endl;
 
     txn.commit();
     C->disconnect();
@@ -436,5 +444,11 @@ void Frag::remove() {
     } else {
         std::cout << "frag.cc : " << filename << " deleted." << std::endl;
     }
+}
+
+int Frag::getTime() {
+	return std::chrono::duration_cast<std::chrono::milliseconds>(
+		std::chrono::system_clock::now().time_since_epoch()
+	).count();
 }
 

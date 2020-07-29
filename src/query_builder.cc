@@ -110,7 +110,7 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 		icu::UnicodeString tmp = uni_str.tempSubString(l,p-l);
 		tmp.toUTF8String(converted);
 		l=p;
-		
+
 		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
 		if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
 			continue;
@@ -118,8 +118,16 @@ void QueryBuilder::build(std::string lang, std::string query_str, Query::Node &r
 		if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
 			continue;
 		}
-		
-		// insert the vector occurrence position.
+        char specchars[] = {':','(',')','-',',','\''};
+		for (unsigned int i = 0; i < sizeof(specchars)/sizeof(*specchars); ++i) {
+			converted.erase (std::remove(converted.begin(), converted.end(), specchars[i]), converted.end());
+		}
+        if (converted.size() > 3) {
+            if (converted.substr(converted.length()-4) == "’s") {
+                converted.erase(converted.length()-4);
+            }
+        }
+		// remove / trim all white space and process if not empty.
 		trimInPlace(converted);
 		if (converted.empty()) {
 			continue;
@@ -199,9 +207,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
                       {
                         for (int i=position; i<(5+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=4+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::NGRAM;
@@ -210,9 +217,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
 
                         for (int i=position; i<(3+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=2+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::TRIGRAM;
@@ -221,9 +227,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
 
                         for (int i=(position+3); i<(5+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=4+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::BIGRAM;
@@ -232,9 +237,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
 
                         for (int i=position; i<(2+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=1+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::BIGRAM;
@@ -243,9 +247,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
 
                         for (int i=(position+2); i<(5+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=4+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::TRIGRAM;
@@ -260,9 +263,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
                       {
                         for (int i=position; i<(4+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=3+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::NGRAM;
@@ -271,9 +273,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
 
                         for (int i=position; i<(2+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=1+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::BIGRAM;
@@ -282,9 +283,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
 
                         for (int i=1+position; i<(3+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=2+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::BIGRAM;
@@ -293,9 +293,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
 
                         for (int i=(2+position); i<(4+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=3+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::BIGRAM;
@@ -310,9 +309,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
                       {
                         for (int i=position; i<(3+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=2+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::TRIGRAM;
@@ -327,9 +325,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
                       {
                         for (int i=position; i<(2+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=1+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::BIGRAM;
@@ -344,9 +341,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
                       {
                         for (int i=position; i<(4+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=3+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::NGRAM;
@@ -361,9 +357,8 @@ void QueryBuilder::buildNgramNode(std::string lang, Query::Node branchNode, Quer
                       {
                         for (int i=position; i<(3+position); i++) {
                             ngterm.term.append(branchNode.leafNodes.at(i).term.term);
-                            if (isCJK == false) {
-                                ngterm.term.append(" ");
-                            }
+                            if (i!=2+position)
+                                ngterm.term.append(":");
                         }
                         ngterm.term.trim();
 		                ngterm.gram = Query::Gram::TRIGRAM;

@@ -2,6 +2,7 @@
 var express = require('express');
 var app = express();
 var net = require('net');
+ //var cors = require('cors')
 
 var cookieParser = require('cookie-parser');
 
@@ -24,10 +25,12 @@ app.use(bodyParser.json({limit: '100mb'}));
 app.use(bodyParser.urlencoded({limit: '100mb', extended: true, parameterLimit: 1000000})); // for parsing application/x-www-form-urlencoded
 app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '5mb'}));
 app.use(bodyParser.raw({type:'image/jpeg',limit: '50mb'}));
+ //app.use(cors())
 
 app.all('*', function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "X-Requested-With");
+  res.header("Access-Control-Allow-Headers", "Authorization");
   next();
 });
 
@@ -551,6 +554,7 @@ app.get('/search', user.authorize, function(req, res, next) {
 app.get('/suggest', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   var database;
+  console.log(queryData)
 
   if (!queryData.query) {
     res.json({"error":"no query provided"});

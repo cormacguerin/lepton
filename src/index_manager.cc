@@ -91,24 +91,7 @@ void IndexManager::processFeeds() {
         std::cout << "indexManager.cc : max_doc_id : " << max_doc_id << std::endl;
 
         std::vector<int> ids;
-        // processDocInfo(ids,database,table,getDbPassword());
 
-        /*
-        int num_batches = num_docs["total"]/base_batch_size;
-        if (num_batches < 1) {
-            if (max_doc_id > 0) {
-                num_batches = 1;
-            }
-            batch_size = max_doc_id;
-        } else {
-            batch_size = max_doc_id/num_batches;
-        }
-        if (batch_size == 0)
-            return;
-        std::cout << "indexManager.cc : batch_size " << batch_size << std::endl;
-        std::cout << "indexManager.cc : num_batches : " << num_batches << std::endl;
-        */
-        //std::string statement = "SELECT lt_id,url,concat(" + columns + ") as document,language FROM \"" + table + "\" WHERE lt_id BETWEEN $1 AND $2 AND (lt_feed_date > lt_index_date OR lt_index_date IS null) LIMIT $3";
         std::string statement = "SELECT lt_id,url,concat(" + columns + ") as document,language FROM \"" + table + "\" WHERE (lt_feed_date > lt_index_date OR lt_index_date IS null) LIMIT $1";
         std::cout << "statement" << std::endl;
         std::cout << statement << std::endl;
@@ -120,7 +103,9 @@ void IndexManager::processFeeds() {
         pqxx::result r = txn.prepared("process_docs_batch")(base_batch_size).exec();
         txn.commit();
 
+        int counter;
         for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+            counter++;
             const pqxx::field id = (row)[0];
             const pqxx::field url = (row)[1];
             const pqxx::field document = (row)[2];
@@ -145,8 +130,17 @@ void IndexManager::processFeeds() {
             run_langs.insert(lang.c_str());
             indexDocument(id.c_str(), document.c_str(), lang.c_str());
             ids.push_back(std::stoi(id.c_str()));
+
+            // process suggestions that begin with stop words, this is really a hack
+            // we should relpace with ML suggestions
+			if (counter == base_batch_size-1) {
+                for (std::set<std::string>::iterator lit = run_langs.begin(); lit != run_langs.end(); lit++) {
+                    updateStopSuggest(*lit, (int)r.size());
+                }
+            }
         }
-//           i = batch_position;
+
+        // i = batch_position;
         // process doc info must be called after mergeFrage(which creates idf)
         // because mergefrags is now running on a different thread constantly this shouldn't be an issue.
         // processDocInfo(ids,database,table,getDbPassword());
@@ -158,6 +152,7 @@ void IndexManager::processFeeds() {
             unigramFragManager.at(*lit)->syncFrags();
             bigramFragManager.at(*lit)->syncFrags();
             trigramFragManager.at(*lit)->syncFrags();
+            updateStopSuggest(*lit, (int)r.size());
         }
         // process doc info must be called after mergeFrags(which creates idf)
         // processDocInfo(ids,database,table,getDbPassword());
@@ -262,20 +257,22 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
 
             // this statement calculates the idf
 
+            // std::vector<std::string> unibitri{"trigrams","bigrams","unigrams"};
             std::vector<std::string> unibitri{"trigrams","bigrams","unigrams"};
 
             std::string update_doc_entities = "UPDATE \"" + table + "\" SET lt_entities = $1 WHERE lt_id = $2";
 
-            float multiplier = 3.0;
-            for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
+            float multiplier = 1.0;
+            std::vector<std::pair<std::string,float>> grams;
 
-                // std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE lt_id = $1";
-                std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (SELECT score/freq FROM v) WHERE lt_id = $1";
-                C_.prepare("process_" + *it + "_docscore", update_docscore);
+            for (std::vector<int>::iterator it_ = batch.begin(); it_ != batch.end(); it_++) {
 
-                std::vector<std::pair<std::string,float>> grams;
+                for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
 
-                for (std::vector<int>::iterator it_ = batch.begin(); it_ != batch.end(); it_++) {
+                    // std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE lt_id = $1";
+
+                    std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (SELECT score/freq FROM v) WHERE lt_id = $1";
+                    C_.prepare("process_" + *it + "_docscore", update_docscore);
 
                     // update the docuscore using the idf / term frequencies
                     pqxx::result rds = txn_.prepared("process_" + *it + "_docscore")(*it_).exec();
@@ -288,8 +285,12 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                     for (pqxx::result::const_iterator row = rgt.begin(); row != rgt.end(); ++row) {
                         const pqxx::field gram = (row)[1];
                         const pqxx::field weight = (row)[2];
+                        const pqxx::field idf = (row)[3];
                         std::string t = std::string(gram.c_str());
-                        float w = atof(weight.c_str()) * multiplier;
+                        if (atof(idf.c_str()) < 1) {
+                            continue;
+                        }
+                        float w = atof(weight.c_str()) * atof(idf.c_str()) * multiplier;
                         bool add = true;
                         if (hasDigit(t)==false) {
                             if (grams.empty()) {
@@ -298,9 +299,6 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                                 for (int i=0; i < grams.size(); i++) {
                                     if (grams.at(i).second < w) {
                                         grams.insert(grams.begin()+i, std::pair<std::string,float>(t,w));
-                                        if (grams.size() > 20) {
-                                            grams.pop_back();
-                                        }
                                         break;
                                     }
                                 }
@@ -312,22 +310,29 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                             */
                         }
                     }
-                    std::sort(grams.begin(), grams.end(), [](auto &left, auto &right) {
-                      return left.second < right.second;
-                    });
-                    // This is very innefficient, we should use reserve at the beingging and just insert the lower values
-                    std::string strarray = "";
-                    for (std::vector<std::pair<std::string,float>>::iterator pit_ = grams.begin(); pit_ != grams.end(); pit_++) {
+                    multiplier++;
+                }
+                std::sort(grams.begin(), grams.end(), [](auto &left, auto &right) {
+                  return left.second < right.second;
+                });
+                grams.resize(20);
+                // This is very innefficient, we should use reserve at the beingging and just insert the lower values
+                std::string strarray = "";
+                for (std::vector<std::pair<std::string,float>>::iterator pit_ = grams.begin(); pit_ != grams.end(); pit_++) {
+                    if (pit_->first.length()>0) {
                         strarray += pit_->first;
+                        // for debug
+                        strarray += "(";
+                        strarray += std::to_string(pit_->second);
+                        strarray += ")";
                         if (std::next(pit_) != grams.end()) {
                             strarray += ",";
                         }
                     }
-                    grams.clear();
-                    C_.prepare("process_doc_entities", update_doc_entities);
-                    pqxx::result ent = txn_.prepared("process_doc_entities")(strarray)(*it_).exec();
                 }
-                multiplier=multiplier-1.0;
+                grams.clear();
+                C_.prepare("process_doc_entities", update_doc_entities);
+                pqxx::result ent = txn_.prepared("process_doc_entities")(strarray)(*it_).exec();
             }
             txn_.commit();
             std::cout << "index_manager.cc : processDocInfo complete" << std::endl;
@@ -379,7 +384,7 @@ void IndexManager::indexDocument(string id, string rawdoc, std::string lang) {
     std::map<std::string, Frag::Item> doc_trigram_map;
     // seg.parse(id, display_field, lang, decoded_doc_body, 
     seg.parse(id, lang, rawdoc, table,
-            doc_unigram_map, doc_bigram_map, doc_trigram_map);
+            doc_unigram_map, doc_bigram_map, doc_trigram_map, stopSuggest[lang]);
     unigramFragManager[lang]->addTerms(doc_unigram_map);
     bigramFragManager[lang]->addTerms(doc_bigram_map);
     trigramFragManager[lang]->addTerms(doc_trigram_map);
@@ -494,6 +499,30 @@ std::vector<int> IndexManager::GetDocscoreBatch() {
         b.push_back(atoi(c.c_str()));
     }
     return b;
+}
+
+void IndexManager::updateStopSuggest(std::string lang, int batchsize) {
+    std::cout << "start process suggestions for " << lang << std::endl;
+    prepare_update_stop_suggest(*C);
+    pqxx::work txn(*C);
+
+    for (std::map<std::vector<std::string>,double>::const_iterator it = stopSuggest[lang].begin(); it != stopSuggest[lang].end(); it++) {
+        std::string gram= "";
+        for (std::vector<std::string>::const_iterator i = it->first.begin(); i != it->first.end(); ++i) {
+            gram += *i;
+            if (std::next(i)!=it->first.end()) {
+                gram += ":";
+            }
+        }
+        // std::cout <<  "sugg " << s << " " << it->second << std::endl;
+        pqxx::result r = txn.prepared("update_stop_suggest")(lang)(gram)(it->first.at(0))(it->second/batchsize).exec();
+    }
+    txn.commit();
+    std::cout << "finish process suggestions for " << lang << std::endl;
+}
+
+void IndexManager::prepare_update_stop_suggest(pqxx::connection_base &c) {
+    c.prepare("update_stop_suggest", "INSERT INTO stop_suggest (lang,gram,stop,idf) VALUES($1,$2,$3,$4) ON CONFLICT ON CONSTRAINT stop_suggest_lang_gram_key DO UPDATE SET idf = ((stop_suggest.idf + $4)/2) WHERE stop_suggest.lang = $1 AND stop_suggest.gram = $2");
 }
 
 void IndexManager::prepare_docscore_batch(pqxx::connection_base &c) {
