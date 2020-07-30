@@ -64,6 +64,8 @@ void IndexServer::run() {
             loadIndex(Frag::Type::TRIGRAM, *lit);
             buildSuggestions(*lit);
         }
+        // we handle suggestions starting with stopwords separately.
+        getStopSuggest();
         status = "serving";
     }
     m.lock();
@@ -344,46 +346,48 @@ void IndexServer::buildSuggestions(std::string lang) {
     std::cout << "unigramurls_map[lang].size() " << unigramurls_map[lang].size() << std::endl;
     for (phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[lang].begin(); urls != unigramurls_map[lang].end(); urls++) {
         if (urls->second.size() > 1) {
-            // std::map<std::string, std::map<std::string, std::vector<std::pair<std::string,int>>>> suggestions;
-            for (int i=1; i<=urls->first.length(); i++) {
-                std::string sug = (urls->first).substr(0,i);
-                // std::cout << "sug " << sug << std::endl;
-                if (suggestions[lang][sug].size() == 0) {
-                    suggestions[lang][sug].push_back(std::pair<std::string,int>(urls->first,urls->second.size()));
-                } else {
-                    int index = 0;
-                    int place = -1;
-                    bool add = false;
-                    bool found = false;
-                    std::pair<std::string,int> value;
-                    for (std::vector<std::pair<std::string,int>>::iterator it = suggestions[lang][sug].begin(); it != suggestions[lang][sug].end(); it++) {
-                        //std::cout << sug << " it->first " << it->first << " it->second " << it->second << std::endl;
-                        //std::cout << sug << " urls->first " << urls->first << " urls->second " << urls->second.size() << std::endl;
-                        if (it->first == urls->first) {
-                            it->second = urls->second.size();
-                            found = true;
-                        }
-                        if (it->second < urls->second.size()) {
-                            if (place == -1) {
-                                add = true;
-                                place = index;
-                            }
-                        }
-                        index++;
-                    }
-                    if (add == true && found == false) {
-                        suggestions[lang][sug].insert(suggestions[lang][sug].begin()+place, std::pair<std::string,int>(urls->first,urls->second.size()));
-                    }
-                    if (suggestions[lang][sug].size() == 11) {
-                      suggestions[lang][sug].pop_back();
-                    }
-                }
-            }
+            addSuggestion(urls->first, lang, urls->second.size());
         }
         j++;
         if (j%1000 == 0) {
-          std::cout << j << " loading suggestions " << ((float)j*100/unigramurls_map[lang].size()) << " % " << std::endl;
+            std::cout << j << " loading suggestions " << ((float)j*100/unigramurls_map[lang].size()) << " % " << std::endl;
         }
+    }
+}
+
+void IndexServer::addSuggestion(std::string term, std::string lang, int count) {
+    for (int i=1; i<=term.length(); i++) {
+        std::string sugg = (term).substr(0,i);
+        if (suggestions[lang][sugg].size() == 0) {
+            suggestions[lang][sugg].push_back(std::pair<std::string,int>(term,count));
+        } else {
+            int index = 0;
+            int position = -1;
+            std::pair<std::string,int> value;
+            for (std::vector<std::pair<std::string,int>>::iterator it = suggestions[lang][sugg].begin(); it != suggestions[lang][sugg].end(); it++) {
+                if (it->first == term) {
+                    position = -1;
+                    it->second = count;
+                    break;
+                }  
+                if (it->second < count) {
+                    if (position == -1) {
+                        position = index;
+                    }
+                } 
+                index++;
+            }
+            if (position != -1) {
+                suggestions[lang][sugg].insert(suggestions[lang][sugg].begin()+position, std::pair<std::string,int>(term,count));
+                if (suggestions[lang][sugg].size() == 11) {
+                    suggestions[lang][sugg].pop_back();
+                }
+            } else if (suggestions[lang][sugg].size() < 10) {
+                suggestions[lang][sugg].push_back(std::pair<std::string,int>(term,count));
+            }
+        }
+        //if (suggestions[lang][sugg].size() == 0) {
+        //}
     }
 }
 
@@ -398,7 +402,6 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
     int snippet_size = 50;
 
 	pqxx::work txn(*C);
-	// C->prepare("get_docinfo_deep", "SELECT lt_id, lt_entities, document, (WITH S AS (SELECT jsonb_array_elements_text(lt_segmented_grams->'raw_text') AS snippet FROM \"" + tb + "\") SELECT string_agg(snippet, ' ') FROM S) FROM \"" + tb + "\" AS D WHERE lt_id = $1");
 	C->prepare("get_docinfo_deep", "SELECT lt_id, lt_entities, document FROM \"" + tb + "\" AS D WHERE lt_id = $1");
 	for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
       /*
@@ -966,6 +969,26 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 		}
 		candidates = node_candidates;
 	}
+}
+
+void IndexServer::getStopSuggest() {
+    std::cout << " getStopSuggest " << std::endl;
+	pqxx::work txn(*C);
+	C->prepare("get_stop_suggest", "SELECT stop,lang,gram,idf FROM stop_suggest ORDER BY lang, stop, idf DESC;");
+	pqxx::result r = txn.prepared("get_stop_suggest").exec();
+	txn.commit();
+	for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+		const pqxx::field stop = (row)[0];
+		const pqxx::field lang = (row)[1];
+		const pqxx::field gram = (row)[2];
+		const pqxx::field idf = (row)[3];
+		std::string stop_(stop.c_str());
+		std::string lang_(lang.c_str());
+		std::string gram_(gram.c_str());
+        // fake count but whatever.
+		int x  = (int)(atof(idf.c_str())*10000);
+        addSuggestion(gram_,lang_,x);
+    }
 }
 
 bool isAdjacent (int i) { return ((i%2)==1); }

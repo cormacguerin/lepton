@@ -150,10 +150,6 @@ int main() {
 	std::vector<std::string> gramWindow;
 	std::vector<UnicodeString> grams;
 
-	// this is a redis connection (were replacing this with postgres for the index)
-	//	client.connect();
-	// postgres connection
-
 	std::ifstream input("input.txt");
 
 	std::string str_in((std::istreambuf_iterator<char>(input)),
@@ -330,9 +326,7 @@ int main() {
 				std::string gram;
 				for (auto const& s : git->first) { 
 					gram += s; 
-					if (IS_CJK == false) {
-						gram += " ";
-					}
+				    gram += ":";
 				}
 				if (nextlen >= currentlen) {
 					if ((std::next(git)->first).at(currentlen-1) == (git->first).back()) {

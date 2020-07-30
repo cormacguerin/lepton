@@ -33,6 +33,7 @@ class IndexServer {
         std::map<std::string,int> getPercentLoaded();
         std::string getServingStatus();
         bool do_run;
+        std::string separateGram(const char* c, bool isCJK);
 
     private:
         // this is the reverse index
@@ -41,6 +42,7 @@ class IndexServer {
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> bigramurls_map;
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> trigramurls_map;
         std::map<std::string,int> percent_loaded;
+        QueryBuilder queryBuilder;
         // a map of languages to a map of strings (partial words)) to a map of suggestions (the int is the number of occurrences in the corpus)
         std::map<std::string, std::map<std::string, std::vector<std::pair<std::string,int>>>> suggestions;
         std::string db;
@@ -57,7 +59,8 @@ class IndexServer {
         pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
         void loadIndex(Frag::Type type, std::string lang);
         void buildSuggestions(std::string lang);
-        QueryBuilder queryBuilder;
+        void addSuggestion(std::string term, std::string lang, int count);
+        void getStopSuggest();
         const int MAX_CANDIDATES_COUNT = 1000;
         int getTime();
 };
