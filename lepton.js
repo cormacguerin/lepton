@@ -73,8 +73,18 @@ app.get('/api/getServingInfo', user.authorize, function(req,res,next) {
   var queryData = url.parse(req.url, true).query;
   data.getIndexTables(req.user_id, function(d) {
     getStats(function(s) {
+      console.log("queryServers B")
+      console.log(queryServers)
+      console.log("s")
+      console.log(s)
       if (s) {
         for (var i in d) {
+          console.log("DEBUG X")
+          console.log('d[i].database')
+          console.log(d[i].database)
+          console.log('d[i].table')
+          console.log(d[i].table)
+
           if (s[req.user_id + "_" +d[i].database]) {
             if (s[req.user_id + "_" +d[i].database][d[i].table]) {
               d[i].terms = s[req.user_id + "_" +d[i].database][d[i].table].terms;
@@ -436,10 +446,14 @@ app.post('/addTableData', user.authorize, function(req, res, next) {
     }
   }
   if (access === true) {
+    console.log("access granted")
     data.checkTableExists(database, queryData.table, function(r) {
+      console.log("table exists")
+      console.log(r)
       if (r === true) {
         if (req.body) {
           if (typeof req.body === 'object') {
+            console.log("object data")
             data_ = req.body;
           } else {
             try {
@@ -450,6 +464,7 @@ app.post('/addTableData', user.authorize, function(req, res, next) {
             }
           }
           data.addTableData(database, queryData.table, data_, function(e,r) {
+            console.log("data add table data")
             if (e) {
               res.json({'message':e.message,'error':e});
             } else {
@@ -624,9 +639,6 @@ app.get('/suggest', user.authorize, function(req, res, next) {
 });
 
 function doGetStats(database,table,queryData,res) {
-  console.log('database ' + database);
-  console.log('table ' + table);
-  console.log(queryData);
   getStats(function() {
     if (queryServers[database]) {
       if (queryServers[database][table]) {
@@ -664,9 +676,15 @@ function getStats(callback) {
       return callback();
     }
     if (r.servers) {
+      console.log("r.servers")
+      console.log(r.servers)
       r.servers.forEach(function(s) {
-        queryServers[s.database] = {}
+        if (!queryServers[s.database]) {
+            queryServers[s.database] = {}
+        }
         queryServers[s.database][s.table] = s;
+        console.log("queryServers A")
+        console.log(queryServers)
       });
     }
     callback(queryServers);
@@ -685,6 +703,7 @@ function execute(queryData, port, callback) {
   internalQuery = JSON.stringify(queryData);
   console.log("internalQuery")
   console.log(internalQuery)
+  console.log("port " + port)
 
   var socket = new net.Socket();
   socket.connect(port, '127.0.0.1', function() {
@@ -702,6 +721,8 @@ function execute(queryData, port, callback) {
   var packet = "";
   socket.on('data', (data) => {
     packet += data.toString();
+    console.log("response time queryData")
+    console.log(queryData)
     console.log('packet - data');
     console.log(packet);
     socket.end();

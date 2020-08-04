@@ -305,6 +305,7 @@ function authorizeApi(req, res, next) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     errors.push('only POST or GET is supported but neither was found in the request')
   }
+  console.log("A")
   // process headers (afaik javascript sorts objects by default in unicode points so no sorting to do.)
   var header_keys = Object.keys(req.headers)
   var signed_headers_str = '';
@@ -318,6 +319,7 @@ function authorizeApi(req, res, next) {
       }
     }
   }
+  console.log("B")
   // process the request parameters
   var query_parameters = '';
   for (var i in parsedurl.query) {
@@ -340,6 +342,7 @@ function authorizeApi(req, res, next) {
     errors = []
   }
 
+  console.log("C")
   // now build the signing string from the above information
   signing_string = req.method + "\n"
                  + req.headers.host + "\n"
@@ -367,25 +370,26 @@ function authorizeApi(req, res, next) {
     if (apiKey.id && apiKey.scope.length > 0) {
       console.log('apiKey');
       console.log(apiKey);
+  console.log("D")
       if (errors) {
+  console.log("E")
         res.status(403)
         return res.json({error:errors})
       } else {
         const signing_key = getSigningKey(apiKey.key, key_datestamp, apiKey.name, key_scope)
+  console.log("F")
         console.log(signing_key)
         const request_signature = hmac(signing_key, signing_string, 'hex')
 
         console.log(3)
         // add the key into the request
         req.scope = apiKey.scope;
-        /*
         console.log('signing_key hex')
         console.log(Buffer.from(signing_key, 'utf8').toString('hex'))
         console.log('request_signature')
         console.log(request_signature)
         console.log('client_signature')
         console.log(client_signature)
-        */
         
         if (request_signature !== client_signature) {
           res.status(403)

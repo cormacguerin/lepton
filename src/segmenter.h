@@ -51,6 +51,7 @@ class Segmenter {
 		void tokenize(std::string text, std::vector<std::string> *pieces);
 		void detokenize(std::vector<std::string> pieces, std::string text);
         std::string getSnippet(std::string text, std::string lang, int position);
+        std::string segmentTerm(std::string text, std::string lang);
 };
 
 #endif

@@ -141,7 +141,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 	std::vector<bool> stopholder[N_GRAM_SIZE];
 
 	// for simplicity were going to just count every term (for caculating term frequency)
-	int gramcount=0;
+	int gramcount = 0;
 
 	rapidjson::Document docngrams;
 	docngrams.Parse("{}");
@@ -159,8 +159,8 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 		std::string converted;
 		icu::UnicodeString tmp = uni_str.tempSubString(l,p-l);
 		tmp.toUTF8String(converted);
-		l=p;
-		
+        l=p;
+
 		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
 		if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
 			continue;
@@ -173,12 +173,8 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 			converted.erase (std::remove(converted.begin(), converted.end(), specchars[i]), converted.end());
 		}
         // I want to remove apostrphies but I had trouble with these
-        // trouble = if I add this apostrophy char in , the thread running seemed to crash silently restarting the program.
-        // handle case where we have plurals in english
         // in our implementation we are not using a stemmer but some plurals casue issue
         if (converted.size() > 3) {
-            // if (converted.compare(converted.size() - 2, 2, "’s") == 0) {
-            // weird ass aprostrophy and length of 4
             if (converted.substr(converted.length()-4) == "’s") {
                 converted.erase(converted.length()-4);
             }
@@ -612,8 +608,8 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	docngrams.Accept(writer);
-    std::cout << "(std::string)buffer.GetString()" << std::endl;
-    std::cout << buffer.GetString() << std::endl;
+//    std::cout << "(std::string)buffer.GetString()" << std::endl;
+  //  std::cout << buffer.GetString() << std::endl;
 
 	C->prepare("update_segmented_grams", "UPDATE \"" + table + "\" SET (lt_index_date, lt_segmented_grams, lt_tdscore) = (NOW(), $1, $2) WHERE lt_id = $3");
 
@@ -649,6 +645,68 @@ void Segmenter::tokenize(std::string text, std::vector<std::string> *pieces) {
 }
 
 void Segmenter::detokenize(std::vector<std::string> pieces, std::string text) {
+}
+
+std::string Segmenter::segmentTerm(std::string text, std::string lang) {
+
+    std::string segmented_string = "";
+	icu::UnicodeString uni_str = text.c_str();
+
+	UErrorCode status = U_ZERO_ERROR;
+    icu::BreakIterator *wordIterator;
+
+    if (lang == "ja") {
+	    wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("ja","JP"), status);
+    } else {
+	    wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("en","US"), status);
+    }
+	wordIterator->setText(uni_str);
+	int32_t p = wordIterator->first();
+	int32_t l = p;
+
+    std::cout << " -  " << std::endl;
+    std::cout << "p " << p << std::endl;
+    // std::cout << "wordIterator->next() " << wordIterator->next() << std::endl;
+
+	// for simplicity were going to just count every term (for caculating term frequency)
+	while (p != icu::BreakIterator::DONE) {
+
+		p = wordIterator->next();
+		bool isStopWord = false;
+		std::string converted;
+		icu::UnicodeString tmp = uni_str.tempSubString(l,p-l);
+		tmp.toUTF8String(converted);
+        l=p;
+
+        /*
+         * TODO : we could return a vector of candidates for better matches
+         */
+		if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
+			continue;
+		}
+		if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
+			continue;
+		}
+        char specchars[] = {':','(',')','-',',','\''};
+		for (unsigned int i = 0; i < sizeof(specchars)/sizeof(*specchars); ++i) {
+			converted.erase (std::remove(converted.begin(), converted.end(), specchars[i]), converted.end());
+		}
+        if (converted.size() > 3) {
+            if (converted.substr(converted.length()-4) == "’s") {
+                converted.erase(converted.length()-4);
+            }
+        }
+		trimInPlace(converted);
+        if (converted.empty() || std::all_of(converted.begin(), converted.end(), [](char c){return std::isspace(c);})) {
+            continue;
+        }
+        segmented_string+=converted;
+        segmented_string+=":";
+
+    }
+    segmented_string.pop_back();
+	delete wordIterator;
+    return segmented_string;
 }
 
 std::string Segmenter::getSnippet(std::string text, std::string lang, int position) {
@@ -699,12 +757,6 @@ std::string Segmenter::getSnippet(std::string text, std::string lang, int positi
             // continue;
 		    skipgram = true;
 		}
-        /*
-		char specchars[] = "()-,'\"";
-		for (unsigned int i = 0; i < strlen(specchars); ++i) {
-			converted.erase (std::remove(converted.begin(), converted.end(), specchars[i]), converted.end());
-		}
-        */
 
 		// insert the vector occurrence position.
 		trimInPlace(converted);
