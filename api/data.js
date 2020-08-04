@@ -455,6 +455,56 @@ exports.setFTS = function(u,d,t,c,b,callback) {
 }
 
 /*
+ * Updates the table where we track which table/column
+ */
+exports.addServingColumn = function(u,d,t,c,callback) {
+  if (!(d&&t&&c)) {
+    return callback({status:'failed'})
+  }
+  const db = u + '_' + d;
+  initDB('admin', function() {
+    db_pg['admin'].addServingColumn(u, db, t, c, function(err, r) {
+      if (err) {
+        console.log("unable to add serving column")
+        console.log(err)
+        callback({status:'failed', error:err})
+      } else {
+        if (r.length === 0) {
+          callback(r)
+        } else {
+          callback(err)
+        }
+      }
+    })
+  })
+}
+
+/*
+ * Updates the table where we track which table/column
+ */
+exports.removeServingColumn = function(u,d,t,c,callback) {
+  if (!(d&&t&&c)) {
+    return callback({status:'failed'})
+  }
+  const db = u + '_' + d;
+  initDB('admin', function() {
+    db_pg['admin'].removeServingColumn(u, db, t, c, function(err, r) {
+      if (err) {
+        console.log("unable to remove serving column")
+        console.log(err)
+        callback({status:'failed', error:err})
+      } else {
+        if (r.length === 0) {
+          callback(r)
+        } else {
+          callback(err)
+        }
+      }
+    })
+  })
+}
+
+/*
  * enable / disable serving
  */
 exports.setServing = function(u,d,t,s,callback) {

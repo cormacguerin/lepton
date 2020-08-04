@@ -888,7 +888,6 @@ console.log("promises finished in " + totaltime + "ms");
       + " SELECT r.db, r.t, r.c, r.e::boolean FROM"
       + " (SELECT * FROM (VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $5), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $5)), $3, $4)) AS v (db,t,c,e)) r"
       + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column_key DO UPDATE SET"
-//      + " database = (SELECT id from databases where database = $1 AND owner = $5),"
       + " _table = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $5)),"
       + " _column = $3,"
       + " indexing = $4::boolean";
@@ -898,6 +897,34 @@ console.log("promises finished in " + totaltime + "ms");
       + " (SELECT * FROM (VALUES ($1, $2, $3, $4)) AS v (db,t,c,e)) r"
     */
     var values = [d,t,c,b,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  addServingColumn(u,d,t,c,callback) {
+    var query = "INSERT INTO text_tables_index(database,_table,_column,serving)"
+      + " SELECT r.db, r.t, r.c, r.e::boolean FROM"
+      + " (SELECT * FROM (VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $5), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)), $3, true)) AS v (db,t,c,e)) r"
+      + " ON CONFLICT DO NOTHING"
+
+    var values = [d,t,c,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  removeServingColumn(u,d,t,c,callback) {
+
+    var query = "DELETE FROM text_tables_index WHERE database = $1 AND _table = $2 AND _column = $3 AND owner = $4;"
+
+    var values = [d,t,c,u]
 
     this.execute(query, values, function(e,r) {
       console.log(e);

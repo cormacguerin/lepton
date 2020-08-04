@@ -250,6 +250,26 @@ app.get('/api/setFTS', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
+app.get('/api/addServingColumn', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.column && queryData.fts)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+  data.addServingColumn(req.user_id, queryData.database, queryData.table, queryData.column, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/removeServingColumn', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.database && queryData.table && queryData.column && queryData.fts)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+  data.removeServingColumn(req.user_id, queryData.database, queryData.table, queryData.column, function(r) {
+    res.json(r);
+  });
+});
 app.get('/api/setServing', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   if (!(queryData.database && queryData.table && queryData.serving)) {

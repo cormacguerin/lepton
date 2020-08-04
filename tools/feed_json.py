@@ -51,10 +51,10 @@ Datestamp = Date.strftime('%Y%m%d')
 # Request Method, Host and Path. Path is the api endpoint including leading forward slash
 
 Host = "34.67.102.230"
-KeyId = '1'
-KeyName = 'wiki'
+KeyId = '3'
+KeyName = 'demo'
 ApiScope = 'data'
-SecretKey = 'Z2ROMWTR-AJC1ATEW-NMRTMGC3-Z3EYZ2Y3'
+SecretKey = 'OWJRZWLY-YMPWZ3B4-YNFZYJFX-AWJ6EM13'
 Method = 'POST'
 Path = '/addTableData'
 

@@ -34,6 +34,57 @@
               Backend Status : <span :class="statusclass">{{ getStatus() }}</span>
             </div>
           </flex-row>
+          <template #details="{item, index}">
+            <CCollapse
+              :show="columns.includes(index)"
+            >
+              <flex-row class="columnContainer">
+                <div
+                  v-for="column in item.column"
+                  :key="column"
+                  class="column"
+                >
+                  <flex-row>
+                    <div class="columnApi">
+                      {{ column.api }}
+                    </div>
+                    <div class="columnDatabase">
+                      {{ column.database }}
+                    </div>
+                    <div
+                      v-if="column.table"
+                      class="columnTable"
+                    >
+                      {{ column.table }}
+                    </div>
+                    <div
+                      class="columnDelete"
+                      @click="deleteApiScope(item.id, column)"
+                    >
+                      <i
+                        class="fa fa-minus"
+                        aria-hidden="true"
+                      />
+                    </div>
+                  </flex-row>
+                </div>
+                <div>
+                  <CButton
+                    class="active addScope"
+                    color="info"
+                    size="sm"
+                    @click="addApiScopeModal = true"
+                  >
+                    <i
+                      class="fa fa-plus"
+                      aria-hidden="true"
+                    />
+                    Add Column
+                  </CButton>
+                </div>
+              </flex-row>
+            </CCollapse>
+          </template>
         </flex-col>
       </div>
     </flex-col>
