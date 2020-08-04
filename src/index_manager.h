@@ -25,6 +25,8 @@ class IndexManager {
 		std::map<std::string, FragManager*> unigramFragManager;
 		std::map<std::string, FragManager*> bigramFragManager;
         std::map<std::string, FragManager*> trigramFragManager;
+        // lang map of stop word suggestions (which get mixed in to all suggestions at servetime)
+        std::map<std::string, std::map<std::vector<std::string>,double>> stopSuggest;
 //        std::map<std::string, Frag::Item> doc_unigram_map;
 //        std::map<std::string, Frag::Item> doc_bigram_map;
 //        std::map<std::string, Frag::Item> doc_trigram_map;
@@ -59,11 +61,13 @@ class IndexManager {
 		void prepare_max_bigram_id(pqxx::connection_base &c, std::string lang);
 		void prepare_max_trigram_id(pqxx::connection_base &c, std::string lang);
 		void prepare_docscore_batch(pqxx::connection_base &c);
+        void prepare_update_stop_suggest(pqxx::connection_base &c);
 		void getMaxDocId(int &num);
         void getNumDocs(std::map<std::string, int> &count);
 		void getNumNgrams(int &count, std::string gram, std::string lang);
 		void getMaxNgramId(int &numm, std::string gram, std::string lang);
 		void updateIdf(std::string lang);
+        void updateStopSuggest(std::string lang, int batchsize);
 		void processFeeds();
         void spawnProcessFeeds();
 		static void processDocInfo(std::vector<int> ids, std::string database, std::string table, std::string password);

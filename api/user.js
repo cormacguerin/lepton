@@ -24,17 +24,17 @@ exports.clients = userClients;
  */
 exports.loadExistingSessions = function() {
 	pg.getUserClients(function(err, clients) {
-		if (err){
-			console.log("unable to retrieve user_clients");
-			console.log(err);
-		}
-		for (i in clients) {
-      if (!userClients[clients[i].user_id]) {
-          userClients[clients[i].user_id] = {};
+      if (err){
+          console.log("unable to retrieve user_clients");
+          console.log(err);
       }
-			userClients[clients[i].user_id][clients[i].client_id] = clients[i];
-		}
-	});
+      for (i in clients) {
+        if (!userClients[clients[i].user_id]) {
+          userClients[clients[i].user_id] = {};
+        }
+        userClients[clients[i].user_id][clients[i].client_id] = clients[i];
+      }
+    });
 }
 
 /*
@@ -271,7 +271,11 @@ function authorizeApi(req, res, next) {
   if (authorization_header.match(auth_re)) {
     authcsv = authorization_header.replace(auth_re,'')
   }
-  var autharr = authcsv.split(',')
+  if (authcsv) {
+    var autharr = authcsv.split(',')
+  } else {
+    return res.json({error:'inavlid authorization headers'})
+  }
   if (autharr[0].match(cred_re,'')) {
     credential = autharr[0].replace(cred_re,'').split('/')
     if (credential.length !== 4) {
@@ -301,17 +305,21 @@ function authorizeApi(req, res, next) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     errors.push('only POST or GET is supported but neither was found in the request')
   }
+  console.log("A")
   // process headers (afaik javascript sorts objects by default in unicode points so no sorting to do.)
   var header_keys = Object.keys(req.headers)
   var signed_headers_str = '';
-  for (var i in signed_headers.sort()) {
-    if (header_keys.includes(signed_headers[i]) === true) {
-      var h = signed_headers[i] + ':' + req.headers[signed_headers[i]].toLowerCase() + '\n'
-      signed_headers_str += h
-    } else {
-      errors.push('signed header ' + signed_headers[i] + 'listed in the authorization header not found')
+  if (signed_headers) {
+    for (var i in signed_headers.sort()) {
+      if (header_keys.includes(signed_headers[i]) === true) {
+        var h = signed_headers[i] + ':' + req.headers[signed_headers[i]].toLowerCase() + '\n'
+        signed_headers_str += h
+      } else {
+        errors.push('signed header ' + signed_headers[i] + ' listed in the authorization header not found')
+      }
     }
   }
+  console.log("B")
   // process the request parameters
   var query_parameters = '';
   for (var i in parsedurl.query) {
@@ -319,8 +327,6 @@ function authorizeApi(req, res, next) {
     query_parameters += v;
   }
   query_parameters = query_parameters.replace(/&$/, '')
-  console.log('query_parameters')
-  console.log(query_parameters)
 
   // at this point we should be sure that the host header is present
   var host = req.headers.host
@@ -330,11 +336,13 @@ function authorizeApi(req, res, next) {
   }
   if (errors.length > 0) {
     res.status(403)
+    console.log(errors)
     return res.json({error:errors})
   } else {
     errors = []
   }
 
+  console.log("C")
   // now build the signing string from the above information
   signing_string = req.method + "\n"
                  + req.headers.host + "\n"
@@ -362,17 +370,20 @@ function authorizeApi(req, res, next) {
     if (apiKey.id && apiKey.scope.length > 0) {
       console.log('apiKey');
       console.log(apiKey);
+  console.log("D")
       if (errors) {
+  console.log("E")
         res.status(403)
         return res.json({error:errors})
       } else {
         const signing_key = getSigningKey(apiKey.key, key_datestamp, apiKey.name, key_scope)
+  console.log("F")
+        console.log(signing_key)
         const request_signature = hmac(signing_key, signing_string, 'hex')
 
         console.log(3)
         // add the key into the request
         req.scope = apiKey.scope;
-        
         console.log('signing_key hex')
         console.log(Buffer.from(signing_key, 'utf8').toString('hex'))
         console.log('request_signature')
@@ -380,7 +391,6 @@ function authorizeApi(req, res, next) {
         console.log('client_signature')
         console.log(client_signature)
         
-        console.log(3)
         if (request_signature !== client_signature) {
           res.status(403)
           return res.json({error:errors})

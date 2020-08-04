@@ -12,12 +12,14 @@
 #include "frag.h"
 #include "result.h"
 #include "parallel_hashmap/phmap.h"
+#include "segmenter.h"
 
 class IndexServer {
 
     public:
         IndexServer(std::string database, std::string table);
         ~IndexServer();
+		Segmenter seg;
         std::string status;
         std::mutex m;
         void init();
@@ -31,6 +33,7 @@ class IndexServer {
         std::map<std::string,int> getPercentLoaded();
         std::string getServingStatus();
         bool do_run;
+        std::string separateGram(const char* c, bool isCJK);
 
     private:
         // this is the reverse index
@@ -39,6 +42,7 @@ class IndexServer {
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> bigramurls_map;
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> trigramurls_map;
         std::map<std::string,int> percent_loaded;
+        QueryBuilder queryBuilder;
         // a map of languages to a map of strings (partial words)) to a map of suggestions (the int is the number of occurrences in the corpus)
         std::map<std::string, std::map<std::string, std::vector<std::pair<std::string,int>>>> suggestions;
         std::string db;
@@ -51,11 +55,12 @@ class IndexServer {
         std::map<std::string,std::vector<int>> getTermPositions(int doc_id, std::vector<std::string> terms);
         Result getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates);
         void doFilter(std::string filter, std::vector<Frag::Item> &candidates);
-        void getResultInfo(Result& result);
+        void getResultInfo(Result& result, std::vector<std::string> terms, std::string lang);
         pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
         void loadIndex(Frag::Type type, std::string lang);
         void buildSuggestions(std::string lang);
-        QueryBuilder queryBuilder;
+        void addSuggestion(std::string term, std::string lang, int count);
+        void getStopSuggest();
         const int MAX_CANDIDATES_COUNT = 1000;
         int getTime();
 };

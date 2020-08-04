@@ -36,6 +36,8 @@ class Segmenter {
 		pqxx::connection* C;
 		pqxx::work* txn;
 		std::string concat_positions(std::vector<int> pos);
+        void addSuggestCandidate(std::vector<std::string> i, double f, std::vector<std::pair<std::vector<std::string>, double>> &s);
+        int SUGGEST_SIZE = 30;
 
 	public:
 		Segmenter();
@@ -44,9 +46,12 @@ class Segmenter {
 		void parse(std::string id, std::string lang, std::string str_in, std::string table,
 				   std::map<std::string, Frag::Item> &doc_unigram_map,
 				   std::map<std::string, Frag::Item> &doc_bigram_map,
-				   std::map<std::string, Frag::Item> &doc_trigram_map);
+				   std::map<std::string, Frag::Item> &doc_trigram_map,
+                   std::map<std::vector<std::string>,double> &stopSuggest);
 		void tokenize(std::string text, std::vector<std::string> *pieces);
 		void detokenize(std::vector<std::string> pieces, std::string text);
+        std::string getSnippet(std::string text, std::string lang, int position);
+        std::string segmentTerm(std::string text, std::string lang);
 };
 
 #endif

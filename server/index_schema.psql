@@ -36,6 +36,15 @@ CREATE TABLE trigrams_en (
 	idf real
 );
 
+CREATE TABLE stop_suggest (
+	id SERIAL PRIMARY KEY,
+	lang VARCHAR(2),
+	gram VARCHAR(1024) NOT NULL UNIQUE,
+    stop VARCHAR(32),
+	idf real,
+    UNIQUE (lang,gram)
+);
+
 CREATE INDEX unigrams_id_idx_en ON unigrams_en(id);
 CREATE INDEX bigrams_id_idx_en ON bigrams_en(id);
 CREATE INDEX trigrams_id_idx_en ON trigrams_en(id);

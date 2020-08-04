@@ -67,6 +67,7 @@ class Frag {
         void remove();
 
     private:
+        int getTime();
 
 };
 

@@ -116,7 +116,7 @@ class Postgres {
     )
   }
 
-  batch_execute(statement, values, callback) {
+  batch_execute(statement, values, keys, callback) {
     console.log(statement);
     (async () => {
       this.logger.write(statement + "\n");
@@ -127,13 +127,30 @@ class Postgres {
         const promisePush = async function() {
 var it = new Date().getTime();
           for (const v in values) {
+            var k = [...keys];
             for (var x in values[v]) {
-              // console.log(values[v][x]);
               // set empty stuff to null
               if (values[v][x] === "") {
                 values[v][x] = null;
               }
+              var i = k.indexOf(x);
+              if (i > -1) {
+                k.splice(i, 1);
+              }
             }
+            // we may be missing some values so check and insert null if not.
+            if (k.length > 0) {
+              for (var j in k) {
+                values[v][k[j]] = null;
+              }
+              // at this point the order of the object might be messed up (note we should probably use arrays instead.)
+              var tmp_obj = {}
+              for (var x in keys) {
+                  tmp_obj[keys[x]] = values[v][keys[x]];
+              }
+              values[v] = tmp_obj;
+            }
+            //
             /*         
             console.log('v');
             console.log(v);
@@ -143,20 +160,21 @@ var it = new Date().getTime();
             console.log(Object.values(values[v]));
             console.log(' - - - - ');
             */
+            console.log(values[v])
             promises.push(client.query(statement, Object.values(values[v])));
           }
-var et = new Date().getTime();
-var totaltime = et-it;
-console.log("promises pushed in " + totaltime + "ms");
-var it = new Date().getTime();
+          var et = new Date().getTime();
+          var totaltime = et-it;
+          console.log("promises pushed in " + totaltime + "ms");
+          var it = new Date().getTime();
           await Promise.all(promises)
           .then((r)=> {
             console.log("primises done, commit");
             client.query("COMMIT");
             client.release();
-var et = new Date().getTime();
-var totaltime = et-it;
-console.log("promises finished in " + totaltime + "ms");
+            var et = new Date().getTime();
+            var totaltime = et-it;
+            console.log("promises finished in " + totaltime + "ms");
             callback(null, r);
           })
           .catch((e) => {
@@ -426,7 +444,7 @@ console.log("promises finished in " + totaltime + "ms");
   }
 
   getTextTables(user_id, callback) {
-    var query = "SELECT d.database, t.tablename AS table, array_agg(tx._column ORDER BY t.tablename) AS column, display_field, indexing, serving from text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 GROUP BY d.database, t.tablename, display_field, indexing, serving ORDER BY d.database;"
+    var query = "SELECT d.database, t.tablename AS table, array_agg(tx._column ORDER BY t.tablename) AS column, display_field, indexing, serving from text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND indexing = true GROUP BY d.database, t.tablename, display_field, indexing, serving ORDER BY d.database;"
     this.execute(query, [user_id], function(e,r) {
       callback(e,r);
     });
@@ -597,9 +615,9 @@ console.log("promises finished in " + totaltime + "ms");
         + values_prep 
         + ";"
 
-      // console.log(statement);
-      // console.log(data);
-      this_.batch_execute(statement, data, function(e,r) {
+      console.log(statement);
+      console.log(data);
+      this_.batch_execute(statement, data, keys, function(e,r) {
         var this__ = this_;
         if (e) {
           console.log(e);
