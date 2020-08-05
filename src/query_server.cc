@@ -40,23 +40,17 @@ std::string QueryServer::do_query(std::string body) {
     const char* m = body.c_str();
     parsed_query.Parse(body.c_str());
 
-    std::string lang, query, filter, type;
+    std::string lang, query, filter, type, columns;
     
-    std::cout << "query_server.cc DEB 0 " << body <<std::endl;
     std::cout << body.c_str() <<std::endl;
     rapidjson::Value::ConstMemberIterator lit = parsed_query.FindMember("lang");
-    std::cout << "query_server.cc DEB 1 " << body <<std::endl;
     if (lit != parsed_query.MemberEnd()) {
-        std::cout << "query_server.cc DEB 2 " << body <<std::endl;
         lang = lit->value.GetString();
     } else {
         std::cout << "query_server.cc unable to parse query lang " << std::endl;
     }
-    std::cout << "query_server.cc DEB 3 " << body <<std::endl;
     rapidjson::Value::ConstMemberIterator tit = parsed_query.FindMember("type");
-    std::cout << "query_server.cc DEB 4 " << body <<std::endl;
     if (tit != parsed_query.MemberEnd()) {
-    std::cout << "query_server.cc DEB 5 " << body <<std::endl;
         type = tit->value.GetString();
     } else {
         std::cout << "query_server.cc unable to parse query type " << std::endl;
@@ -66,6 +60,12 @@ std::string QueryServer::do_query(std::string body) {
         query = qit->value.GetString();
     } else {
         std::cout << "query_server.cc unable to parse query query " << std::endl;
+    }
+    rapidjson::Value::ConstMemberIterator cit = parsed_query.FindMember("columns");
+    if (cit != parsed_query.MemberEnd()) {
+        columns = cit->value.GetString();
+    } else {
+        columns = "";
     }
     rapidjson::Value::ConstMemberIterator fit = parsed_query.FindMember("filter");
     if (fit != parsed_query.MemberEnd()) {
@@ -77,7 +77,7 @@ std::string QueryServer::do_query(std::string body) {
     std::promise<std::string> promiseObj;
     std::cout << " DEBUG query_server.cc - about to get futureObj " << std::endl;
     std::future<std::string> futureObj = promiseObj.get_future();
-    indexServer.get()->execute(lang, type, query, filter, std::move(promiseObj));
+    indexServer.get()->execute(lang, type, query, columns, filter, std::move(promiseObj));
     std::cout << " DEBUG query_server.cc - done indexServer.get " << std::endl;
     return futureObj.get();
 }

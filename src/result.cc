@@ -32,7 +32,12 @@ const std::string Result::serialize() {
 		result.AddMember("docscore", rapidjson::Value(const_cast<char*>(std::to_string(it->docscore).c_str()), allocator).Move(), allocator);
 		result.AddMember("score", rapidjson::Value(const_cast<char*>(std::to_string(it->score).c_str()), allocator).Move(), allocator);
 		result.AddMember("snippet", rapidjson::Value(const_cast<char*>(it->snippet.c_str()), allocator).Move(), allocator);
-		result.AddMember("entities", rapidjson::Value(const_cast<char*>(it->entities.c_str()), allocator).Move(), allocator);
+	    rapidjson::Value data(rapidjson::kObjectType);
+	    for (std::map<std::string,std::string>::const_iterator dit = it->data.begin(); dit != it->data.end(); ++dit) {
+            rapidjson::Value k(dit->first.c_str(), allocator);
+            data.AddMember(k, rapidjson::Value(dit->second.c_str(), allocator).Move(), allocator);
+        }
+	    result.AddMember("data", data, allocator);
 		results.PushBack(rapidjson::Value(result, allocator).Move(), allocator);
 	}
 	serialized_result.AddMember("items", results, allocator);

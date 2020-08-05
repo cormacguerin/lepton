@@ -3,10 +3,10 @@
     <flex-col
       justify="left"
     >
-      <div class="result-card-snippet">
+      <div class="result-card-title">
         {{ title }}
       </div>
-      <div class="result-card-url">
+      <div class="result-card-snippet">
         {{ snippet }}
       </div>
       <div class="result-card-url">
@@ -90,6 +90,7 @@ export default {
     font-size: 1.2em;
     font-weight: bold;
     text-align: left;
+    color: white;
 }
 .result-card {
     background-color: #171f24;

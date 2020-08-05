@@ -38,7 +38,7 @@ void IndexServer::init() {
 			cout << "Can't open database" << endl;
 		}
 	} catch (const std::exception &e) {
-    status = "failed";
+        status = "failed";
 		cerr << e.what() << std::endl;
 	}
     status = "loading";
@@ -207,12 +207,12 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
 	*/
 }
 
-void IndexServer::execute(std::string lang, std::string type, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj) {
+void IndexServer::execute(std::string lang, std::string type, std::string parsed_query, std::string columns, std::string filter, std::promise<std::string> promiseObj) {
 
 	time_t beforeload = getTime();
 
     if (type == "search") {
-	    std::thread t(search, lang, parsed_query, filter, std::move(promiseObj), this, queryBuilder);
+	    std::thread t(search, lang, parsed_query, columns, filter, std::move(promiseObj), this, queryBuilder);
 	    t.detach();
     } else if (type == "suggest") {
 	    std::thread t(suggest, lang, parsed_query, filter, std::move(promiseObj), this);
@@ -233,7 +233,7 @@ void IndexServer::execute(std::string lang, std::string type, std::string parsed
  *  TODO
  *  - make the above faster by either doing the first 3 in one db call or using an SS table
  */
-void IndexServer::search(std::string lang, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryBuilder) {
+void IndexServer::search(std::string lang, std::string parsed_query, std::string columns, std::string filter, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryBuilder) {
 
 	Query::Node query;
 	//Result::Item item;
@@ -302,7 +302,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
 	std::cout << "index_server.cc sort and resize " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
 
 	beforeload = indexServer->getTime();
-	indexServer->getResultInfo(result,terms,lang);
+	indexServer->getResultInfo(result,terms,columns,lang);
 	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc getResultInfo " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
@@ -318,7 +318,7 @@ void IndexServer::suggest(std::string lang, std::string parsed_query, std::strin
 	time_t beforeload = indexServer->getTime();
 	time_t afterload = indexServer->getTime();
 	double seconds = difftime(afterload, beforeload);
-    std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator sit = indexServer->suggestions[lang].find(parsed_query);
+    std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator sit = indexServer->suggestions[lang].find(indexServer->seg.segmentTerm(parsed_query,lang));
 	if (sit != indexServer->suggestions[lang].end()) {
         rapidjson::Document suggest_response;
         suggest_response.Parse("{}");
@@ -363,9 +363,11 @@ void IndexServer::addSuggestion(std::string term, std::string lang, int count) {
         } else {
             int index = 0;
             int position = -1;
+            bool found = false;
             std::pair<std::string,int> value;
             for (std::vector<std::pair<std::string,int>>::iterator it = suggestions[lang][sugg].begin(); it != suggestions[lang][sugg].end(); it++) {
                 if (it->first == term) {
+                    found = true;
                     position = -1;
                     it->second = count;
                     break;
@@ -382,7 +384,7 @@ void IndexServer::addSuggestion(std::string term, std::string lang, int count) {
                 if (suggestions[lang][sugg].size() == 11) {
                     suggestions[lang][sugg].pop_back();
                 }
-            } else if (suggestions[lang][sugg].size() < 10) {
+            } else if (suggestions[lang][sugg].size() < 10 && found == false) {
                 suggestions[lang][sugg].push_back(std::pair<std::string,int>(term,count));
             }
         }
@@ -393,16 +395,27 @@ void IndexServer::addSuggestion(std::string term, std::string lang, int count) {
 
 /*
  * Get the snippet, metadata, entities etc.
- * the code works well engough but it pretty unintelligable if someone can rewrite it somethime
+ * the code works well engough but it pretty unintelligable if someone can rewrite it sometime
  */
-void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, std::string lang) {
+void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, std::string user_columns, std::string lang) {
 	if (result.items.empty()) {
 		return;
 	}
     int snippet_size = 50;
 
+    // TODO parse columns to make sure it's legit
+    std::string columns = "lt_id,lt_raw_text";
+    if (user_columns.length() > 0) {
+        columns += ",";
+        columns += user_columns;
+    }
+    std::cout << "columns" << std::endl;
+    std::cout << columns << std::endl;
+
 	pqxx::work txn(*C);
-	C->prepare("get_docinfo_deep", "SELECT lt_id, lt_entities, document FROM \"" + tb + "\" AS D WHERE lt_id = $1");
+	C->prepare("get_docinfo_deep", "SELECT " + columns + " FROM \"" + tb + "\" WHERE lt_id = $1");
+    std::cout << "SELECT " << columns << " FROM \"" << tb << "\" WHERE lt_id = $1" <<std::endl;
+
 	for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
       /*
 	    for (std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.begin(); tit__ != rit->terms.end(); tit__++) {
@@ -411,7 +424,6 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
             }
         }
       */
-        std::cout << "doc_id : " << rit->doc_id << std::endl;
         std::map<int,int> best_match;
         int position = 0;
         int tophits = 0;
@@ -450,15 +462,25 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
             std::cout << "best match " << it->first << " : " << it->second << std::endl;
         }
         */
-		pqxx::result r = txn.prepared("get_docinfo_deep")(rit->doc_id).exec();
-		const pqxx::field i = r.back()[0];
-		const pqxx::field e = r.back()[1];
-		const pqxx::field t = r.back()[2];
-
-		std::string entities = std::string(e.c_str());
-		std::string text = std::string(t.c_str());
-        rit->snippet = seg.getSnippet(text,lang,position);
-		rit->entities = entities;
+		pqxx::result r;
+        try {
+            r = txn.prepared("get_docinfo_deep")(rit->doc_id).exec();
+	    } catch (const std::exception &e) {
+            std::cout << "ERROR" << std::endl;
+		    cerr << e.what() << std::endl;
+            return;
+        }
+        for (int i=0; i < r.columns(); i++) {
+            // std::cout << r.column_name(i) << std::endl;
+          std::string column_name = std::string(r.column_name(i));
+            if (column_name == "lt_raw_text") {
+                std::string raw_text = std::string(r.back()[i].c_str());
+                rit->snippet = seg.getSnippet(raw_text,lang,position);
+            } else {
+                const pqxx::field v = r.back()[i];
+                rit->data[column_name] = std::string(v.c_str());
+            }
+        }
 	}
 
 	txn.commit();

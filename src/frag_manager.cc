@@ -17,8 +17,8 @@ FragManager::FragManager(Frag::Type type, std::string db, std::string tb, std::s
     std::replace(path.begin(),path.end(),' ','_');
     lang = l;
     loadFragIndex();
-    std::cout << "frag_manager.cc path : " << path << std::endl;
-    std::cout << "frag_manager.cc lang : " << lang << std::endl;
+    //std::cout << "frag_manager.cc path : " << path << std::endl;
+    //std::cout << "frag_manager.cc lang : " << lang << std::endl;
 }
 
 FragManager::~FragManager()
@@ -43,7 +43,7 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_grams) {
         }
         //std::cout << "grams_terms.size(): " << grams_terms.size() << std::endl;
         if ((grams_terms.size()+1)%BATCH_SIZE==0) {
-            std::cout << "frag_manager.cc : batch size reached grams_terms.size() " << grams_terms.size()+1 << std::endl;
+            // std::cout << "frag_manager.cc : batch size reached grams_terms.size() " << grams_terms.size()+1 << std::endl;
             syncFrags();
         }
     }
@@ -53,7 +53,7 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_grams) {
 void FragManager::syncFrags() {
     int syncsize = grams_terms.size();
     time_t beforetime = time(0);
-    std::cout << "frag_manager.cc : begin syncFrags " << beforetime << std::endl;
+    // std::cout << "frag_manager.cc : begin syncFrags " << beforetime << std::endl;
     // load / create frags for new insertions
     loadContinueFrags();
 
@@ -90,7 +90,7 @@ void FragManager::syncFrags() {
     saveFrags();
     time_t aftertime = time(0);
     double seconds = difftime(aftertime, beforetime);
-    std::cout << "frag_manager.cc : syncFrags of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
+    // std::cout << "frag_manager.cc : syncFrags of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
 }
 
 /*
@@ -100,7 +100,7 @@ void FragManager::syncFrags() {
  */
 void FragManager::mergeFrags(int num_docs, std::string database) {
 
-    std::cout << "frag_manager.cc : mergeFrags - " << database << std::endl;
+    // std::cout << "frag_manager.cc : mergeFrags - " << database << std::endl;
 
     int syncsize = grams_terms.size();
     time_t beforetime = time(0);
@@ -109,7 +109,7 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 
     std::vector<std::string> index_files = getFiles(path,".frag");
     if (index_files.empty()) {
-        std::cout << "no index files to merge." << std::endl;
+        // std::cout << "no index files to merge." << std::endl;
         return;
     } else {
         int this_frag_id = 0;
@@ -166,10 +166,10 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
  */
 void FragManager::loadContinueFrags() {
     std::vector<std::string> index_files = getFiles(path,".frag.");
-    std::cout << "start loadContinueFrags" << std::endl;
+    // std::cout << "start loadContinueFrags" << std::endl;
 
     if (index_files.empty()) {
-        std::cout << "no index files create new frag" << std::endl;
+        // std::cout << "no index files create new frag" << std::endl;
         frags[1] = std::make_unique<Frag>(frag_type,1,1,path + lang);
         last_frag_id = 1;
     } else {
@@ -199,7 +199,7 @@ void FragManager::loadContinueFrags() {
         frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1,path + lang);
     }
 
-    std::cout << "end loadContinueFrags" << std::endl;
+    // std::cout << "end loadContinueFrags" << std::endl;
 
     // If we have a failed fragment, eg. index exists but frag does not.. then we have a priblem,
     // This could happen say during a crash, so check for orphaned fragments and create on if it doesn't exist.
@@ -215,7 +215,7 @@ void FragManager::loadContinueFrags() {
 
 
 void FragManager::saveFrags() {
-    std::cout << "frag_manager.cc : save frags" << std::endl;
+    // std::cout << "frag_manager.cc : save frags" << std::endl;
     for (std::map<int,std::unique_ptr<Frag>>::iterator it = frags.begin() ; it != frags.end(); ++it) {
         it->second.get()->write();
         it->second.reset();
@@ -229,7 +229,7 @@ void FragManager::saveFrags() {
  */
 void FragManager::loadFragIndex() {
 
-    std::cout << "load frag index" << std::endl;
+    // std::cout << "load frag index" << std::endl;
     std::vector<std::string> index_files = getFiles(path,".idx");
 
     std::sort(index_files.begin(),index_files.end());
@@ -268,7 +268,6 @@ void FragManager::loadFragIndex() {
 
             }
         }
-        std::cout << "frag_manager.cc : index frag mapping loaded." << std::endl;
     }
 }
 

@@ -176,7 +176,7 @@ std::string ManagementServer::getStats() {
 }
 
 std::string ManagementServer::toggleServing(std::string database, std::string table, std::string action) {
-    return "stopped";
+    return "{status:stopped}";
 }
 
 /*

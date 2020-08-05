@@ -156,7 +156,7 @@
         v-for="item in results"
         :key="item.url"
         :url="item.url"
-        :title="item.title"
+        :title="item.data.title"
         :snippet="item.snippet"
         :weight="item.weight"
         :tf="item.tf"

@@ -70,7 +70,7 @@ CREATE TABLE text_tables_index (
     display_field VARCHAR(64) DEFAULT 'url',
     indexing BOOLEAN,
     serving BOOLEAN,
-    UNIQUE (database,_table,_column)
+    UNIQUE (database,_table)
 );
 
 DROP TABLE IF EXISTS charts CASCADE;
