@@ -71,7 +71,7 @@ void IndexManager::init() {
 }
 
 void IndexManager::spawnProcessFeeds() {
-    std::cout << "index_manager.cc : spawnProcessFeeds" << std::endl;
+    std::cout << "index_manager.cc : " << database << " " << table << "  spawnProcessFeeds" << std::endl;
     processFeeds();
 }
 
@@ -101,7 +101,7 @@ void IndexManager::processFeeds() {
         pqxx::result r = txn.prepared("process_docs_batch")(base_batch_size).exec();
         txn.commit();
 
-        std::cout << "index_manager.cc : index " << columns << " for " << " " << r.size() << " docs." << std::endl;
+        std::cout << "index_manager.cc : " << database << " " << table << "  index " << columns << " for " << " " << r.size() << " docs." << std::endl;
 
         int counter;
         for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
@@ -146,7 +146,7 @@ void IndexManager::processFeeds() {
         // processDocInfo(ids,database,table,getDbPassword());
         ids.clear();
 
-        // sync the remainder.
+        // sync 
         for (std::set<std::string>::iterator lit = run_langs.begin(); lit != run_langs.end(); lit++) {
             unigramFragManager.at(*lit)->syncFrags();
             bigramFragManager.at(*lit)->syncFrags();
@@ -177,36 +177,84 @@ void IndexManager::processFeeds() {
 // I guess we will need to come back to this, how can we have non blocking updates.
 // Perhaps run a separate database or table or use flat files...
 void IndexManager::runFragMerge(IndexManager* indexManager) {
-    std::cout << "index_manager.cc : begin runFragMerge " << std::endl;
+
+    std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << "  begin runFragMerge " << std::endl;
+
     std::map<std::string, int> num_docs;
     indexManager->getNumDocs(num_docs);
     indexManager->merge_frags = true;
-    while (indexManager->do_run) {
-        std::cout << "index_manager.cc : runFragMerge while " << std::endl;
 
-        for (std::map<std::string, int>::iterator lit = num_docs.begin(); lit != num_docs.end(); lit++) {
-            //std::cout << "index_manager.cc : runFragMerge  " << std::endl;
-            if (indexManager->unigramFragManager.find(lit->first) != indexManager->unigramFragManager.end()) {
-                indexManager->unigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database);
-            }
-            if (indexManager->bigramFragManager.find(lit->first) != indexManager->bigramFragManager.end()) {
-                indexManager->bigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database);
-            }
-            if (indexManager->trigramFragManager.find(lit->first) != indexManager->trigramFragManager.end()) {
-                indexManager->trigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database);
+    pqxx::connection* C_;
+    try {
+        C_ = new pqxx::connection("dbname = \'" + indexManager->database + "\' user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
+        if (C_->is_open()) {
+            cout << "Opened database successfully: " << C_->dbname() << endl;
+        } else {
+            cout << "Can't open database" << endl;
+        }
+    } catch (const std::exception &e) {
+        cerr << e.what() << std::endl;
+        exit(1);
+    }
+
+    while (indexManager->do_run) {
+        
+        std::map<int,std::string> purge_docs;
+        std::string statement = "SELECT lt_id, lt_index_date FROM \"" + indexManager->table + "\" WHERE lt_update = true";
+        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " " << statement << std::endl;
+
+        pqxx::work txn(*C_);
+        C_->prepare("get_updated_docs", statement);
+
+        pqxx::result r = txn.prepared("get_updated_docs").exec();
+
+        for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+            const pqxx::field id = (row)[0];
+            const pqxx::field date = (row)[1];
+            if (id.is_null() == false && date.is_null() == false) {
+                purge_docs.insert(std::pair<int,std::string>(atoi(id.c_str()),std::string(date.c_str())));
             }
         }
+
+        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " start runFragMerge with " << purge_docs.size() << " docs to purge" << std::endl;
+
+        for (std::map<std::string, int>::iterator lit = num_docs.begin(); lit != num_docs.end(); lit++) {
+            std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " runFragMerge " << lit->first << std::endl;
+            if (indexManager->unigramFragManager.find(lit->first) != indexManager->unigramFragManager.end()) {
+                indexManager->unigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database, purge_docs);
+            }
+            if (indexManager->bigramFragManager.find(lit->first) != indexManager->bigramFragManager.end()) {
+                indexManager->bigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database, purge_docs);
+            }
+            if (indexManager->trigramFragManager.find(lit->first) != indexManager->trigramFragManager.end()) {
+                indexManager->trigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database, purge_docs);
+            }
+        }
+
+        std::string statement_ = "UPDATE \"" + indexManager->table + "\" SET lt_update = false WHERE lt_id = $1 AND lt_index_date = $2";
+        C_->prepare("update_purged_docs", statement_);
+        // std::cout << "index_manager.cc " << indexManager->database << " " << indexManager->table << " " << statement_ << std::endl;
+
+        std::cout << statement_ << std::endl;
+        for (std::map<int,std::string>::const_iterator ii = purge_docs.begin(); ii != purge_docs.end(); ii++) {
+            std::cout << "index_manager.cc " << indexManager->database << " " << indexManager->table << " " << ii->first << " " << ii->second << std::endl;
+            pqxx::result r = txn.prepared("update_purged_docs")(ii->first)(ii->second).exec();
+        }
+
+        txn.commit();
+        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " end runFragMerge with " << purge_docs.size() << " docs to purge" << std::endl;
         
         // running process_doc info here slows things down a lot.
         std::vector<int> empty;
         //ScoreDocument scoreDoc;
         //scoreDoc.processDocInfo(empty,indexManager->database,indexManager->table,getDbPassword());
         processDocInfo(empty,indexManager->database,indexManager->table,getDbPassword());
-        //std::cout << "runFragMerge done " << std::endl;
         usleep(600000000);
         
     }
-    std::cout << "runFragMerge end " << std::endl;
+
+    delete C_;
+    std::cout << "runFragMerge " << indexManager->database << " " << indexManager->table << " end " << std::endl;
     indexManager->merge_frags = false;
     return;
 }
@@ -222,7 +270,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
  * could do other processing too eg. ML stuff etc
  */
 void IndexManager::processDocInfo(std::vector<int> batch, std::string database, std::string table, std::string pwd) {
-    //std::cout << "index_manager.cc : processDocInfo " << std::endl;
+    std::cout << "index_manager.cc : " << database << " " << table << "  processDocInfo " << std::endl;
 
     if (batch.empty()) {
         try {
@@ -246,7 +294,7 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
         }
     }
 
-    // std::cout << "index_manager.cc : processDocInfo batch size " << batch.size() << std::endl;
+    std::cout << "index_manager.cc : " << database << " " << table << "  processDocInfo batch size " << batch.size() << std::endl;
 
     try {
         pqxx::connection C_("dbname = \'" + database + "\' user = postgres password = " + pwd + " hostaddr = 127.0.0.1 port = 5432");
@@ -267,8 +315,6 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
             for (std::vector<int>::iterator it_ = batch.begin(); it_ != batch.end(); it_++) {
 
                 for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
-
-                    // std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE lt_id = $1";
 
                     std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (SELECT score/freq FROM v) WHERE lt_id = $1";
                     C_.prepare("process_" + *it + "_docscore", update_docscore);

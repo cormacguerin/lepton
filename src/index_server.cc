@@ -90,7 +90,7 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
     }
 
 	time_t beforeload = getTime();
-	std::cout << "loading index " << lang << " ... (this might take a while)." << std::endl;
+	// std::cout << "loading index " << lang << " ... (this might take a while)." << std::endl;
 
 	std::vector<std::string> index_files;
 
@@ -199,7 +199,7 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
 	*/
 	time_t afterload = getTime();
 	double seconds = difftime(afterload, beforeload);
-	std::cout << "index_server.cc finished loading " << ng << "gram " << lang << " index in " << seconds << " seconds." << std::endl;
+	// std::cout << "index_server.cc finished loading " << ng << "gram " << lang << " index in " << seconds << " seconds." << std::endl;
 	/*
 	for (std::unordered_map<std::string, std::vector<int>>::iterator it = ngramurls_map.begin() ; it != ngramurls_map.end(); ++it) {
 		std::cout << "index_server.cc :"  << it->first << ":" << std::endl;
@@ -445,6 +445,9 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
                                     position = *xit;
                                 }
                             }
+                        } else {
+                            std::cout << "index_server.cc : WARNING doc_ud " << rit->doc_id << " has no terms for query " << terms[0] << std::endl;
+                            continue;
                         }
                     }
                 }
@@ -452,7 +455,17 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
         } else {
             // there is only one term so get the first occurrence of the term as the snippet position.
             // this could be better, we should look for meaningful prose..
-            position = rit->terms.at(terms[0])[0];
+            std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.find(terms[0]);
+            if (tit__ != rit->terms.end()) {
+                if (tit__->second.size()>0) {
+                    position = tit__->second.at(0);
+                } else {
+                    std::cout << "index_server.cc : WARNING doc_id " << rit->doc_id << " has no positions for term " << terms[0] << std::endl;
+                }
+            } else {
+                std::cout << "index_server.cc : WARNING doc_ud " << rit->doc_id << " has no terms for query " << terms[0] << std::endl;
+                continue;
+            }
         }
         /*
         // std::cout << "position " << " " << rit->doc_id << " " << position << std::endl;
@@ -549,9 +562,9 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
       } else if (op == "contains") {
         pgq = " AND metadata->>'" + key + "' LIKE '%" + value + "%'";
       } else if (op == "greater_than") {
-        pgq = " AND (metadata->>'" + key + "')::int > '" + value + "'";
+        pgq = " AND (metadata->>'" + key + "') > '" + value + "'";
       } else if (op == "less_than") {
-        pgq = " AND (metadata->>'" + key + "')::int < '" + value + "'";
+        pgq = " AND (metadata->>'" + key + "') < '" + value + "'";
       } else {
         return;
       }
@@ -571,14 +584,30 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
         for (rapidjson::Value::ConstMemberIterator it = obj.MemberBegin(); it != obj.MemberEnd(); ++it) {
 
           if (strcmp(it->name.GetString(),"key")==0) {
-            key = it->value.GetString();
+            if (it->value.IsString()) {
+              key = it->value.GetString();
+            } else {
+              std::cout << "KEY IS NOT STRING CONTINUEa" << std::endl;
+              continue;
+            }
           }
           std::cout << "key " << key << std::endl;
 
           if (strcmp(it->name.GetString(),"value")==0) {
-            value = it->value.GetString();
+            if (it->value.IsString()) {
+              value = it->value.GetString();
+            } else if (it->value.IsInt()) {
+              value = std::to_string(it->value.GetInt());
+            } else if (it->value.IsInt64()) {
+              value = std::to_string((long)it->value.GetInt64());
+            } else if (it->value.IsUint()) {
+              value = std::to_string((unsigned long)it->value.GetUint());
+            } else if (it->value.IsUint64()) {
+              value = std::to_string((unsigned long)it->value.GetUint64());
+            } else if (it->value.IsDouble()) {
+              value = std::to_string((long)it->value.GetDouble());
+            }
           }
-          std::cout << "value " << value << std::endl;
 
           if (strcmp(it->name.GetString(),"operator")==0) {
             op = it->value.GetString();
@@ -586,9 +615,11 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
         }
 
         if (key == "") {
+          std::cout << "NO KEY CONTINUE" << std::endl;
           continue;
         }
         if (value == "") {
+          std::cout << "NO VALUE CONTINUE" << std::endl;
           continue;
         }
           
@@ -599,9 +630,9 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
         } else if (op == "contains") {
           pgq = " AND metadata->>'" + key + "' LIKE '%" + value + "%'";
         } else if (op == "greater_than") {
-          pgq = " AND (metadata->>'" + key + "')::int > '" + value + "'";
+          pgq = " AND (metadata->>'" + key + "') > '" + value + "'";
         } else if (op == "less_than") {
-          pgq = " AND (metadata->>'" + key + "')::int < '" + value + "'";
+          pgq = " AND (metadata->>'" + key + "') < '" + value + "'";
         } else {
           continue;
         }
@@ -610,6 +641,7 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
       }
 
     } else {
+      std::cout << "IS NOT ARRAY CONTINUEa" << std::endl;
       return;
     }
 

@@ -59,7 +59,7 @@ class FragManager {
         std::map<int,std::unique_ptr<Frag>> frags;
         void addTerms(std::map<std::string, Frag::Item> doc_grams);
         void syncFrags();
-        void mergeFrags(int num_docs, std::string database);
+        void mergeFrags(int num_docs, std::string database, std::map<int,std::string> purge_batch);
 
 };
 

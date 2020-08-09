@@ -97,8 +97,9 @@ void FragManager::syncFrags() {
  * In this function we.
  * Read all the frag parts 00001 to 00*x and merge them all into 00001
  * This means that 00001 part should always have the full index.
+ * purge_batch is a list of doc_id's that have been recently updated
  */
-void FragManager::mergeFrags(int num_docs, std::string database) {
+void FragManager::mergeFrags(int num_docs, std::string database, std::map<int,std::string> purge_docs) {
 
     // std::cout << "frag_manager.cc : mergeFrags - " << database << std::endl;
 
@@ -109,12 +110,12 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 
     std::vector<std::string> index_files = getFiles(path,".frag");
     if (index_files.empty()) {
-        // std::cout << "no index files to merge." << std::endl;
+        std::cout << "frag_manager.cc : " << path << "  no index files to merge." << std::endl;
         return;
     } else {
         int this_frag_id = 0;
         std::unique_ptr<Frag> main_frag = std::make_unique<Frag>(frag_type, this_frag_id, 1, path + lang);
-        // std::cout << "frag_manager.cc : main frag fragmap size " << main_frag.get()->frag_map.size() << std::endl;
+        std::cout << "frag_manager.cc : " << path << " main frag fragmap size " << main_frag.get()->frag_map.size() << std::endl;
 
         // bool track if we are in a merge or not.
         bool merged_frag_part = false;
@@ -126,21 +127,27 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 
 
             // skip if we only have one frag (we need more than one to merge)
+            // std::cout << "frag_manager.cc : mergeFrags for loop " << path << " frag " << this_frag_id << "." << std::endl;
             if (std::count_if(index_files.begin(), index_files.end(), [frag_lit](const std::string& str) {
-               return str.find(frag_lit + ".frag") != std::string::npos; }) < 2) {
-               continue;
+                return str.find(frag_lit + ".frag") != std::string::npos; }) < 2) {
+                main_frag = std::make_unique<Frag>(frag_type, frag_id, 1, path + lang);
+                std::cout << "frag_manager.cc : " << path << " purge A " << std::endl;
+                main_frag.get()->purgeDocs(purge_docs);
+                main_frag.get()->write();
+                continue;
             }
 
             // test if the current frag iteration is complete or not
             if (this_frag_id!=frag_id) {
                 if (merged_frag_part == true) {
                     main_frag.get()->addWeights(num_docs, database, lang);
+                    std::cout << "write this_frag_id " << this_frag_id << std::endl;
                     main_frag.get()->write();
-                    // std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
                     merged_frag_part = false;
                 }
-                // std::cout << "frag_manager.cc : main frag id : " << frag_id << std::endl;
                 main_frag = std::make_unique<Frag>(frag_type, frag_id, 1, path + lang);
+                std::cout << "frag_manager.cc : " << path << " purge B " << std::endl;
+                main_frag.get()->purgeDocs(purge_docs);
             }
             if (frag_string.find(".frag.")!=std::string::npos) {
                 int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
@@ -156,6 +163,13 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
                 merged_frag_part = true;
             }
             this_frag_id=frag_id;
+
+            // we need to cater for the event that this is the last iteration (otherwise it won't get caught.
+           if (std::next(it) == index_files.end()) {
+                std::cout << "frag_manger.cc - we are merging the last file in this group" << std::endl;
+                main_frag.get()->addWeights(num_docs, database, lang);
+                main_frag.get()->write();
+           }
         }
     }
 }
@@ -207,7 +221,7 @@ void FragManager::loadContinueFrags() {
     // If the index is missing, that's not a problem, a new index would be created automatically.
     for (std::vector<int>::iterator iit = indices.begin(); iit != indices.end(); iit++) {
         if (frags.find(*iit) == frags.end()) {
-            std::cout << "frag_manager.cc : WARNING frag " << *iit << " not found.. creating." << std::endl;
+            std::cout << "frag_manager.cc : " << path << "  WARNING frag " << *iit << " not found.. creating." << std::endl;
             frags[*iit] = std::make_unique<Frag>(frag_type, *iit, 1, path + lang);
         }
     }
@@ -252,9 +266,9 @@ void FragManager::loadFragIndex() {
                 if (d.HasParseError()) {
                     std::cout << "shrad_manager.cc : unable to parse " << filename << std::endl;
                     if (remove(filename.c_str()) != 0 ) {
-                        std::cout << "shrad_manager.cc : unable to remove bad index file " << filename << std::endl;
+                        std::cout << "shrad_manager.cc : " << path << "   unable to remove bad index file " << filename << std::endl;
                     } else {
-                        std::cout << "shrad_manager.cc : bad index file " << filename << " removed." << std::endl;
+                        std::cout << "shrad_manager.cc : " << path << "   bad index file " << filename << " removed." << std::endl;
                     }
                 }
 
@@ -303,7 +317,7 @@ std::vector<std::string> FragManager::getFiles(std::string path, std::string ext
     if (dp == NULL)
     {
         perror("opendir");
-        std::cout << "frag_manager.cc : Error , unable to load last frag" << std::endl;;
+        std::cout << "frag_manager.cc : " << path << "   Error , unable to load last frag" << std::endl;;
         closedir(dp);
         return index_files;
     }
@@ -315,7 +329,7 @@ std::vector<std::string> FragManager::getFiles(std::string path, std::string ext
             }
         }
     } catch (int e) {
-        std::cout << "frag_manager.cc : failed to load index files " << e << std::endl;
+        std::cout << "frag_manager.cc : " << path << "   failed to load index files " << e << std::endl;
     }
 
     closedir(dp);

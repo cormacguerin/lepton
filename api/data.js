@@ -191,7 +191,15 @@ exports.getServingTables = function(u,c) {
       if (r.length == 0) {
         c();
       } else {
+          console.log('r');
+          console.log(r);
         r.forEach(function(d) {
+          console.log('d');
+          console.log(d);
+          console.log('d.database');
+          console.log(d.database);
+          console.log('d.table');
+          console.log(d.table);
           initDB(d.database, function() {
             db_pg[d.database].getTableIndexStats(d.table, function(e,s) {
               d.total = parseInt(s[0].total);
@@ -516,7 +524,7 @@ exports.addServingColumn = function(u,d,t,c,callback) {
 /*
  * Updates the table where we track which table/column
  */
-exports.getServingColumns = function(u,d,t,callback) {
+exports.getServingColumns = function(u, d, t, callback) {
   if (!(d&&t)) {
     return callback({status:'failed'})
   }
@@ -541,7 +549,7 @@ exports.removeServingColumn = function(u,d,t,c,callback) {
   }
   const db = u + '_' + d;
   initDB('admin', function() {
-    db_pg['admin'].setServingColumn(u, db, t, s, c, function(err, r) {
+    db_pg['admin'].setServingColumn(u, db, t, 'false', c, function(err, r) {
       if (err) {
         console.log("unable to remove serving column")
         console.log(err)
