@@ -211,7 +211,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
             const pqxx::field id = (row)[0];
             const pqxx::field date = (row)[1];
-            if (id.is_null() == false && date.is_null() == false) {
+            if (date.is_null() == false ){
                 purge_docs.insert(std::pair<int,std::string>(atoi(id.c_str()),std::string(date.c_str())));
             }
         }
@@ -249,7 +249,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         //ScoreDocument scoreDoc;
         //scoreDoc.processDocInfo(empty,indexManager->database,indexManager->table,getDbPassword());
         processDocInfo(empty,indexManager->database,indexManager->table,getDbPassword());
-        usleep(600000000);
+        usleep(60000000);
         
     }
 
@@ -405,21 +405,21 @@ void IndexManager::indexDocument(string id, string rawdoc, std::string lang) {
        cout << "Error Message : " << e.what() << endl;
        return;
        }
-    // const char *ckey = (*it).c_str();
-    // const string display_url = doc[display_field].GetString();
-    string doc_body;
-    try {
-    doc_body = doc["body"].GetString();
-    } catch (const exception& e) {
-    cout << "Warning : unable to parse display_url " << e.what() << endl;
-    }
-    // base64 decode
-    string decoded_doc_body = base64_decode(doc_body);
-    // tokenize
-    std::vector<string> tokenized_doc_body;
-    // this is the sentencepiece tokenizer
-    // spp.tokenize(decoded_doc_body, &tokenized_doc_body);
-    // this is the cormac tokenizer
+      // const char *ckey = (*it).c_str();
+      // const string display_url = doc[display_field].GetString();
+      string doc_body;
+      try {
+      doc_body = doc["body"].GetString();
+      } catch (const exception& e) {
+      cout << "Warning : unable to parse display_url " << e.what() << endl;
+      }
+      // base64 decode
+      string decoded_doc_body = base64_decode(doc_body);
+      // tokenize
+      std::vector<string> tokenized_doc_body;
+      // this is the sentencepiece tokenizer
+      // spp.tokenize(decoded_doc_body, &tokenized_doc_body);
+      // this is the cormac tokenizer
     */
 
     // container for our url term / frequency
@@ -476,7 +476,6 @@ void IndexManager::getNumDocs(std::map<std::string, int> &count) {
                 count[l.c_str()] = atoi(c.c_str());
                 total += atoi(c.c_str());
             }
-            count["total"] = total;
             C__.disconnect();
         } else {
             std::cout << "Can't open database" << std::endl;

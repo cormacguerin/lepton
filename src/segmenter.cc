@@ -621,7 +621,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 
 	txn.commit();
 
-    std::cout << "doc id " << id << " indexed." << std::endl;
+    // std::cout << "doc id " << id << " indexed." << std::endl;
 
 }
 
