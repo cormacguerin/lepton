@@ -101,9 +101,10 @@ void IndexManager::processFeeds() {
         pqxx::result r = txn.prepared("process_docs_batch")(base_batch_size).exec();
         txn.commit();
 
-        std::cout << "index_manager.cc : " << database << " " << table << "  index " << columns << " for " << " " << r.size() << " docs." << std::endl;
+        // std::cout << "index_manager.cc : " << database << " " << table << "  index " << columns << " for " << " " << r.size() << " docs." << std::endl;
 
         int counter;
+        int skipped_docs = 0;
         for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
             counter++;
             const pqxx::field id = (row)[0];
@@ -113,18 +114,22 @@ void IndexManager::processFeeds() {
 
             // std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
             if (url.is_null()) {
-                std::cout << "skip : url is null" << std::endl;
+                // std::cout << "skip : url is null" << std::endl;
+                skipped_docs++;
                 continue;
             }
             if (document.is_null()) {
-                std::cout << "skip : document is null" << std::endl;
+                // std::cout << "skip : document is null" << std::endl;
+                skipped_docs++;
                 continue;
             }
             if (lang.is_null()) {
-                std::cout << "skip : lang is null" << std::endl;
+                // std::cout << "skip : lang is null" << std::endl;
+                skipped_docs++;
                 continue;
             }
             if (std::find(langs.begin(), langs.end(), lang.c_str()) == langs.end()) {
+                skipped_docs++;
                 continue;
             }
             run_langs.insert(lang.c_str());
@@ -158,6 +163,7 @@ void IndexManager::processFeeds() {
         //
         // sleep a few seconds, and try again
         usleep(6000000);
+        std::cout << "processed " << counter << " docs skipped " << skipped_docs << std::endl;
     }
     std::cout << "finish process feeds" << std::endl;
     return;

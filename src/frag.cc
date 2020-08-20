@@ -43,7 +43,7 @@ Frag::Frag(Frag::Type type, int _frag_id, int _fragment_id, std::string p) : pre
        std::cout << "A _fragment_id " << _fragment_id << std::endl;
        std::cout << "B fragment_id " << fragment_id << std::endl;
        std::cout << "B _fragment_id " << _fragment_id << std::endl;
-       */
+     */
 }
 
 Frag::~Frag()
@@ -147,9 +147,11 @@ void Frag::loadJsonFrag(std::string filename) {
 void Frag::addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index, std::mutex &m) {
     usleep(20);
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
+      /*
         if ((it->first == "beirut") || (it->first == "cormac")) {
             std::cout << "frag.cc addToindex found " << it->first << " with count " << it->second.size() << std::endl;
         }
+      */
         usleep(1);
         // TODO this could be faster
         std::vector<Frag::Item> tmp;
@@ -406,13 +408,17 @@ void Frag::purgeDocs(std::map<int,std::string> purge_docs) {
         int removed = 0;
         for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end();) {
             std::map<int,std::string>::iterator pit = purge_docs.find(tit->first);
+            /*
             if ((it->first == "beirut") || (it->first == "cormac")) {
                 std::cout << "frag.cc debug  " << it->first << " " << path << frag_id << " - term : " << it->first <<  " - id : " << tit->first << " - doc_id : " << tit->second.doc_id << std::endl;
             }
+            */
             if (pit != purge_docs.end()) {
+              /*
                 if ((it->first == "beirut") || (it->first == "cormac")) {
                     std::cout << "frag.cc debug "<<  it->first << " FOUND in doc id " << tit->second.doc_id << std::endl;
                 }
+               */
                 tit = it->second.erase(tit);
                 removed++;
             } else {
@@ -422,14 +428,16 @@ void Frag::purgeDocs(std::map<int,std::string> purge_docs) {
         // I've encountered scenarios where you can have empty maps in unknown circumstances.
         // probably from me messing with the index, but this could probably happen in the real world too say during crashes
         // this causes problems at serving time as you have have a good index (.idx) but the same terms in more than one frag
-        // to heal this, just delete.
+        // to heal this, just delete if empty.
         if (it->second.empty()) {
+          /*
             if ((it->first == "beirut") || (it->first == "cormac")) {
                 std::cout << "frag.cc "<< path << " " << frag_id <<  " found empty map for " << it->first << std::endl;
             }
             if (removed > 0) {
                 std::cout << "frag.cc purged " << removed << " docs for term " << it->first << " from frag " << frag_id << std::endl; 
             }
+           */
             it = frag_map.erase(it);
         } else {
             if (removed > 0) {
@@ -438,6 +446,7 @@ void Frag::purgeDocs(std::map<int,std::string> purge_docs) {
             ++it;
         }
     }
+    /*
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
         if ((it->first == "beirut") || (it->first == "cormac")) {
             std::cout << "frag.cc after purge " << path << " - term : " << it->first <<  " map size " << it->second.size() << std::endl;
@@ -446,6 +455,7 @@ void Frag::purgeDocs(std::map<int,std::string> purge_docs) {
             }
         }
     }
+    */
 	time_t afterload = getTime();
 	double seconds = difftime(afterload, beforeload);
 }
@@ -469,13 +479,11 @@ void Frag::update(std::string s, std::map<int,Frag::Item> m) {
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
         std::cout << "frag.cc : " << path << " : before : " << it->first << " : size()  " << (it->second).size() << std::endl;
     }
-    */
     if ((s == "beirut") || (s == "cormac")) {
         for (std::map<int, Frag::Item>::iterator it = m.begin(); it != m.end(); ++it) {
             std::cout << "frag.cc frag id : " << s << " " << frag_id << " : new insert : " << s << " : " << it->first << " : " << it->second.doc_id << std::endl;
         }
     }
-    /*
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
         std::cout << "frag.cc frag_id : " << frag_id << " : after : " << it->first << " : size()  " << (it->second).size() << std::endl;
     }

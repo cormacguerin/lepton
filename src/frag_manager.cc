@@ -17,8 +17,6 @@ FragManager::FragManager(Frag::Type type, std::string db, std::string tb, std::s
     std::replace(path.begin(),path.end(),' ','_');
     lang = l;
     loadFragIndex();
-    //std::cout << "frag_manager.cc path : " << path << std::endl;
-    //std::cout << "frag_manager.cc lang : " << lang << std::endl;
 }
 
 FragManager::~FragManager()
@@ -128,7 +126,7 @@ void FragManager::mergeFrags(int num_docs, std::string database, std::map<int,st
             if (std::count_if(index_files.begin(), index_files.end(), [frag_lit](const std::string& str) {
                     return str.find(frag_lit + ".frag") != std::string::npos; }) < 2) {
                 main_frag = std::make_unique<Frag>(frag_type, frag_id, 1, path + lang);
-                std::cout << "frag_manager.cc : " << path << " purge A " << std::endl;
+                // std::cout << "frag_manager.cc : " << path << " purge A " << std::endl;
                 main_frag.get()->purgeDocs(purge_docs);
                 main_frag.get()->write();
                 continue;
@@ -148,24 +146,21 @@ void FragManager::mergeFrags(int num_docs, std::string database, std::map<int,st
                 int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
                 // std::cout << "frag_manager.cc : frag " << frag_id << " : " << frag_part_id << " : " << *it << std::endl;
                 if (frag_part_id > 1) {
-                    if (frag_id == 24 || frag_id == 21) {
-                      std::cout << "frag_manager.cc : DEB before main_frag.get()->frag_map[cormac].size()" <<  main_frag.get()->frag_map["cormac"].size() << std::endl;
-                      std::cout << "frag_manager.cc : DEB before main_frag.get()->frag_map[beirut].size()" <<  main_frag.get()->frag_map["beirut"].size() << std::endl;
-                      std::cout << "frag_type " << frag_type << std::endl;
-                      std::cout << "frag_id " << frag_id << std::endl;
-                      std::cout << "frag_part_id " << frag_part_id << std::endl;
-                    }
                     std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type, frag_id, frag_part_id, path + lang);
                     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
+                      /*
                         if ((it->first == "beirut") || (it->first == "cormac")) {
                             std::cout << "frag_manager.cc : DEB found " << it->first << " it->second.size() " << it->second.size() << std::endl;
                         }
+                      */
                         main_frag.get()->update(it->first, it->second);
                     }
+                    /*
                     if (frag_id == 24 || frag_id == 21) {
                         std::cout << "frag_manager.cc : DEB after main_frag.get()->frag_map[cormac].size()" <<  main_frag.get()->frag_map["cormac"].size() << std::endl;
                         std::cout << "frag_manager.cc : DEB after main_frag.get()->frag_map[beirut].size()" <<  main_frag.get()->frag_map["beirut"].size() << std::endl;
                     }
+                    */
                     // delete the parts, remember that we want to keep the 00001 part as that is the main merge file.
                     if (frag_part.get()->fragment_id != 1) {
                         frag_part.get()->remove();
@@ -177,7 +172,7 @@ void FragManager::mergeFrags(int num_docs, std::string database, std::map<int,st
 
             // we need to cater for the event that this is the last iteration (otherwise it won't get caught.
             if (std::next(it) == index_files.end()) {
-                std::cout << "frag_manger.cc - we are merging the last file in this group" << std::endl;
+                // std::cout << "frag_manger.cc - we are merging the last file in this group" << std::endl;
                 main_frag.get()->addWeights(num_docs, database, lang);
                 main_frag.get()->write();
             }
