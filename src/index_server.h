@@ -25,8 +25,8 @@ class IndexServer {
         void init();
         void run();
         void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates);
-        void execute(std::string lang, std::string type, std::string query, std::string columns, std::string filter, std::promise<std::string> promiseObj);
-        static void search(std::string lang, std::string parsed_query, std::string columns, std::string filter, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryParser);
+        void execute(std::string lang, std::string type, std::string query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj);
+        static void search(std::string lang, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryParser);
         static void suggest(std::string lang, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj, IndexServer *indexServer);
         std::vector<std::string> langs = {"en","ja","zh","ko","es","de","fr"};
         std::map<std::string,int> getServingInfo();

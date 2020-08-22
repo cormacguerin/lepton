@@ -542,26 +542,12 @@ app.get('/search', user.authorize, function(req, res, next) {
   try {
     queryData.type = "search";
     // vuejs adds stupid brackets on array so we need to check.
-    /*
-    if (queryData["filter[]"]) {
-      try {
-        queryData.filter = JSON.parse(queryData["filter[]"]);
-      } catch(e) {
-        console.log(e)
-      }
-    } else if (queryData["filter"]) {
-      try {
-        queryData.filter = JSON.parse(queryData["filter"]);
-      } catch(e) {
-        console.log(e)
-      }
+    if (queryData["pages[]"]) {
+        queryData.pages = queryData["pages[]"];
     }
-    */
     if (queryData["filter[]"]) {
         queryData.filter = queryData["filter[]"];
     }
-    console.log(queryData)
-    console.log(queryData.filter)
     var socket = new net.Socket();
     if (Object.keys(queryServers).length === 0) {
       doGetStats(database,table,queryData,res);
