@@ -92,7 +92,6 @@ app.get('/api/getUserInfo', user.authorize, function(req,res,next) {
   var language;
   var region;
   var languages = langparser.parse(req.headers["accept-language"]);
-  // console.log('req.headers["accept-language"] ' + req.headers["accept-language"]);
   if (languages[0]) {
     if (languages[0].code) {
       language=languages[0].code;
@@ -494,8 +493,6 @@ app.post('/addTableData', user.authorize, function(req, res, next) {
 app.get('/search', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   var database;
-  console.log('queryData')
-  console.log(queryData)
 
   if (!queryData.query) {
     res.json({"error":"no query provided"});
@@ -716,8 +713,6 @@ function execute(queryData, port, callback) {
   var tmpQuery = {}
   queryData.lang = "en";
   internalQuery = JSON.stringify(queryData);
-  console.log("internalQuery")
-  console.log(internalQuery)
 
   var socket = new net.Socket();
   socket.connect(port, '127.0.0.1', function() {
@@ -725,8 +720,8 @@ function execute(queryData, port, callback) {
     var data_length = Buffer.byteLength(internalQuery, 'utf8')
     var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":";
     socket.write(header.concat(internalQuery),'utf8', function(r) {
-      console.log('socket.write');
-      console.log(r);
+      //console.log('socket.write');
+      //console.log(r);
     });
     socket.end();
   });

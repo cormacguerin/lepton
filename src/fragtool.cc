@@ -19,6 +19,7 @@ int main(int argc, char* argv[]) {
 	std::ifstream in (filename);
 	in >> bits(frag_map);
 	in.close();
+    std::cout << frag_map.size() << std::endl;
   /*
 	for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
 		for (std::map<int, Frag::Item>::const_iterator vit = (it->second).begin() ; vit != (it->second).end(); ++vit) {

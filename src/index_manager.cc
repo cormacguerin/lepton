@@ -315,10 +315,11 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
 
             std::string update_doc_entities = "UPDATE \"" + table + "\" SET lt_entities = $1 WHERE lt_id = $2";
 
-            float multiplier = 1.0;
             std::vector<std::pair<std::string,float>> grams;
 
             for (std::vector<int>::iterator it_ = batch.begin(); it_ != batch.end(); it_++) {
+
+                float multiplier = 1.0;
 
                 for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
 
@@ -338,11 +339,10 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                         const pqxx::field weight = (row)[2];
                         const pqxx::field idf = (row)[3];
                         std::string t = std::string(gram.c_str());
-                        if (atof(idf.c_str()) < 1) {
-                            continue;
-                        }
-                        float w = atof(weight.c_str()) * atof(idf.c_str()) * multiplier;
-                        bool add = true;
+                       // if (atof(idf.c_str()) < 1) {
+                        //    continue;
+                        //}
+                        float w = (atof(weight.c_str()) * atof(idf.c_str())) * multiplier;
                         if (hasDigit(t)==false) {
                             if (grams.empty()) {
                                 grams.push_back(std::pair<std::string,float>(t,w));
@@ -354,11 +354,6 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                                     }
                                 }
                             }
-                            /*
-                            if (add==true) {
-                              grams.push_back(std::pair<std::string,float>(t,w));
-                            }
-                            */
                         }
                     }
                     multiplier++;

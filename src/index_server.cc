@@ -215,12 +215,14 @@ void IndexServer::execute(std::string lang, std::string type, std::string parsed
 	    std::thread t(search, lang, parsed_query, columns, filter, pages, std::move(promiseObj), this, queryBuilder);
 	    t.detach();
     } else if (type == "suggest") {
-	    std::thread t(suggest, lang, parsed_query, filter, std::move(promiseObj), this);
+	    std::thread t(suggest, lang, parsed_query, std::move(promiseObj), this);
 	    t.detach();
     }
 
 	time_t afterload = getTime();
 	double seconds = difftime(afterload, beforeload);
+    std::cout << lang << std::endl;
+    std::cout << " unigramurls_map[query.lang].size " <<  unigramurls_map[lang].size() << std::endl;
 	std::cout << "index_server.cc search " << parsed_query << " executed in " << seconds << " miliseconds." << std::endl;
 }
 
@@ -367,7 +369,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
 /*
  * similar to above but we scan for potential suggestions.
  */
-void IndexServer::suggest(std::string lang, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj, IndexServer *indexServer) {
+void IndexServer::suggest(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer) {
 
 	time_t beforeload = indexServer->getTime();
 	time_t afterload = indexServer->getTime();
@@ -399,6 +401,7 @@ void IndexServer::buildSuggestions(std::string lang) {
     int j = 0;
     std::cout << "unigramurls_map[lang].size() " << unigramurls_map[lang].size() << std::endl;
     for (phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[lang].begin(); urls != unigramurls_map[lang].end(); urls++) {
+        // std::cout << tb << " - " << urls->first << " " << urls->second.size() << std::endl;
         if (urls->second.size() > 1) {
             addSuggestion(urls->first, lang, urls->second.size());
         }
@@ -1008,11 +1011,13 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
         m.unlock();
 		if (urls != unigramurls_map[query.lang].end()) {
 			std::cout << "index_server.cc Found " << urls->second.size() << " candidates for " << urls->first << std::endl;
-			/*
+			
+            /*
 			for (std::vector<Frag::Item>::const_iterator it = (urls->second).begin() ; it != (urls->second).end(); ++it) {
 				std::cout << "index_server.cc - at " << (urls->second).begin() - it << " : " << it->doc_id << std::endl;
 			}
-			*/
+            */
+			
 			std::vector<Frag::Item>::const_iterator bit = urls->second.begin();
 			std::vector<Frag::Item>::const_iterator eit;
 			if (urls->second.size() > MAX_CANDIDATES_COUNT*3) {
