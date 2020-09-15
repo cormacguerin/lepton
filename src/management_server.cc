@@ -74,7 +74,7 @@ void ManagementServer::run() {
     std::cout << "Run ManagementServer." << std::endl;
     pqxx::work txn(*C);
     // SELECT all database table columns which have indexing enabled
-    std::string statement = "SELECT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table WHERE serving = true";
+    std::string statement = "SELECT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table WHERE indexing = true";
     C->prepare("get_tables_to_serve", statement);
 
     pqxx::result r = txn.prepared("get_tables_to_serve").exec();
