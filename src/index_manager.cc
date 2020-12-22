@@ -21,9 +21,11 @@ IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string
     do_run = true;
     //    unigramFragManager(u,db,tb), bigramFragManager(b,db,tb), trigramFragManager(t,db,tb) {
     for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
+      /*
         std::cout << "*lit " << *lit << std::endl;
         std::cout << "db " << db << std::endl;
         std::cout << "tb " << tb << std::endl;
+      */
         unigramFragManager[*lit] = new FragManager(u,db,tb,*lit);
         bigramFragManager[*lit] = new FragManager(b,db,tb,*lit);
         trigramFragManager[*lit] = new FragManager(t,db,tb,*lit);
@@ -70,7 +72,7 @@ void IndexManager::init() {
 }
 
 void IndexManager::spawnProcessFeeds() {
-    std::cout << "index_manager.cc : spawnProcessFeeds" << std::endl;
+    std::cout << "index_manager.cc : " << database << " " << table << "  spawnProcessFeeds" << std::endl;
     processFeeds();
 }
 
@@ -89,22 +91,21 @@ void IndexManager::processFeeds() {
         int batch_size = 0;
         int base_batch_size = 50000;
         getMaxDocId(max_doc_id);
-        std::cout << "indexManager.cc : max_doc_id : " << max_doc_id << std::endl;
 
         std::vector<int> ids;
 
         std::string statement = "SELECT lt_id,url,concat(" + columns + ") as document,language FROM \"" + table + "\" WHERE (lt_feed_date > lt_index_date OR lt_index_date IS null) LIMIT $1";
-        std::cout << "statement" << std::endl;
-        std::cout << statement << std::endl;
 
         pqxx::work txn(*C);
         C->prepare("process_docs_batch", statement);
 
-        std::cout << statement << std::endl;
         pqxx::result r = txn.prepared("process_docs_batch")(base_batch_size).exec();
         txn.commit();
 
+        // std::cout << "index_manager.cc : " << database << " " << table << "  index " << columns << " for " << " " << r.size() << " docs." << std::endl;
+
         int counter;
+        int skipped_docs = 0;
         for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
             counter++;
             const pqxx::field id = (row)[0];
@@ -112,20 +113,24 @@ void IndexManager::processFeeds() {
             const pqxx::field document = (row)[2];
             const pqxx::field lang = (row)[3];
 
-            std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
+            // std::cout << "url : " << url.c_str() << "(" << lang << ")" << std::endl;
             if (url.is_null()) {
-                std::cout << "skip : url is null" << std::endl;
+                // std::cout << "skip : url is null" << std::endl;
+                skipped_docs++;
                 continue;
             }
             if (document.is_null()) {
-                std::cout << "skip : document is null" << std::endl;
+                // std::cout << "skip : document is null" << std::endl;
+                skipped_docs++;
                 continue;
             }
             if (lang.is_null()) {
-                std::cout << "skip : lang is null" << std::endl;
+                // std::cout << "skip : lang is null" << std::endl;
+                skipped_docs++;
                 continue;
             }
             if (std::find(langs.begin(), langs.end(), lang.c_str()) == langs.end()) {
+                skipped_docs++;
                 continue;
             }
             run_langs.insert(lang.c_str());
@@ -146,9 +151,8 @@ void IndexManager::processFeeds() {
         // because mergefrags is now running on a different thread constantly this shouldn't be an issue.
         ids.clear();
 
-        // sync the remainder.
+        // sync 
         for (std::set<std::string>::iterator lit = run_langs.begin(); lit != run_langs.end(); lit++) {
-            std::cout << "index_manager.cc : start " << *lit << " sync." << std::endl;
             unigramFragManager.at(*lit)->syncFrags();
             bigramFragManager.at(*lit)->syncFrags();
             trigramFragManager.at(*lit)->syncFrags();
@@ -157,7 +161,8 @@ void IndexManager::processFeeds() {
         // process doc info must be called after mergeFrags(which creates idf)
         //
         // sleep a few seconds, and try again
-        usleep(5000000);
+        usleep(6000000);
+        std::cout << "processed " << counter << " docs skipped " << skipped_docs << std::endl;
     }
     std::cout << "finish process feeds" << std::endl;
     return;
@@ -177,34 +182,83 @@ void IndexManager::processFeeds() {
 // I guess we will need to come back to this, how can we have non blocking updates.
 // Perhaps run a separate database or table or use flat files...
 void IndexManager::runFragMerge(IndexManager* indexManager) {
+
+    std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << "  begin runFragMerge " << std::endl;
+
     std::map<std::string, int> num_docs;
     indexManager->getNumDocs(num_docs);
-    std::cout << "index_manager.cc : runFragMerge begin " << std::endl;
     indexManager->merge_frags = true;
-    while (indexManager->do_run) {
-        std::cout << "index_manager.cc : runFragMerge while " << std::endl;
 
-        for (std::map<std::string, int>::iterator lit = num_docs.begin(); lit != num_docs.end(); lit++) {
-            std::cout << "index_manager.cc : runFragMerge  " << std::endl;
-            if (indexManager->unigramFragManager.find(lit->first) != indexManager->unigramFragManager.end()) {
-                indexManager->unigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database);
-            }
-            if (indexManager->bigramFragManager.find(lit->first) != indexManager->bigramFragManager.end()) {
-                indexManager->bigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database);
-            }
-            if (indexManager->trigramFragManager.find(lit->first) != indexManager->trigramFragManager.end()) {
-                indexManager->trigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database);
+    pqxx::connection* C_;
+    try {
+        C_ = new pqxx::connection("dbname = \'" + indexManager->database + "\' user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
+        if (C_->is_open()) {
+            cout << "Opened database successfully: " << C_->dbname() << endl;
+        } else {
+            cout << "Can't open database" << endl;
+        }
+    } catch (const std::exception &e) {
+        cerr << e.what() << std::endl;
+        exit(1);
+    }
+
+    while (indexManager->do_run) {
+        
+        std::map<int,std::string> purge_docs;
+        std::string statement = "SELECT lt_id, lt_index_date FROM \"" + indexManager->table + "\" WHERE lt_update = true";
+        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " " << statement << std::endl;
+
+        pqxx::work txn(*C_);
+        C_->prepare("get_updated_docs", statement);
+
+        pqxx::result r = txn.prepared("get_updated_docs").exec();
+
+        for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+            const pqxx::field id = (row)[0];
+            const pqxx::field date = (row)[1];
+            if (date.is_null() == false ){
+                purge_docs.insert(std::pair<int,std::string>(atoi(id.c_str()),std::string(date.c_str())));
             }
         }
+
+        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " start runFragMerge with " << purge_docs.size() << " docs to purge" << std::endl;
+
+        for (std::map<std::string, int>::iterator lit = num_docs.begin(); lit != num_docs.end(); lit++) {
+            std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " runFragMerge " << lit->first << std::endl;
+            if (indexManager->unigramFragManager.find(lit->first) != indexManager->unigramFragManager.end()) {
+                indexManager->unigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database, purge_docs);
+            }
+            if (indexManager->bigramFragManager.find(lit->first) != indexManager->bigramFragManager.end()) {
+                indexManager->bigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database, purge_docs);
+            }
+            if (indexManager->trigramFragManager.find(lit->first) != indexManager->trigramFragManager.end()) {
+                indexManager->trigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database, purge_docs);
+            }
+        }
+
+        std::string statement_ = "UPDATE \"" + indexManager->table + "\" SET lt_update = false WHERE lt_id = $1 AND lt_index_date = $2";
+        C_->prepare("update_purged_docs", statement_);
+        // std::cout << "index_manager.cc " << indexManager->database << " " << indexManager->table << " " << statement_ << std::endl;
+
+        std::cout << statement_ << std::endl;
+        for (std::map<int,std::string>::const_iterator ii = purge_docs.begin(); ii != purge_docs.end(); ii++) {
+            std::cout << "index_manager.cc " << indexManager->database << " " << indexManager->table << " " << ii->first << " " << ii->second << std::endl;
+            pqxx::result r = txn.prepared("update_purged_docs")(ii->first)(ii->second).exec();
+        }
+
+        txn.commit();
+        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " end runFragMerge with " << purge_docs.size() << " docs to purge" << std::endl;
         
         // running process_doc info here slows things down a lot.
         std::vector<int> empty;
         //ScoreDocument scoreDoc;
         processDocInfo(empty,indexManager->database,indexManager->table,config.postgres_password);
         //std::cout << "runFragMerge done " << std::endl;
-        usleep(600000000);
-        
+        usleep(60000000);
     }
+
+    delete C_;
+    std::cout << "runFragMerge " << indexManager->database << " " << indexManager->table << " end " << std::endl;
     indexManager->merge_frags = false;
     return;
 }
@@ -220,7 +274,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
  * could do other processing too eg. ML stuff etc
  */
 void IndexManager::processDocInfo(std::vector<int> batch, std::string database, std::string table, std::string pwd) {
-    std::cout << "index_manager.cc : processDocInfo " << std::endl;
+    std::cout << "index_manager.cc : " << database << " " << table << "  processDocInfo " << std::endl;
 
     if (batch.empty()) {
         try {
@@ -244,12 +298,11 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
         }
     }
 
-    std::cout << "index_manager.cc : processDocInfo batch size " << batch.size() << std::endl;
+    std::cout << "index_manager.cc : " << database << " " << table << "  processDocInfo batch size " << batch.size() << std::endl;
 
     try {
         pqxx::connection C_("dbname = \'" + database + "\' user = postgres password = " + pwd + " hostaddr = 127.0.0.1 port = 5432");
         if (C_.is_open()) {
-            std::cout << "Opened database successfully: " << C_.dbname() << std::endl;
             // since this can be a thread so we need a new connection for each call.
             pqxx::work txn_(C_);
 
@@ -260,14 +313,13 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
 
             std::string update_doc_entities = "UPDATE \"" + table + "\" SET lt_entities = $1 WHERE lt_id = $2";
 
-            float multiplier = 1.0;
             std::vector<std::pair<std::string,float>> grams;
 
             for (std::vector<int>::iterator it_ = batch.begin(); it_ != batch.end(); it_++) {
 
-                for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
+                float multiplier = 1.0;
 
-                    // std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (lt_docscore + (SELECT score/freq FROM v))/2 WHERE lt_id = $1";
+                for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
 
                     std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (SELECT score/freq FROM v) WHERE lt_id = $1";
                     C_.prepare("process_" + *it + "_docscore", update_docscore);
@@ -285,11 +337,10 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                         const pqxx::field weight = (row)[2];
                         const pqxx::field idf = (row)[3];
                         std::string t = std::string(gram.c_str());
-                        if (atof(idf.c_str()) < 1) {
-                            continue;
-                        }
-                        float w = atof(weight.c_str()) * atof(idf.c_str()) * multiplier;
-                        bool add = true;
+                       // if (atof(idf.c_str()) < 1) {
+                        //    continue;
+                        //}
+                        float w = (atof(weight.c_str()) * atof(idf.c_str())) * multiplier;
                         if (hasDigit(t)==false) {
                             if (grams.empty()) {
                                 grams.push_back(std::pair<std::string,float>(t,w));
@@ -301,11 +352,6 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                                     }
                                 }
                             }
-                            /*
-                            if (add==true) {
-                              grams.push_back(std::pair<std::string,float>(t,w));
-                            }
-                            */
                         }
                     }
                     multiplier++;
@@ -333,7 +379,6 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                 pqxx::result ent = txn_.prepared("process_doc_entities")(strarray)(*it_).exec();
             }
             txn_.commit();
-            std::cout << "index_manager.cc : processDocInfo complete" << std::endl;
         }
     } catch (const std::exception &e) {
         std::cerr << e.what() << std::endl;
@@ -359,21 +404,21 @@ void IndexManager::indexDocument(string id, string rawdoc, std::string lang) {
        cout << "Error Message : " << e.what() << endl;
        return;
        }
-    // const char *ckey = (*it).c_str();
-    // const string display_url = doc[display_field].GetString();
-    string doc_body;
-    try {
-    doc_body = doc["body"].GetString();
-    } catch (const exception& e) {
-    cout << "Warning : unable to parse display_url " << e.what() << endl;
-    }
-    // base64 decode
-    string decoded_doc_body = base64_decode(doc_body);
-    // tokenize
-    std::vector<string> tokenized_doc_body;
-    // this is the sentencepiece tokenizer
-    // spp.tokenize(decoded_doc_body, &tokenized_doc_body);
-    // this is the cormac tokenizer
+      // const char *ckey = (*it).c_str();
+      // const string display_url = doc[display_field].GetString();
+      string doc_body;
+      try {
+      doc_body = doc["body"].GetString();
+      } catch (const exception& e) {
+      cout << "Warning : unable to parse display_url " << e.what() << endl;
+      }
+      // base64 decode
+      string decoded_doc_body = base64_decode(doc_body);
+      // tokenize
+      std::vector<string> tokenized_doc_body;
+      // this is the sentencepiece tokenizer
+      // spp.tokenize(decoded_doc_body, &tokenized_doc_body);
+      // this is the cormac tokenizer
     */
 
     // container for our url term / frequency
@@ -407,7 +452,7 @@ void IndexManager::exportVocab(std::string lang) {
     for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
         const pqxx::field gram = (row)[0];
         const pqxx::field incidence = (row)[1];
-        std::cout << gram.c_str() << " " << incidence.c_str() << std::endl;
+        // std::cout << gram.c_str() << " " << incidence.c_str() << std::endl;
     }
 }
 
@@ -419,7 +464,6 @@ void IndexManager::getNumDocs(std::map<std::string, int> &count) {
     try {
 		    pqxx::connection C__("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C__.is_open()) {
-            std::cout << "Opened database successfully: " << C__.dbname() << std::endl;
             pqxx::work txn__(C__);
             prepare_doc_count(C__);
             pqxx::result r = txn__.prepared("doc_count").exec();
@@ -431,7 +475,6 @@ void IndexManager::getNumDocs(std::map<std::string, int> &count) {
                 count[l.c_str()] = atoi(c.c_str());
                 total += atoi(c.c_str());
             }
-            count["total"] = total;
             C__.disconnect();
         } else {
             std::cout << "Can't open database" << std::endl;
@@ -500,7 +543,6 @@ std::vector<int> IndexManager::GetDocscoreBatch() {
 }
 
 void IndexManager::updateStopSuggest(std::string lang, int batchsize) {
-    std::cout << "start process suggestions for " << lang << std::endl;
     prepare_update_stop_suggest(*C);
     pqxx::work txn(*C);
 
@@ -516,7 +558,6 @@ void IndexManager::updateStopSuggest(std::string lang, int batchsize) {
         pqxx::result r = txn.prepared("update_stop_suggest")(lang)(gram)(it->first.at(0))(it->second/batchsize).exec();
     }
     txn.commit();
-    std::cout << "finish process suggestions for " << lang << std::endl;
 }
 
 void IndexManager::prepare_update_stop_suggest(pqxx::connection_base &c) {

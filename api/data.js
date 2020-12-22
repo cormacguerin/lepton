@@ -157,21 +157,63 @@ exports.getIndexTables = function(u,c) {
     } else {
       const re = /^[0-9]+_/gi;
       var reply = []
-      r.forEach(function(d) {
-        initDB(d.database, function() {
-          db_pg[d.database].getTableIndexStats(d.table, function(e,s) {
-//            var d = Object.assign({},r[x]);
-            d.total = parseInt(s[0].total);
-            d.indexed = parseInt(s[0].indexed);
-            d.refreshed = parseInt(s[0].stale);
-            d.database = d.database.replace(re,'');
-            reply.push(d);
-            if (reply.length === r.length) {
-              c(reply);
-            }
+      if (r.length == 0) {
+        c();
+      } else {
+        r.forEach(function(d) {
+          initDB(d.database, function() {
+            db_pg[d.database].getTableIndexStats(d.table, function(e,s) {
+              d.total = parseInt(s[0].total);
+              d.indexed = parseInt(s[0].indexed);
+              d.refreshed = parseInt(s[0].stale);
+              d.database = d.database.replace(re,'');
+              reply.push(d);
+              if (reply.length === r.length) {
+                c(reply);
+              }
+            });
           });
         });
-      });
+      }
+    }
+  });
+}
+
+exports.getServingTables = function(u,c) {
+  db_pg['admin'].getServingTables(u, function(e, r) {
+    if (e) {
+      console.log("unable to retrieve user_clients");
+      console.log(e);
+      c(e);
+    } else {
+      const re = /^[0-9]+_/gi;
+      var reply = []
+      if (r.length == 0) {
+        c();
+      } else {
+          console.log('r');
+          console.log(r);
+        r.forEach(function(d) {
+          console.log('d');
+          console.log(d);
+          console.log('d.database');
+          console.log(d.database);
+          console.log('d.table');
+          console.log(d.table);
+          initDB(d.database, function() {
+            db_pg[d.database].getTableIndexStats(d.table, function(e,s) {
+              d.total = parseInt(s[0].total);
+              d.indexed = parseInt(s[0].indexed);
+              d.refreshed = parseInt(s[0].stale);
+              d.database = d.database.replace(re,'');
+              reply.push(d);
+              if (reply.length === r.length) {
+                c(reply);
+              }
+            });
+          });
+        });
+      }
     }
   });
 }
@@ -470,10 +512,29 @@ exports.addServingColumn = function(u,d,t,c,callback) {
         callback({status:'failed', error:err})
       } else {
         if (r.length === 0) {
-          callback(r)
+          callback({status:'success'})
         } else {
           callback(err)
         }
+      }
+    })
+  })
+}
+
+/*
+ * Updates the table where we track which table/column
+ */
+exports.getServingColumns = function(u, d, t, callback) {
+  if (!(d&&t)) {
+    return callback({status:'failed'})
+  }
+  initDB('admin', function() {
+    db_pg['admin'].getServingColumns(u, d, t, function(err, r) {
+      if (err) {
+        console.log(err)
+        callback({status:'failed', error:err})
+      } else {
+        callback(r.map(c => c._column));
       }
     })
   })
@@ -488,14 +549,14 @@ exports.removeServingColumn = function(u,d,t,c,callback) {
   }
   const db = u + '_' + d;
   initDB('admin', function() {
-    db_pg['admin'].removeServingColumn(u, db, t, c, function(err, r) {
+    db_pg['admin'].setServingColumn(u, db, t, 'false', c, function(err, r) {
       if (err) {
         console.log("unable to remove serving column")
         console.log(err)
         callback({status:'failed', error:err})
       } else {
         if (r.length === 0) {
-          callback(r)
+          callback({status:'success'})
         } else {
           callback(err)
         }

@@ -64,10 +64,14 @@ class Result {
 			std::string lang;
 			std::string url;
 			std::string snippet;
-			std::string entities;
+			std::map<std::string,std::string> data;
 			std::map<std::string,std::vector<int>> terms;
 			void updateResult();
 		};
+        int result_count;
+        int query_time;
+        int page_num;
+        int page_result_num;
 
 		const std::string serialize();
 		// return the query for debugging purposes.

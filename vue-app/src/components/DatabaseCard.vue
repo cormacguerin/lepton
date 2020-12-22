@@ -237,7 +237,12 @@
             #fts="{item}"
           >
             <td>
-              <div v-if="item.data_type === 'text' && selectedTable.type ==='search'">
+              <div
+                v-if="(item.data_type === 'text'
+                  || item.data_type === 'varchar_64'
+                  || item.data_type === 'varchar_2048')
+                  && selectedTable.type ==='search'"
+              >
                 <label
                   class="checkbox"
                 >

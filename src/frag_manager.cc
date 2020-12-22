@@ -18,8 +18,6 @@ FragManager::FragManager(Frag::Type type, std::string db, std::string tb, std::s
     std::replace(path.begin(),path.end(),' ','_');
     lang = l;
     loadFragIndex();
-    std::cout << "frag_manager.cc path : " << path << std::endl;
-    std::cout << "frag_manager.cc lang : " << lang << std::endl;
 }
 
 FragManager::~FragManager()
@@ -44,7 +42,7 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_grams) {
         }
         //std::cout << "grams_terms.size(): " << grams_terms.size() << std::endl;
         if ((grams_terms.size()+1)%BATCH_SIZE==0) {
-            std::cout << "frag_manager.cc : batch size reached grams_terms.size() " << grams_terms.size()+1 << std::endl;
+            // std::cout << "frag_manager.cc : batch size reached grams_terms.size() " << grams_terms.size()+1 << std::endl;
             syncFrags();
         }
     }
@@ -54,7 +52,7 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_grams) {
 void FragManager::syncFrags() {
     int syncsize = grams_terms.size();
     time_t beforetime = time(0);
-    std::cout << "frag_manager.cc : begin syncFrags " << beforetime << std::endl;
+    // std::cout << "frag_manager.cc : begin syncFrags " << beforetime << std::endl;
     // load / create frags for new insertions
     loadContinueFrags();
 
@@ -71,9 +69,6 @@ void FragManager::syncFrags() {
            frags[it->second].get()->insert(grams_terms.begin()->first, grams_terms.begin()->second);
            grams_terms.erase(grams_terms.begin());
         } else {
-           // HERE IS ANOTHER POSSIBLE ERROR
-           // we add last_frag_id into gram_frag_term_index, but if the == condition is not met it will not create the frag.
-           // but in that case.. it should crash at get-> below.. and it seems to crash above not below..
            gram_frag_term_index.insert(std::pair<std::string,int>(grams_terms.begin()->first, last_frag_id));
            if (frags[last_frag_id].get()->size() == last_frag_id*FRAG_SIZE_MULTIPLIER) {
                 // this frag is now full so write it's permanent index.
@@ -91,17 +86,18 @@ void FragManager::syncFrags() {
     saveFrags();
     time_t aftertime = time(0);
     double seconds = difftime(aftertime, beforetime);
-    std::cout << "frag_manager.cc : syncFrags of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
+    // std::cout << "frag_manager.cc : syncFrags of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
 }
 
 /*
  * In this function we.
  * Read all the frag parts 00001 to 00*x and merge them all into 00001
  * This means that 00001 part should always have the full index.
+ * purge_batch is a list of doc_id's that have been recently updated
  */
-void FragManager::mergeFrags(int num_docs, std::string database) {
+void FragManager::mergeFrags(int num_docs, std::string database, std::map<int,std::string> purge_docs) {
 
-    std::cout << "frag_manager.cc : mergeFrags - " << database << std::endl;
+    // std::cout << "frag_manager.cc : mergeFrags - " << database << std::endl;
 
     int syncsize = grams_terms.size();
     time_t beforetime = time(0);
@@ -110,12 +106,13 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
 
     std::vector<std::string> index_files = getFiles(path,".frag");
     if (index_files.empty()) {
-        std::cout << "no index files to merge." << std::endl;
+        std::cout << "frag_manager.cc : " << path << "  no index files to merge." << std::endl;
         return;
     } else {
         int this_frag_id = 0;
         std::unique_ptr<Frag> main_frag = std::make_unique<Frag>(frag_type, this_frag_id, 1, path + lang);
-        // std::cout << "frag_manager.cc : main frag fragmap size " << main_frag.get()->frag_map.size() << std::endl;
+        main_frag.get()->purgeDocs(purge_docs);
+        std::cout << "frag_manager.cc : " << path << " main frag fragmap size " << main_frag.get()->frag_map.size() << std::endl;
 
         // bool track if we are in a merge or not.
         bool merged_frag_part = false;
@@ -125,11 +122,15 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
             std::string frag_lit = frag_string.substr(0, frag_string.find("."));
             int frag_id = stoi(frag_lit);
 
-
             // skip if we only have one frag (we need more than one to merge)
+            // std::cout << "frag_manager.cc : mergeFrags for loop " << path << " frag " << this_frag_id << "." << std::endl;
             if (std::count_if(index_files.begin(), index_files.end(), [frag_lit](const std::string& str) {
-               return str.find(frag_lit + ".frag") != std::string::npos; }) < 2) {
-               continue;
+                    return str.find(frag_lit + ".frag") != std::string::npos; }) < 2) {
+                main_frag = std::make_unique<Frag>(frag_type, frag_id, 1, path + lang);
+                // std::cout << "frag_manager.cc : " << path << " purge A " << std::endl;
+                main_frag.get()->purgeDocs(purge_docs);
+                main_frag.get()->write();
+                continue;
             }
 
             // test if the current frag iteration is complete or not
@@ -137,26 +138,45 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
                 if (merged_frag_part == true) {
                     main_frag.get()->addWeights(num_docs, database, lang);
                     main_frag.get()->write();
-                    // std::cout << " - - - FRAG " << this_frag_id << " DONE - - - " << std::endl;
                     merged_frag_part = false;
                 }
-                // std::cout << "frag_manager.cc : main frag id : " << frag_id << std::endl;
                 main_frag = std::make_unique<Frag>(frag_type, frag_id, 1, path + lang);
+                main_frag.get()->purgeDocs(purge_docs);
             }
             if (frag_string.find(".frag.")!=std::string::npos) {
                 int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
                 // std::cout << "frag_manager.cc : frag " << frag_id << " : " << frag_part_id << " : " << *it << std::endl;
-                std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type, frag_id, frag_part_id, path + lang);
-                for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
-                    main_frag.get()->update(it->first, it->second);
+                if (frag_part_id > 1) {
+                    std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type, frag_id, frag_part_id, path + lang);
+                    for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
+                      /*
+                        if ((it->first == "beirut") || (it->first == "cormac")) {
+                            std::cout << "frag_manager.cc : DEB found " << it->first << " it->second.size() " << it->second.size() << std::endl;
+                        }
+                      */
+                        main_frag.get()->update(it->first, it->second);
+                    }
+                    /*
+                    if (frag_id == 24 || frag_id == 21) {
+                        std::cout << "frag_manager.cc : DEB after main_frag.get()->frag_map[cormac].size()" <<  main_frag.get()->frag_map["cormac"].size() << std::endl;
+                        std::cout << "frag_manager.cc : DEB after main_frag.get()->frag_map[beirut].size()" <<  main_frag.get()->frag_map["beirut"].size() << std::endl;
+                    }
+                    */
+                    // delete the parts, remember that we want to keep the 00001 part as that is the main merge file.
+                    if (frag_part.get()->fragment_id != 1) {
+                        frag_part.get()->remove();
+                    }
+                    merged_frag_part = true;
                 }
-                // delete the parts, remember that we want to keep the 00001 part as that is the main merge file.
-                if (frag_part.get()->fragment_id != 1) {
-                    frag_part.get()->remove();
-                }
-                merged_frag_part = true;
             }
             this_frag_id=frag_id;
+
+            // we need to cater for the event that this is the last iteration (otherwise it won't get caught.
+            if (std::next(it) == index_files.end()) {
+                // std::cout << "frag_manger.cc - we are merging the last file in this group" << std::endl;
+                main_frag.get()->addWeights(num_docs, database, lang);
+                main_frag.get()->write();
+            }
         }
     }
 }
@@ -167,10 +187,10 @@ void FragManager::mergeFrags(int num_docs, std::string database) {
  */
 void FragManager::loadContinueFrags() {
     std::vector<std::string> index_files = getFiles(path,".frag.");
-    std::cout << "start loadContinueFrags" << std::endl;
+    // std::cout << "start loadContinueFrags" << std::endl;
 
     if (index_files.empty()) {
-        std::cout << "no index files create new frag" << std::endl;
+        // std::cout << "no index files create new frag" << std::endl;
         frags[1] = std::make_unique<Frag>(frag_type,1,1,path + lang);
         last_frag_id = 1;
     } else {
@@ -200,15 +220,15 @@ void FragManager::loadContinueFrags() {
         frags[last_frag_id] = std::make_unique<Frag>(frag_type,this_frag_id,this_frag_part_id+1,path + lang);
     }
 
-    std::cout << "end loadContinueFrags" << std::endl;
+    // std::cout << "end loadContinueFrags" << std::endl;
 
-    // If we have a failed fragment, eg. index exists but frag does not.. then we have a priblem,
-    // This could happen say during a crash, so check for orphaned fragments and create on if it doesn't exist.
+    // If we have a failed fragment, eg. index exists but frag does not.. then we have a problem,
+    // This could happen say during a crash, so check for orphaned fragments and create one if it doesn't exist.
     // This could still cause missing items, but if we keep feeding it will fix itself.
     // If the index is missing, that's not a problem, a new index would be created automatically.
     for (std::vector<int>::iterator iit = indices.begin(); iit != indices.end(); iit++) {
         if (frags.find(*iit) == frags.end()) {
-            std::cout << "frag_manager.cc : WARNING frag " << *iit << " not found.. creating." << std::endl;
+            std::cout << "frag_manager.cc : " << path << "  WARNING frag " << *iit << " not found.. creating." << std::endl;
             frags[*iit] = std::make_unique<Frag>(frag_type, *iit, 1, path + lang);
         }
     }
@@ -216,7 +236,7 @@ void FragManager::loadContinueFrags() {
 
 
 void FragManager::saveFrags() {
-    std::cout << "frag_manager.cc : save frags" << std::endl;
+    // std::cout << "frag_manager.cc : save frags" << std::endl;
     for (std::map<int,std::unique_ptr<Frag>>::iterator it = frags.begin() ; it != frags.end(); ++it) {
         it->second.get()->write();
         it->second.reset();
@@ -230,7 +250,7 @@ void FragManager::saveFrags() {
  */
 void FragManager::loadFragIndex() {
 
-    std::cout << "load frag index" << std::endl;
+    // std::cout << "load frag index" << std::endl;
     std::vector<std::string> index_files = getFiles(path,".idx");
 
     std::sort(index_files.begin(),index_files.end());
@@ -253,9 +273,9 @@ void FragManager::loadFragIndex() {
                 if (d.HasParseError()) {
                     std::cout << "shrad_manager.cc : unable to parse " << filename << std::endl;
                     if (remove(filename.c_str()) != 0 ) {
-                        std::cout << "shrad_manager.cc : unable to remove bad index file " << filename << std::endl;
+                        std::cout << "shrad_manager.cc : " << path << "   unable to remove bad index file " << filename << std::endl;
                     } else {
-                        std::cout << "shrad_manager.cc : bad index file " << filename << " removed." << std::endl;
+                        std::cout << "shrad_manager.cc : " << path << "   bad index file " << filename << " removed." << std::endl;
                     }
                 }
 
@@ -269,7 +289,6 @@ void FragManager::loadFragIndex() {
 
             }
         }
-        std::cout << "frag_manager.cc : index frag mapping loaded." << std::endl;
     }
 }
 
@@ -292,7 +311,7 @@ std::vector<std::string> FragManager::getFiles(std::string path, std::string ext
     if (dp == NULL)
     {
         perror("opendir");
-        std::cout << "frag_manager.cc : Error , unable to load last frag" << std::endl;;
+        std::cout << "frag_manager.cc : " << path << "   Error , unable to load last frag" << std::endl;;
         closedir(dp);
         return index_files;
     }
@@ -304,7 +323,7 @@ std::vector<std::string> FragManager::getFiles(std::string path, std::string ext
             }
         }
     } catch (int e) {
-        std::cout << "frag_manager.cc : failed to load index files " << e << std::endl;
+        std::cout << "frag_manager.cc : " << path << "   failed to load index files " << e << std::endl;
     }
 
     closedir(dp);

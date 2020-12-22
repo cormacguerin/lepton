@@ -34,60 +34,74 @@
               Backend Status : <span :class="statusclass">{{ getStatus() }}</span>
             </div>
           </flex-row>
-          <template #details="{item, index}">
-            <CCollapse
-              :show="columns.includes(index)"
+          <flex-row class="columnContainer">
+            <div
+              v-for="c in column"
+              :key="c"
+              class="column"
             >
-              <flex-row class="columnContainer">
-                <div
-                  v-for="column in item.column"
-                  :key="column"
-                  class="column"
-                >
-                  <flex-row>
-                    <div class="columnApi">
-                      {{ column.api }}
-                    </div>
-                    <div class="columnDatabase">
-                      {{ column.database }}
-                    </div>
-                    <div
-                      v-if="column.table"
-                      class="columnTable"
-                    >
-                      {{ column.table }}
-                    </div>
-                    <div
-                      class="columnDelete"
-                      @click="deleteApiScope(item.id, column)"
-                    >
-                      <i
-                        class="fa fa-minus"
-                        aria-hidden="true"
-                      />
-                    </div>
-                  </flex-row>
+              <flex-row>
+                <div class="columnName">
+                  {{ c }}
                 </div>
-                <div>
-                  <CButton
-                    class="active addScope"
-                    color="info"
-                    size="sm"
-                    @click="addApiScopeModal = true"
-                  >
-                    <i
-                      class="fa fa-plus"
-                      aria-hidden="true"
-                    />
-                    Add Column
-                  </CButton>
+                <div
+                  class="columnDelete"
+                  @click="removeServingColumn(c)"
+                >
+                  <i
+                    class="fa fa-minus"
+                    aria-hidden="true"
+                  />
                 </div>
               </flex-row>
-            </CCollapse>
-          </template>
+            </div>
+            <div>
+              <CButton
+                class="active addColumn"
+                color="info"
+                size="sm"
+                @click="addServingColumnModal = true"
+              >
+                <i
+                  class="fa fa-plus"
+                  aria-hidden="true"
+                />
+                Add Column
+              </CButton>
+            </div>
+          </flex-row>
         </flex-col>
       </div>
     </flex-col>
+    <CModal
+      title="Add Serving Column"
+      color="info"
+      :show.sync="addServingColumnModal"
+    >
+      <template #footer-wrapper>
+        <div class="hidden" />
+      </template>
+      <CDropdown
+        :toggler-text="selectedColumn"
+        title="api"
+      >
+        <CDropdownItem
+          v-for="a in databaseColumns"
+          :key="a"
+          @click.native="selectColumn(a)"
+        >
+          {{ a }}
+        </CDropdownItem>
+      </CDropdown>
+      <CButton
+        class="active addColumn"
+        color="info"
+        size="sm"
+        @click="addServingColumn"
+      >
+        Save
+      </CBUTTON>
+    </CModal>
   </div>
 </template>
 <script>
@@ -106,8 +120,16 @@ export default {
       default: ''
     },
     column: {
-      type: String,
-      default: ''
+      type: Array,
+      default: function () {
+        return []
+      }
+    },
+    databaseColumns: {
+      type: Array,
+      default: function () {
+        return []
+      }
     },
     displayfield: {
       type: String,
@@ -146,7 +168,9 @@ export default {
   },
   data () {
     return {
-      statusclass: ''
+      statusclass: '',
+      addServingColumnModal: false,
+      selectedColumn: ''
     }
   },
   watch: {
@@ -156,6 +180,7 @@ export default {
     }
   },
   mounted () {
+    this.getTableSchema()
   },
   methods: {
     setServing () {
@@ -195,6 +220,59 @@ export default {
         this.statusclass = 'error'
         return 'No backend response'
       }
+    },
+    addServingColumn () {
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/addServingColumn', {
+        params: {
+          column: vm.selectedColumn,
+          table: vm.table,
+          database: vm.database
+        }
+      })
+        .then(function (response) {
+          console.log(response)
+          if (response.data.status === 'success') {
+            vm.addServingColumnModal = false
+            vm.$parent.getIndexTables()
+          }
+        })
+    },
+    removeServingColumn (c) {
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/removeServingColumn', {
+        params: {
+          column: c,
+          table: vm.table,
+          database: vm.database
+        }
+      })
+        .then(function (response) {
+          console.log(response)
+          if (response.data.status === 'success') {
+            vm.$parent.getIndexTables()
+          }
+        })
+    },
+    selectColumn (a) {
+      this.selectedColumn = a
+    },
+    getTableSchema () {
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/getTableSchema', {
+        params: {
+          database: vm.database,
+          table: vm.table
+        }
+      })
+        .then(function (response) {
+          if (response.data) {
+            for (var i in response.data.d) {
+              vm.databaseColumns.push(response.data.d[i].column_name)
+            }
+            vm.selectedColumn = vm.databaseColumns[0]
+          }
+        })
     }
   }
 }
@@ -229,6 +307,26 @@ export default {
   padding: 5px 10px 5px 10px;
   color: #23282c;
   font-weight: bold;
+}
+.column {
+  margin: 10px;
+}
+.columnName {
+  padding: 3px;
+  background-color: #fff;
+  color: #5f5f5f;
+  border: 1px solid #eee;
+  border-radius:5px 0px 0px 5px;
+}
+.columnDelete {
+  color: white;
+  padding: 3px;
+  background-color: #f86c6b;
+  cursor: pointer;
+  border-radius: 0px 5px 5px 0px;
+}
+.addColumn {
+  margin: 10px;
 }
 .serving {
   color: #33b13d;

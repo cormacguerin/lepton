@@ -39,7 +39,7 @@ void IndexServer::init() {
 			cout << "Can't open database" << endl;
 		}
 	} catch (const std::exception &e) {
-    status = "failed";
+        status = "failed";
 		cerr << e.what() << std::endl;
 	}
     status = "loading";
@@ -91,7 +91,7 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
     }
 
 	time_t beforeload = getTime();
-	std::cout << "loading index " << lang << " ... (this might take a while)." << std::endl;
+	// std::cout << "loading index " << lang << " ... (this might take a while)." << std::endl;
 
 	std::vector<std::string> index_files;
 
@@ -200,7 +200,7 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
 	*/
 	time_t afterload = getTime();
 	double seconds = difftime(afterload, beforeload);
-	std::cout << "index_server.cc finished loading " << ng << "gram " << lang << " index in " << seconds << " seconds." << std::endl;
+	// std::cout << "index_server.cc finished loading " << ng << "gram " << lang << " index in " << seconds << " seconds." << std::endl;
 	/*
 	for (std::unordered_map<std::string, std::vector<int>>::iterator it = ngramurls_map.begin() ; it != ngramurls_map.end(); ++it) {
 		std::cout << "index_server.cc :"  << it->first << ":" << std::endl;
@@ -208,20 +208,22 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
 	*/
 }
 
-void IndexServer::execute(std::string lang, std::string type, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj) {
+void IndexServer::execute(std::string lang, std::string type, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj) {
 
 	time_t beforeload = getTime();
 
     if (type == "search") {
-	    std::thread t(search, lang, parsed_query, filter, std::move(promiseObj), this, queryBuilder);
+	    std::thread t(search, lang, parsed_query, columns, filter, pages, std::move(promiseObj), this, queryBuilder);
 	    t.detach();
     } else if (type == "suggest") {
-	    std::thread t(suggest, lang, parsed_query, filter, std::move(promiseObj), this);
+	    std::thread t(suggest, lang, parsed_query, std::move(promiseObj), this);
 	    t.detach();
     }
 
 	time_t afterload = getTime();
 	double seconds = difftime(afterload, beforeload);
+    std::cout << lang << std::endl;
+    std::cout << " unigramurls_map[query.lang].size " <<  unigramurls_map[lang].size() << std::endl;
 	std::cout << "index_server.cc search " << parsed_query << " executed in " << seconds << " miliseconds." << std::endl;
 }
 
@@ -234,11 +236,47 @@ void IndexServer::execute(std::string lang, std::string type, std::string parsed
  *  TODO
  *  - make the above faster by either doing the first 3 in one db call or using an SS table
  */
-void IndexServer::search(std::string lang, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryBuilder) {
+void IndexServer::search(std::string lang, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryBuilder) {
 
 	Query::Node query;
 	//Result::Item item;
 	queryBuilder.build(lang, parsed_query, query);
+
+    int page_num = 0;
+    int page_result_num = 20;
+    double total_seconds = 0.0;
+
+    rapidjson::Document pagination;
+    try {
+        pagination.Parse(pages.c_str());
+    } catch (const std::exception &e) {
+        std::cout << "ERROR" << std::endl;
+        cerr << e.what() << std::endl;
+        return;
+    }
+
+    std::cout << "pages" << std::endl;
+    std::cout << pages << std::endl;
+
+    if ( pagination.IsObject() == 1) {
+      std::cout << "pages is object" << std::endl;
+      for (rapidjson::Value::ConstMemberIterator it = pagination.MemberBegin(); it != pagination.MemberEnd(); ++it) {
+
+        if (strcmp(it->name.GetString(),"page_number")==0) {
+          if ( it->value.IsInt() == 1) {
+            page_num = it->value.GetInt();
+          }
+        }
+
+        if (strcmp(it->name.GetString(),"page_result_count")==0) {
+          if ( it->value.IsInt() == 1) {
+            page_result_num = it->value.GetInt();
+          }
+        }
+
+      }
+    }
+
 	// TODO update query with other stuff.
     // - 
     // Also in a massively scaled out version these would all be separate services with their own network stack
@@ -255,6 +293,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
 	time_t afterload = indexServer->getTime();
 	double seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc gathered " << candidates.size() << " candidates for " << parsed_query << " in " << seconds << " miliseconds." << std::endl;
+    total_seconds += seconds;
 
     // new
 	std::sort(candidates.begin(), candidates.end(),
@@ -277,36 +316,53 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
 	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc " << candidates.size() << " candidates after filtering in " << seconds << " miliseconds." << std::endl;
+    total_seconds += seconds;
 
     // get and score the documents from the backend.
 	std::vector<std::string> terms = query.getTerms();
 	beforeload = indexServer->getTime();
 	Result result = indexServer->getResult(terms, candidates);
 	result.query = query;
+    result.result_count = candidates.size();
+    result.page_num = page_num;
+    result.page_result_num = page_result_num;
 	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc getResult " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
 	std::cout << "result size " << result.items.size() << std::endl;
+    total_seconds += seconds;
 	
 	// order the first 20 documents according to score 
     // TODO add pagination
 	beforeload = indexServer->getTime();
+    
 	std::sort(result.items.begin(), result.items.end(),
 		[](const Result::Item& l, const Result::Item& r) {
 		return l.score > r.score;
 	});
-	if (result.items.size() > 20) {
-		result.items.resize(20);
+    std::cout << "page_num " << page_num << std::endl;
+    std::cout << "page_result_num " << page_result_num << std::endl;
+	if (result.items.size() >= page_result_num * page_num) {
+		result.items.erase(result.items.begin(), result.items.begin() + page_result_num * page_num);
 	}
+	if (result.items.size() > page_result_num) {
+	    result.items.resize(page_result_num);
+		// result.items.erase(result.items.begin() + page_result_num, result.items.end());
+    }
+ 
 	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc sort and resize " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
+    total_seconds += seconds;
 
 	beforeload = indexServer->getTime();
-	indexServer->getResultInfo(result,terms,lang);
+	indexServer->getResultInfo(result,terms,columns,lang);
 	afterload = indexServer->getTime();
 	seconds = difftime(afterload, beforeload);
 	std::cout << "index_server.cc getResultInfo " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
+    total_seconds += seconds;
+
+    result.query_time = total_seconds;
 
 	promiseObj.set_value(result.serialize());
 }
@@ -314,12 +370,12 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
 /*
  * similar to above but we scan for potential suggestions.
  */
-void IndexServer::suggest(std::string lang, std::string parsed_query, std::string filter, std::promise<std::string> promiseObj, IndexServer *indexServer) {
+void IndexServer::suggest(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer) {
 
 	time_t beforeload = indexServer->getTime();
 	time_t afterload = indexServer->getTime();
 	double seconds = difftime(afterload, beforeload);
-    std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator sit = indexServer->suggestions[lang].find(parsed_query);
+    std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator sit = indexServer->suggestions[lang].find(indexServer->seg.segmentTerm(parsed_query,lang));
 	if (sit != indexServer->suggestions[lang].end()) {
         rapidjson::Document suggest_response;
         suggest_response.Parse("{}");
@@ -346,6 +402,7 @@ void IndexServer::buildSuggestions(std::string lang) {
     int j = 0;
     std::cout << "unigramurls_map[lang].size() " << unigramurls_map[lang].size() << std::endl;
     for (phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[lang].begin(); urls != unigramurls_map[lang].end(); urls++) {
+        // std::cout << tb << " - " << urls->first << " " << urls->second.size() << std::endl;
         if (urls->second.size() > 1) {
             addSuggestion(urls->first, lang, urls->second.size());
         }
@@ -364,9 +421,11 @@ void IndexServer::addSuggestion(std::string term, std::string lang, int count) {
         } else {
             int index = 0;
             int position = -1;
+            bool found = false;
             std::pair<std::string,int> value;
             for (std::vector<std::pair<std::string,int>>::iterator it = suggestions[lang][sugg].begin(); it != suggestions[lang][sugg].end(); it++) {
                 if (it->first == term) {
+                    found = true;
                     position = -1;
                     it->second = count;
                     break;
@@ -383,7 +442,7 @@ void IndexServer::addSuggestion(std::string term, std::string lang, int count) {
                 if (suggestions[lang][sugg].size() == 11) {
                     suggestions[lang][sugg].pop_back();
                 }
-            } else if (suggestions[lang][sugg].size() < 10) {
+            } else if (suggestions[lang][sugg].size() < 10 && found == false) {
                 suggestions[lang][sugg].push_back(std::pair<std::string,int>(term,count));
             }
         }
@@ -394,16 +453,25 @@ void IndexServer::addSuggestion(std::string term, std::string lang, int count) {
 
 /*
  * Get the snippet, metadata, entities etc.
- * the code works well engough but it pretty unintelligable if someone can rewrite it somethime
+ * the code works well engough but it pretty unintelligable if someone can rewrite it sometime
  */
-void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, std::string lang) {
+void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, std::string user_columns, std::string lang) {
 	if (result.items.empty()) {
 		return;
 	}
     int snippet_size = 50;
 
+    // TODO parse columns to make sure it's legit
+    std::string columns = "lt_id,lt_raw_text";
+    if (user_columns.length() > 0) {
+        columns += ",";
+        columns += user_columns;
+    }
+
 	pqxx::work txn(*C);
-	C->prepare("get_docinfo_deep", "SELECT lt_id, lt_entities, document FROM \"" + tb + "\" AS D WHERE lt_id = $1");
+	C->prepare("get_docinfo_deep", "SELECT " + columns + " FROM \"" + tb + "\" WHERE lt_id = $1");
+    // std::cout << "SELECT " << columns << " FROM \"" << tb << "\" WHERE lt_id = $1" <<std::endl;
+
 	for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
       /*
 	    for (std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.begin(); tit__ != rit->terms.end(); tit__++) {
@@ -412,7 +480,6 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
             }
         }
       */
-        std::cout << "doc_id : " << rit->doc_id << std::endl;
         std::map<int,int> best_match;
         int position = 0;
         int tophits = 0;
@@ -434,6 +501,9 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
                                     position = *xit;
                                 }
                             }
+                        } else {
+                            std::cout << "index_server.cc : WARNING doc_ud " << rit->doc_id << " has no terms for query " << terms[0] << std::endl;
+                            continue;
                         }
                     }
                 }
@@ -441,7 +511,17 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
         } else {
             // there is only one term so get the first occurrence of the term as the snippet position.
             // this could be better, we should look for meaningful prose..
-            position = rit->terms.at(terms[0])[0];
+            std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.find(terms[0]);
+            if (tit__ != rit->terms.end()) {
+                if (tit__->second.size()>0) {
+                    position = tit__->second.at(0);
+                } else {
+                    std::cout << "index_server.cc : WARNING doc_id " << rit->doc_id << " has no positions for term " << terms[0] << std::endl;
+                }
+            } else {
+                std::cout << "index_server.cc : WARNING doc_ud " << rit->doc_id << " has no terms for query " << terms[0] << std::endl;
+                continue;
+            }
         }
         /*
         // std::cout << "position " << " " << rit->doc_id << " " << position << std::endl;
@@ -451,15 +531,25 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
             std::cout << "best match " << it->first << " : " << it->second << std::endl;
         }
         */
-		pqxx::result r = txn.prepared("get_docinfo_deep")(rit->doc_id).exec();
-		const pqxx::field i = r.back()[0];
-		const pqxx::field e = r.back()[1];
-		const pqxx::field t = r.back()[2];
-
-		std::string entities = std::string(e.c_str());
-		std::string text = std::string(t.c_str());
-        rit->snippet = seg.getSnippet(text,lang,position);
-		rit->entities = entities;
+		pqxx::result r;
+        try {
+            r = txn.prepared("get_docinfo_deep")(rit->doc_id).exec();
+	    } catch (const std::exception &e) {
+            std::cout << "ERROR" << std::endl;
+		    cerr << e.what() << std::endl;
+            return;
+        }
+        for (int i=0; i < r.columns(); i++) {
+            std::string column_name = std::string(r.column_name(i));
+            const pqxx::field v = r.back()[i];
+            if (v.is_null() == false) {
+                if (column_name == "lt_raw_text") {
+                    rit->snippet = seg.getSnippet(std::string(v.c_str()),lang,position);
+                } else {
+                    rit->data[column_name] = std::string(v.c_str());
+                }
+            }
+        }
 	}
 
 	txn.commit();
@@ -487,14 +577,22 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
 
     std::string prep_filter = "";
     rapidjson::Document parsed_filter;
-    parsed_filter.Parse(filter.c_str());
+    try {
+        parsed_filter.Parse(filter.c_str());
+	} catch (const std::exception &e) {
+        std::cout << "ERROR" << std::endl;
+        cerr << e.what() << std::endl;
+        return;
+    }
 
+    /*
     std::cout << "prepstr " << prepstr_ << std::endl;
     std::cout << "filter " << filter << std::endl;
     std::cout << parsed_filter.IsArray() << std::endl;;
     std::cout << parsed_filter.IsObject() << std::endl;;
     std::cout << "--" << std::endl;;
-
+    */
+       
     if ( parsed_filter.IsObject() == 1) {
 
       std::string pgq;
@@ -504,15 +602,21 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
       for (rapidjson::Value::ConstMemberIterator it = parsed_filter.MemberBegin(); it != parsed_filter.MemberEnd(); ++it) {
 
         if (strcmp(it->name.GetString(),"key")==0) {
-          key = it->value.GetString();
+          if ( it->value.IsString() == 1) {
+            key = it->value.GetString();
+          }
         }
 
         if (strcmp(it->name.GetString(),"value")==0) {
-          value = it->value.GetString();
+          if ( it->value.IsString() == 1) {
+            value = it->value.GetString();
+          }
         }
 
         if (strcmp(it->name.GetString(),"operator")==0) {
-          op = it->value.GetString();
+          if ( it->value.IsString() == 1) {
+            op = it->value.GetString();
+          }
         }
       }
 
@@ -528,9 +632,9 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
       } else if (op == "contains") {
         pgq = " AND metadata->>'" + key + "' LIKE '%" + value + "%'";
       } else if (op == "greater_than") {
-        pgq = " AND (metadata->>'" + key + "')::int > '" + value + "'";
+        pgq = " AND (metadata->>'" + key + "') > '" + value + "'";
       } else if (op == "less_than") {
-        pgq = " AND (metadata->>'" + key + "')::int < '" + value + "'";
+        pgq = " AND (metadata->>'" + key + "') < '" + value + "'";
       } else {
         return;
       }
@@ -550,14 +654,30 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
         for (rapidjson::Value::ConstMemberIterator it = obj.MemberBegin(); it != obj.MemberEnd(); ++it) {
 
           if (strcmp(it->name.GetString(),"key")==0) {
-            key = it->value.GetString();
+            if (it->value.IsString()) {
+              key = it->value.GetString();
+            } else {
+              std::cout << "KEY IS NOT STRING CONTINUEa" << std::endl;
+              continue;
+            }
           }
           std::cout << "key " << key << std::endl;
 
           if (strcmp(it->name.GetString(),"value")==0) {
-            value = it->value.GetString();
+            if (it->value.IsString()) {
+              value = it->value.GetString();
+            } else if (it->value.IsInt()) {
+              value = std::to_string(it->value.GetInt());
+            } else if (it->value.IsInt64()) {
+              value = std::to_string((long)it->value.GetInt64());
+            } else if (it->value.IsUint()) {
+              value = std::to_string((unsigned long)it->value.GetUint());
+            } else if (it->value.IsUint64()) {
+              value = std::to_string((unsigned long)it->value.GetUint64());
+            } else if (it->value.IsDouble()) {
+              value = std::to_string((long)it->value.GetDouble());
+            }
           }
-          std::cout << "value " << value << std::endl;
 
           if (strcmp(it->name.GetString(),"operator")==0) {
             op = it->value.GetString();
@@ -565,9 +685,11 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
         }
 
         if (key == "") {
+          std::cout << "NO KEY CONTINUE" << std::endl;
           continue;
         }
         if (value == "") {
+          std::cout << "NO VALUE CONTINUE" << std::endl;
           continue;
         }
           
@@ -578,9 +700,9 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
         } else if (op == "contains") {
           pgq = " AND metadata->>'" + key + "' LIKE '%" + value + "%'";
         } else if (op == "greater_than") {
-          pgq = " AND (metadata->>'" + key + "')::int > '" + value + "'";
+          pgq = " AND (metadata->>'" + key + "') > '" + value + "'";
         } else if (op == "less_than") {
-          pgq = " AND (metadata->>'" + key + "')::int < '" + value + "'";
+          pgq = " AND (metadata->>'" + key + "') < '" + value + "'";
         } else {
           continue;
         }
@@ -589,6 +711,7 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
       }
 
     } else {
+      std::cout << "IS NOT ARRAY CONTINUEa" << std::endl;
       return;
     }
 
@@ -889,11 +1012,13 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
         m.unlock();
 		if (urls != unigramurls_map[query.lang].end()) {
 			std::cout << "index_server.cc Found " << urls->second.size() << " candidates for " << urls->first << std::endl;
-			/*
+			
+            /*
 			for (std::vector<Frag::Item>::const_iterator it = (urls->second).begin() ; it != (urls->second).end(); ++it) {
 				std::cout << "index_server.cc - at " << (urls->second).begin() - it << " : " << it->doc_id << std::endl;
 			}
-			*/
+            */
+			
 			std::vector<Frag::Item>::const_iterator bit = urls->second.begin();
 			std::vector<Frag::Item>::const_iterator eit;
 			if (urls->second.size() > MAX_CANDIDATES_COUNT*3) {

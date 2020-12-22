@@ -346,6 +346,7 @@ var it = new Date().getTime();
       + "lt_feed_date TIMESTAMP,"
       + "lt_index_date TIMESTAMP,"
       + "lt_update BOOL,"
+      + "lt_raw_text text,"
       + "lt_segmented_grams jsonb);"
 
     /*
@@ -450,6 +451,14 @@ var it = new Date().getTime();
     });
   }
 
+  getServingTables(user_id, callback) {
+    var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null GROUP BY d.database, t.tablename;"
+    // var query = "SELECT d.database, t.tablename AS table, (SELECT array_agg(tx._column ORDER BY t.tablename) WHERE serving = true) AS column, serving from text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND serving IS NOT NULL GROUP BY d.database, t.tablename, serving ORDER BY d.database;"
+    this.execute(query, [user_id], function(e,r) {
+      callback(e,r);
+    });
+  }
+
   getTableIndexStats(table, callback) {
     var query = "SELECT COUNT(*) AS total, sum(case when lt_index_date IS NOT NULL then 1 else 0 end) AS indexed, sum(case when lt_index_date < lt_feed_date then 1 else 0 end) AS stale FROM \"" + table+ "\"";
     this.execute(query, null, function(e,r) {
@@ -534,11 +543,8 @@ var it = new Date().getTime();
     });
   }
 
-  /*
-   * Delete a text table column
-   */
   deleteTextColumn(user_id, database, table, column, callback) {
-    var query = "DELETE FROM text_tables_index WHERE _column = $3 AND id = (SELECT id FROM databases WHERE database = $1 AND owner = $4) AND _table = (SELECT id FROM tables WHERE tablename = $2)"
+    var query = "DELETE FROM text_tables_index WHERE _column = $3 AND database = (SELECT id FROM databases WHERE database = $1 AND owner = $4) AND _table = (SELECT id FROM tables WHERE tablename = $2)"
     this.execute(query, [database, table, column, user_id], function(e,r) {
       callback(e, r);
     });
@@ -546,7 +552,6 @@ var it = new Date().getTime();
 
   /*
    * Delete text tables
-   * TODO : this function looks wrong. is it even used?
    */
   deleteTextTable(user_id, database, table, callback) {
     var query = "DELETE FROM text_tables_index WHERE database = (SELECT id FROM databases WHERE database = $1 AND owner = $3) AND _table = (SELECT id FROM tables WHERE tablename = $2)"
@@ -924,10 +929,7 @@ var it = new Date().getTime();
   }
 
   addServingColumn(u,d,t,c,callback) {
-    var query = "INSERT INTO text_tables_index(database,_table,_column,serving)"
-      + " SELECT r.db, r.t, r.c, r.e::boolean FROM"
-      + " (SELECT * FROM (VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $5), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)), $3, true)) AS v (db,t,c,e)) r"
-      + " ON CONFLICT DO NOTHING"
+    var query = "INSERT INTO text_tables_index(database,_table,_column,serving) VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $4), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)), $3, true) ON CONFLICT DO NOTHING";
 
     var values = [d,t,c,u]
 
@@ -938,11 +940,10 @@ var it = new Date().getTime();
     });
   }
 
-  removeServingColumn(u,d,t,c,callback) {
+  getServingColumns(u,d,t,callback) {
+    var query = "SELECT _column FROM text_tables_index WHERE database = (SELECT id FROM databases WHERE database = $1 AND databases.owner = $3) and _table = (SELECT id FROM tables WHERE tablename = $2) AND serving = true;";
 
-    var query = "DELETE FROM text_tables_index WHERE database = $1 AND _table = $2 AND _column = $3 AND owner = $4;"
-
-    var values = [d,t,c,u]
+    var values = [d,t,u]
 
     this.execute(query, values, function(e,r) {
       console.log(e);
@@ -955,6 +956,18 @@ var it = new Date().getTime();
     var query = "UPDATE text_tables_index SET serving = $3::boolean WHERE _table = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4));"
 
     var values = [d,t,s,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  setServingColumn(u,d,t,s,c,callback) {
+    var query = "UPDATE text_tables_index SET serving = $3::boolean WHERE _table = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $5) AND _column = $4);"
+
+    var values = [d,t,s,c,u]
 
     this.execute(query, values, function(e,r) {
       console.log(e);

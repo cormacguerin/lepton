@@ -613,15 +613,17 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 //    std::cout << "(std::string)buffer.GetString()" << std::endl;
   //  std::cout << buffer.GetString() << std::endl;
 
-	C->prepare("update_segmented_grams", "UPDATE \"" + table + "\" SET (lt_index_date, lt_segmented_grams, lt_tdscore) = (NOW(), $1, $2) WHERE lt_id = $3");
+	C->prepare("update_segmented_grams", "UPDATE \"" + table + "\" SET (lt_index_date, lt_segmented_grams, lt_tdscore, lt_raw_text, lt_update) = (NOW(), $1, $2, $3, $4) WHERE lt_id = $5");
 
 //  reset any existing content
 //	pqxx::result a_ = txn.prepared("delete_doc_text")(id).exec();
 
 //	pqxx::result e_ = txn.prepared("update_segmented_grams")((std::string)buffer.GetString())(std::to_string(tdscore))(id).exec();
-	pqxx::result e_ = txn.prepared("update_segmented_grams")(buffer.GetString())(std::to_string(tdscore))(id).exec();
+	pqxx::result e_ = txn.prepared("update_segmented_grams")(buffer.GetString())(std::to_string(tdscore))(str_in)("true")(id).exec();
 
 	txn.commit();
+
+    // std::cout << "doc id " << id << " indexed." << std::endl;
 
 }
 

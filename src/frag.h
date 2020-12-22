@@ -57,6 +57,7 @@ class Frag {
         void insert(std::string s, std::map<int,Frag::Item> m);
         void update(std::string s, std::map<int,Frag::Item> m);
         void addWeights(int num_docs, std::string database, std::string lang);
+        void purgeDocs(std::map<int,std::string> purge_docs);
         void load();
         void loadJsonFrag(std::string filename);
         void loadRawFrag(std::string filename);

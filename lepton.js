@@ -69,22 +69,11 @@ app.get('/api/getIndexingInfo', user.authorize, function(req,res,next) {
   });
 });
 app.get('/api/getServingInfo', user.authorize, function(req,res,next) {
-  console.log('GETSERVINGINFO');
   var queryData = url.parse(req.url, true).query;
-  data.getIndexTables(req.user_id, function(d) {
+  data.getServingTables(req.user_id, function(d) {
     getStats(function(s) {
-      console.log("queryServers B")
-      console.log(queryServers)
-      console.log("s")
-      console.log(s)
       if (s) {
         for (var i in d) {
-          console.log("DEBUG X")
-          console.log('d[i].database')
-          console.log(d[i].database)
-          console.log('d[i].table')
-          console.log(d[i].table)
-
           if (s[req.user_id + "_" +d[i].database]) {
             if (s[req.user_id + "_" +d[i].database][d[i].table]) {
               d[i].terms = s[req.user_id + "_" +d[i].database][d[i].table].terms;
@@ -103,7 +92,6 @@ app.get('/api/getUserInfo', user.authorize, function(req,res,next) {
   var language;
   var region;
   var languages = langparser.parse(req.headers["accept-language"]);
-  console.log('req.headers["accept-language"] ' + req.headers["accept-language"]);
   if (languages[0]) {
     if (languages[0].code) {
       language=languages[0].code;
@@ -265,7 +253,7 @@ app.get('/api/setFTS', user.authorize, function(req, res, next) {
 });
 app.get('/api/addServingColumn', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
-  if (!(queryData.database && queryData.table && queryData.column && queryData.fts)) {
+  if (!(queryData.database && queryData.table && queryData.column)) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
@@ -275,7 +263,7 @@ app.get('/api/addServingColumn', user.authorize, function(req, res, next) {
 });
 app.get('/api/removeServingColumn', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
-  if (!(queryData.database && queryData.table && queryData.column && queryData.fts)) {
+  if (!(queryData.database && queryData.table && queryData.column)) {
     res.json({status:'failed', message:'invalid parameters'});
     return;
   }
@@ -466,14 +454,10 @@ app.post('/addTableData', user.authorize, function(req, res, next) {
     }
   }
   if (access === true) {
-    console.log("access granted")
     data.checkTableExists(database, queryData.table, function(r) {
-      console.log("table exists")
-      console.log(r)
       if (r === true) {
         if (req.body) {
           if (typeof req.body === 'object') {
-            console.log("object data")
             data_ = req.body;
           } else {
             try {
@@ -484,7 +468,6 @@ app.post('/addTableData', user.authorize, function(req, res, next) {
             }
           }
           data.addTableData(database, queryData.table, data_, function(e,r) {
-            console.log("data add table data")
             if (e) {
               res.json({'message':e.message,'error':e});
             } else {
@@ -531,7 +514,7 @@ app.get('/search', user.authorize, function(req, res, next) {
   }
   // handle user or token request
   if (req.user_id) {
-      database = req.user_id + "_" + queryData.database;
+    database = req.user_id + "_" + queryData.database;
   } else {
     // validate scope
     var access = false;
@@ -556,18 +539,34 @@ app.get('/search', user.authorize, function(req, res, next) {
   try {
     queryData.type = "search";
     // vuejs adds stupid brackets on array so we need to check.
+    if (queryData["pages[]"]) {
+        queryData.pages = queryData["pages[]"];
+    }
     if (queryData["filter[]"]) {
-      queryData.filter = queryData["filter[]"];
+        queryData.filter = queryData["filter[]"];
     }
     var socket = new net.Socket();
-    console.log('queryServers');
-    console.log(queryServers);
     if (Object.keys(queryServers).length === 0) {
       doGetStats(database,table,queryData,res);
     } else if (queryServers[database]) {
       if (queryServers[database][table]) {
-        execute(queryData,queryServers[database][table].port,function(r) {
-          res.json(r);
+        // this might get slow if we scale up so need some better way to do it.
+        // I'm thinking we just return the basic candidates and let the user define queries separately.
+        var user_id;
+        if (req.user_id) {
+          user_id = req.user_id;
+        } else if (req.api_key_owner) {
+          user_id = req.api_key_owner;
+        } else {
+          console.log("should never get here");
+          res.status(403);
+          return res.json({});
+        }
+        data.getServingColumns(user_id, database, table, function(c) {
+          queryData.columns = c.join();
+          execute(queryData,queryServers[database][table].port,function(r) {
+            res.json(r);
+          });
         });
       } else {
         doGetStats(database,table,queryData,res);
@@ -589,7 +588,6 @@ app.get('/search', user.authorize, function(req, res, next) {
 app.get('/suggest', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   var database;
-  console.log(queryData)
 
   if (!queryData.query) {
     res.json({"error":"no query provided"});
@@ -636,8 +634,6 @@ app.get('/suggest', user.authorize, function(req, res, next) {
   try {
     queryData.type = "suggest";
     var socket = new net.Socket();
-    console.log('queryServers');
-    console.log(queryServers);
     if (Object.keys(queryServers).length === 0) {
       doGetStats(database,table,queryData,res);
     } else if (queryServers[database]) {
@@ -696,15 +692,11 @@ function getStats(callback) {
       return callback();
     }
     if (r.servers) {
-      console.log("r.servers")
-      console.log(r.servers)
       r.servers.forEach(function(s) {
         if (!queryServers[s.database]) {
             queryServers[s.database] = {}
         }
         queryServers[s.database][s.table] = s;
-        console.log("queryServers A")
-        console.log(queryServers)
       });
     }
     callback(queryServers);
@@ -721,35 +713,24 @@ function execute(queryData, port, callback) {
   var tmpQuery = {}
   queryData.lang = "en";
   internalQuery = JSON.stringify(queryData);
-  console.log("internalQuery")
-  console.log(internalQuery)
-  console.log("port " + port)
 
   var socket = new net.Socket();
   socket.connect(port, '127.0.0.1', function() {
     // var data_length = Array.from(internalQuery).length;
     var data_length = Buffer.byteLength(internalQuery, 'utf8')
     var header = "length:" + ('000000' + data_length).substr(data_length.toString().length) + ":";
-    console.log("header")
-    console.log(header)
     socket.write(header.concat(internalQuery),'utf8', function(r) {
-      console.log('socket.write');
-      console.log(r);
+      //console.log('socket.write');
+      //console.log(r);
     });
     socket.end();
   });
   var packet = "";
   socket.on('data', (data) => {
     packet += data.toString();
-    console.log("response time queryData")
-    console.log(queryData)
-    console.log('packet - data');
-    console.log(packet);
     socket.end();
   });
   socket.on('end', () => {
-    console.log('end - packet');
-    console.log(packet);
     if (packet) {
       var result = {};
       try {

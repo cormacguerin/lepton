@@ -274,16 +274,17 @@ export default {
   padding: 3px;
   background-color: #5f5f5f;
   color: white;
+  border-radius: 5px 0px 0px 5px;
 }
 .scopeDatabase {
   font-weight: bold;
   padding: 3px;
-  background-color: #efefef;
+  background-color: #fff;
   color: #5f5f5f;
 }
 .scopeTable {
   padding: 3px;
-  background-color: #efefef;
+  background-color: #fff;
   color: #5f5f5f;
 }
 .scopeDelete {
@@ -291,6 +292,7 @@ export default {
   padding: 3px;
   background-color: #f86c6b;
   cursor: pointer;
+  border-radius: 0px 5px 5px 0px;
 }
 .scopeContainer {
   min-height: 50px;
