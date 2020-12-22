@@ -189,9 +189,11 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
     indexManager->getNumDocs(num_docs);
     indexManager->merge_frags = true;
 
+    auto config = getConfig();
+
     pqxx::connection* C_;
     try {
-        C_ = new pqxx::connection("dbname = \'" + indexManager->database + "\' user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
+		    C_ = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C_->is_open()) {
             cout << "Opened database successfully: " << C_->dbname() << endl;
         } else {
