@@ -62,7 +62,6 @@ class Frag {
         void loadRawFrag(std::string filename);
         //void addToIndex(phmap::parallel_flat_hash_map<std::string, phmap::flat_hash_map<int, Frag::Item>> &index);
         void addToIndex(phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>> &index, std::mutex &m);
-        std::string readFile(std::string filename);
         pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
         void remove();
 

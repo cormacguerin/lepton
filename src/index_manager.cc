@@ -15,6 +15,7 @@
 using namespace std;
 using namespace pqxx;
 
+static auto config = getConfig();
 
 IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string db, std::string tb, std::string cl) {
     do_run = true;
@@ -56,7 +57,7 @@ void IndexManager::init() {
     // client.connect();
     // postgres connection
     try {
-        C = new pqxx::connection("dbname = \'" + database + "\' user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
+		    C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C->is_open()) {
             cout << "Opened database successfully: " << C->dbname() << endl;
         } else {
@@ -143,7 +144,6 @@ void IndexManager::processFeeds() {
         // i = batch_position;
         // process doc info must be called after mergeFrage(which creates idf)
         // because mergefrags is now running on a different thread constantly this shouldn't be an issue.
-        // processDocInfo(ids,database,table,getDbPassword());
         ids.clear();
 
         // sync the remainder.
@@ -155,7 +155,6 @@ void IndexManager::processFeeds() {
             updateStopSuggest(*lit, (int)r.size());
         }
         // process doc info must be called after mergeFrags(which creates idf)
-        // processDocInfo(ids,database,table,getDbPassword());
         //
         // sleep a few seconds, and try again
         usleep(5000000);
@@ -201,8 +200,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         // running process_doc info here slows things down a lot.
         std::vector<int> empty;
         //ScoreDocument scoreDoc;
-        //scoreDoc.processDocInfo(empty,indexManager->database,indexManager->table,getDbPassword());
-        processDocInfo(empty,indexManager->database,indexManager->table,getDbPassword());
+        processDocInfo(empty,indexManager->database,indexManager->table,config.postgres_password);
         //std::cout << "runFragMerge done " << std::endl;
         usleep(600000000);
         
@@ -226,7 +224,7 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
 
     if (batch.empty()) {
         try {
-            pqxx::connection C__("dbname = \'" + database + "\' user = postgres password = " + pwd + " hostaddr = 127.0.0.1 port = 5432");
+		        pqxx::connection C__("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
             if (C__.is_open()) {
                 std::cout << "Opened database successfully: " << C__.dbname() << std::endl;
                 pqxx::work txn__(C__);
@@ -419,7 +417,7 @@ void IndexManager::exportVocab(std::string lang) {
 
 void IndexManager::getNumDocs(std::map<std::string, int> &count) {
     try {
-        pqxx::connection C__("dbname = \'" + database + "\' user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
+		    pqxx::connection C__("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C__.is_open()) {
             std::cout << "Opened database successfully: " << C__.dbname() << std::endl;
             pqxx::work txn__(C__);

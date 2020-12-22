@@ -18,15 +18,15 @@ class IndexManager {
 		Segmenter seg;
 		pqxx::connection* C;
 		char SPS[4];
-        std::vector<std::string> langs = {"en","ja","zh","ko","es","de","fr"};
+    std::vector<std::string> langs = {"en","ja","zh","ko","es","de","fr"};
 		std::string SPC;
         // per language map per language frag manager (can be large so put on heap)
         // ie. <lang , fragmanager >
 		std::map<std::string, FragManager*> unigramFragManager;
 		std::map<std::string, FragManager*> bigramFragManager;
-        std::map<std::string, FragManager*> trigramFragManager;
+    std::map<std::string, FragManager*> trigramFragManager;
         // lang map of stop word suggestions (which get mixed in to all suggestions at servetime)
-        std::map<std::string, std::map<std::vector<std::string>,double>> stopSuggest;
+    std::map<std::string, std::map<std::vector<std::string>,double>> stopSuggest;
 //        std::map<std::string, Frag::Item> doc_unigram_map;
 //        std::map<std::string, Frag::Item> doc_bigram_map;
 //        std::map<std::string, Frag::Item> doc_trigram_map;
@@ -34,7 +34,7 @@ class IndexManager {
 
         // these two bools control the status of running threads
         // merge_frags - the actual merge frags run status.
-        bool merge_frags;
+    bool merge_frags;
 
 	public:
 		IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string database, std::string table, std::string columns);

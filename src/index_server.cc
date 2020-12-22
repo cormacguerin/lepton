@@ -30,8 +30,9 @@ IndexServer::~IndexServer()
 }
 
 void IndexServer::init() {
+  auto config = getConfig();
 	try {
-		C = new pqxx::connection("dbname = " + db + " user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
+    C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
 		if (C->is_open()) {
 			cout << "Opened database successfully: " << C->dbname() << endl;
 		} else {
@@ -97,37 +98,37 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
 	struct dirent *entry;
 	DIR *dp;
 
-    std::string path = "index/" + db + "/" + tb + "/";
-    std::cout << path << std::endl;
-    std::replace(path.begin(),path.end(),' ','_');
+  std::string path = "index/" + db + "/" + tb + "/";
+  std::cout << path << std::endl;
+  std::replace(path.begin(),path.end(),' ','_');
 
 	dp = opendir(path.c_str());
 	if (dp == NULL) {
 	  perror("opendir");
 	  std::cout << "frag_manager.cc : Error , unable to load last frag" << std::endl;;
-      status = "failed";
-      return;
+    status = "failed";
+    return;
 	}
 	std::string ext = ".frag.00001";
 	while (entry = readdir(dp)) {
-      std::string e_(entry->d_name);
-      if (e_.substr(0,2).compare(lang) == 0) {
-        if (e_.substr(3,ng.length()).compare(ng) == 0) {
-          if ((e_.find(ext) != std::string::npos)) {
-            if (e_.substr(e_.length()-11).compare(ext) == 0) {
-              index_files.push_back(entry->d_name);
-            }
+    std::string e_(entry->d_name);
+    if (e_.substr(0,2).compare(lang) == 0) {
+      if (e_.substr(3,ng.length()).compare(ng) == 0) {
+        if ((e_.find(ext) != std::string::npos)) {
+          if (e_.substr(e_.length()-11).compare(ext) == 0) {
+            index_files.push_back(entry->d_name);
           }
         }
+      }
 	  }
 	}
 	closedir(dp);
 
-    double counter = 0;
+  double counter = 0;
 	std::sort(index_files.begin(),index_files.end());
 	if (index_files.empty()) {
 	  std::cout << "no index files" << std::endl;
-      status = "noindex";
+    status = "noindex";
 	  return;
 	} else {
 	  // std::cout << "unigramurls_map.size() " << unigramurls_map[lang].size() << std::endl;

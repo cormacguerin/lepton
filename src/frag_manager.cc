@@ -9,6 +9,7 @@
 #include <math.h>
 #include <unordered_set>
 #include "dirent.h"
+#include "util.h"
 
 FragManager::FragManager(Frag::Type type, std::string db, std::string tb, std::string l) : frag_type()
 {
@@ -270,19 +271,6 @@ void FragManager::loadFragIndex() {
         }
         std::cout << "frag_manager.cc : index frag mapping loaded." << std::endl;
     }
-}
-
-
-std::string FragManager::readFile(std::string filename) {
-    //	std::cout << filename << std::endl;
-    std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
-    if (in) {
-        std::ostringstream contents;
-        contents << in.rdbuf();
-        in.close();
-        return(contents.str().c_str());
-    }
-    throw(errno);
 }
 
 std::vector<std::string> FragManager::getFiles(std::string path, std::string ext) {

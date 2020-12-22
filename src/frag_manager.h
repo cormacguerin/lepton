@@ -46,7 +46,6 @@ class FragManager {
         void loadContinueFrags();
         void saveFrags();
         void loadFragIndex();
-        std::string readFile(std::string filename);
         std::vector<std::string> getFiles(std::string path, std::string ext);
         std::vector<int> indices;
         int last_frag_id;

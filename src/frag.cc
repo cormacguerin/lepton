@@ -302,9 +302,10 @@ std::vector<std::string> Frag::getItemKeys() {
  */
 void Frag::addWeights(int num_docs, std::string database, std::string lang) {
     pqxx::connection* C;
+    auto config = getConfig();
 
     try {
-        C = new pqxx::connection("dbname = \'" + database + "\' user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
+		    C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C->is_open()) {
             std::cout << "Opened database successfully: " << C->dbname() << std::endl;
         } else {
@@ -422,18 +423,6 @@ void Frag::update(std::string s, std::map<int,Frag::Item> m) {
        frag_map[s].insert(std::pair<int, Frag::Item>(m->first, m->second);
        }
        */
-}
-
-std::string Frag::readFile(std::string filename) {
-    // std::cout << filename << std::endl;
-    std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
-    if (in) {
-        std::ostringstream contents;
-        contents << in.rdbuf();
-        in.close();
-        return(contents.str().c_str());
-    }
-    throw(errno);
 }
 
 void Frag::remove() {

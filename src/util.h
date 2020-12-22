@@ -4,6 +4,60 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include "rapidjson/document.h"
+
+typedef struct {
+  std::string postgres_user;
+  std::string postgres_password;
+  std::string postgres_host;
+  std::string postgres_database;
+  std::string postgres_port;
+} config_t;
+
+// "172.17.0.2"
+
+inline std::string readFile(std::string filename) {
+    std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
+    if (in) {
+        std::ostringstream contents;
+        contents << in.rdbuf();
+        in.close();
+        return(contents.str().c_str());
+    }
+    throw(errno);
+}
+
+
+inline config_t getConfig() {
+  config_t c = {"invoke", "test", "172.17.0.2", "test", "5432"};
+
+  rapidjson::Document d;
+  d.Parse(readFile("config.json").c_str());
+  if (d.HasParseError()) {
+    std::cout << "frag.cc : failed to parse config.json using default values " << std::endl;
+    return c;
+  }
+
+  for (rapidjson::Value::ConstMemberIterator it = d.MemberBegin(); it != d.MemberEnd(); ++it) {
+    if (strcmp(it->name.GetString(),"postgres_user")==0) {
+      c.postgres_user = it->value.GetString();
+    }    
+    if (strcmp(it->name.GetString(),"postgres_password")==0) {
+      c.postgres_password = it->value.GetString();
+    }
+    if (strcmp(it->name.GetString(),"postgres_host")==0) {
+      c.postgres_host = it->value.GetString();
+    }
+    if (strcmp(it->name.GetString(),"postgres_database")==0) {
+      c.postgres_database = it->value.GetString();
+    }
+    if (strcmp(it->name.GetString(),"postgres_port")==0) {
+      c.postgres_database = it->value.GetString();
+    }
+  }
+  return c;
+}
+
 
 inline int getLangInt(std::string l) {
   if (l == "en") {
@@ -96,21 +150,6 @@ inline bool fileUnlock(int n) {
   } else {
     return true;
   }
-}
-
-
-inline std::string getDbPassword() {
-    std::ifstream dbpassword("dbpassword");
-	std::string password;
-
-	if (dbpassword.good()) {
-	  getline(dbpassword, password);
-	} else {
-	  std::cout << "no dbpassword file" << std::endl;
-	  exit(1);
-	}
-	dbpassword.close();
-    return password;
 }
 
 inline bool hasDigit(const std::string& s)

@@ -33,18 +33,20 @@ void Segmenter::init(std::string database) {
 	std::ifstream ja_stop_words_dict("data/japanese_stop_words.txt");
 	std::ifstream en_stop_words_dict("data/english_stop_words.txt");
 
-    if (!database.empty()) {
-        try {
-            C = new pqxx::connection("dbname = " + database + " user = postgres password = " + getDbPassword() + " hostaddr = 127.0.0.1 port = 5432");
-        if (C->is_open()) {
-              std::cout << "Opened database successfully: " << C->dbname() << std::endl;
-        } else {
-              std::cout << "Can't open database" << std::endl;
-            }
-        } catch (const std::exception &e) {
-            std::cerr << e.what() << std::endl;
-        }
-    }
+  auto config = getConfig();
+
+  if (!database.empty()) {
+      try {
+          C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+      if (C->is_open()) {
+            std::cout << "Opened database successfully: " << C->dbname() << std::endl;
+      } else {
+            std::cout << "Can't open database" << std::endl;
+          }
+      } catch (const std::exception &e) {
+          std::cerr << e.what() << std::endl;
+      }
+  }
 
 	std::string line;
 
