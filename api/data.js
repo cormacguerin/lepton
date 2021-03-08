@@ -2,13 +2,14 @@
 // admin console postgres instance
 const pg = require('./postgres.js');
 
+const url = require('url');
+
+const fs = require('fs')
+
 // database postgres instances placeholder
 var db_pg = {}
-db_pg['admin'] = new pg({database:'admin'});
 
 var async = require('async');
-
-const url = require('url');
 
 var aesgcm = require('../aesgcm256');
 
@@ -17,6 +18,8 @@ var jwt = require('jsonwebtoken');
 var secret = new Buffer('secret', 'base64');
 
 var userClients = {};
+
+var config = {};
 
 exports.clients = userClients;
 
@@ -1042,37 +1045,98 @@ exports.deleteApiScope = function(user_id,k,a,d,t,callback) {
   })
 }
 
+exports.init = async function(v, callback) {
+
+  await loadConfig(function(r) {
+    console.log('config.json loaded')
+  })
+
+  function getInstanceName(filename, callback_) {
+    var f = fs.readFileSync(filename, 'utf8');
+    var lines = f.split("\n");
+    var instance;
+
+    lines.forEach(line => {
+      console.log(line)
+      console.log("m: " + match)
+      var match = line.match("s/docker-\(.*\).scope/\\1/")
+      if (match) {
+        callback_(null, match)
+        return
+      }
+    })
+    callback_(1)
+  }
+
+  if (!config.postgres_host) {
+    config.postgres_host = v
+  }
+  if (!config.postgres_database) {
+
+    await getInstanceName('/proc/self/cgroup', function(err, instance){
+      if (err) {
+        console.log(err)
+        console.log('WARNING : no docker id found, not a docker instance ? will use IP as internal instance instead')
+        console.log('v')
+        console.log(v)
+        config['postgres_database'] = v
+      } else {
+        console.log('instance')
+        console.log(instance)
+        config['postgres_database'] = instance
+      }
+    });
+
+    fs.writeFile('config.json', JSON.stringify(config), function(err) {
+      console.log('config')
+      console.log(config)
+      if (err) return console.log(err);
+    })
+  }
+
+  if (!db_pg['admin']) {
+    console.log('new pg')
+    db_pg['admin'] = new pg(config)
+  }
+
+  callback(db_pg['admin'].init(config.database, function(r){console.log(db_pg['admin'])}))
+
+}
+
 function initDB(database, callback) {
 
-  var fs = require('fs')
-
-  var password;
-
-  function get_last_line(filename, callback) {
-    var data = fs.readFileSync(filename, 'utf8');
-    var lines = data.split("\n");
-
-    if(lines.length===0){
-      callback('empty file');
-    }
-    callback(null, lines[lines.length-2]);
-  }
-
-  get_last_line('./dbpassword', function(err, line){
-    if (err) {
-      console.log(err);
-      console.log('no dbpassword file found? usually created when creating the database with server_files/setup_db.sh');
-      callback();
-    } else {
-      password = line;
-    }
-  });
-
   console.log(password);
+  let config_ = config;
+  config_.database = database
 
   if (!db_pg[database]) {
-    db_pg[database] = new pg({database,password})
+    db_pg[database] = new pg(config_)
   }
   callback();
+}
+
+function loadConfig(callback) {
+  function read_config(filename, callback_) {
+    var data_ = fs.readFileSync('./config.json');
+    var info = JSON.parse(data_)
+    if (info.postgres_host && info.postgres_user && info.postgres_password) {
+      callback_(null, info)
+    } else {
+      console.log('error config.json invalid')
+      process.exit()
+    }
+  }
+
+  read_config('./config.json', function(err, info) {
+    console.log(info)
+    if (err) {
+      console.log(err)
+      console.log('no config file found?')
+      process.exit()
+    } else {
+      config = info;
+      callback()
+    }
+  });
 }
 

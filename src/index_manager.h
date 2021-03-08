@@ -1,3 +1,19 @@
+
+/*
+ *  &copy; Cormac Guerin , Invoke Network
+ *  Copyright 2021 All Rights Reserved.
+ *
+ *  All information contained herein is, and remains
+ *  the property of Cormac Guerin & Invoke Network
+ *
+ *  The intellectual and technical concepts within remain
+ *  the sole property of the aforementioned owners.
+ *
+ *  Reproduction and / or distriptions of this software is 
+ *  strictly prohibited.
+ */
+
+
 #ifndef _INDEX_MANAGER_H_
 #define _INDEX_MANAGER_H_
 

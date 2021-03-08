@@ -11,46 +11,16 @@ class Postgres {
 
     if (db) {
 
-      if (db.database === 'admin') {
+      console.log('db')
+      console.log(db)
 
-        var password;
-
-        function get_last_line(filename, callback) {
-          var data = fs.readFileSync(filename, 'utf8');
-          var lines = data.split("\n");
-
-          if(lines.length===0){
-            callback('empty file');
-          }
-          callback(null, lines[lines.length-2]);
-        }
-
-        get_last_line('./dbpassword', function(err, line){
-          if (err) {
-            console.log(err);
-            console.log('no dbpassword file found? usually created when creating the database with server_files/setup_db.sh');
-          } else {
-            password = line;
-          }
-        });
-
-        this.pool = new Pool({
-          user: 'postgres',
-          host: 'localhost',
-          database: 'admin',
-          password: password,
-          port: 5432,
-          idleTimeoutMillis: 60000,
-        });
-      } else {
-        this.pool = new Pool({
-          user: 'postgres',
-          host: 'localhost',
-          database: db.database,
-          password: db.password,
-          port: 5432,
-        });
-      }
+      this.pool = new Pool({
+        user: db.postgres_user,
+        host: db.postgres_host,
+        database: db.postgres_database,
+        password: db.postgres_password,
+        port: 5432,
+      });
 
       this.pool.on('error', (err, client) => {
         console.error('Unexpected error on idle client', err)
@@ -217,6 +187,23 @@ var it = new Date().getTime();
   }
 
   /*
+   * initialize database from schema
+   */
+  init(database, callback) {
+    var query = fs.readFileSync('./server/admin_schema.psql').toString();
+
+    var vm = this;
+    this.execute(query, null, function(e,r) {
+      if (e) {
+        console.log(e)
+        callback();
+      } else {
+        callback(r)
+      }
+    });
+  }
+
+  /*
    * Add database
    * We prepend database names with the user_id to ensure no duplicates.
    * Separately we tracks user databases in a database table.
@@ -247,7 +234,7 @@ var it = new Date().getTime();
     var vm = this;
     var promises = [];
     const promisePush = async function() {
-      var tables = ['lt_unigrams','lt_bigrams','lt_trigrams']
+      var tables = ['unigrams','bigrams','trigrams']
       for (var t in tables) {
         promises.push(new Promise((pr, pe) => {
           var query = "CREATE TABLE "
@@ -301,8 +288,8 @@ var it = new Date().getTime();
       + "\""
       + getDataType(datatype)
       + " PRIMARY KEY,"
-      + "lt_feed_date TIMESTAMP,"
-      + "lt_uuid uuid);"
+      + "feed_date TIMESTAMP,"
+      + "uuid uuid);"
 
     this.execute(query, null, function(e,r) {
       callback(e,r);
@@ -311,7 +298,6 @@ var it = new Date().getTime();
 
   /*
    * Create search table
-   * lt_ tables are for internal use
    * we assume documents are text
    * TODO we also wanna be able to upload other tpyes of docs, word etc
    * in this case I suggest customer sends json as document say with structure like this
@@ -337,17 +323,17 @@ var it = new Date().getTime();
       + "last_modified TIMESTAMP,"
       + "document text,"
       + "metadata jsonb,"
-      + "lt_id SERIAL UNIQUE,"
-      + "lt_uuid uuid,"
-      + "lt_docscore real,"
-      + "lt_tdscore real,"
-      + "lt_entities text,"
-      + "lt_atf real,"
-      + "lt_feed_date TIMESTAMP,"
-      + "lt_index_date TIMESTAMP,"
-      + "lt_update BOOL,"
-      + "lt_raw_text text,"
-      + "lt_segmented_grams jsonb);"
+      + "id SERIAL UNIQUE,"
+      + "uuid uuid,"
+      + "docscore real,"
+      + "tdscore real,"
+      + "entities text,"
+      + "atf real,"
+      + "feed_date TIMESTAMP,"
+      + "index_date TIMESTAMP,"
+      + "update BOOL,"
+      + "raw_text text,"
+      + "segmented_grams jsonb);"
 
     /*
       + "feed jsonb,"
@@ -460,7 +446,7 @@ var it = new Date().getTime();
   }
 
   getTableIndexStats(table, callback) {
-    var query = "SELECT COUNT(*) AS total, sum(case when lt_index_date IS NOT NULL then 1 else 0 end) AS indexed, sum(case when lt_index_date < lt_feed_date then 1 else 0 end) AS stale FROM \"" + table+ "\"";
+    var query = "SELECT COUNT(*) AS total, sum(case when index_date IS NOT NULL then 1 else 0 end) AS indexed, sum(case when index_date < feed_date then 1 else 0 end) AS stale FROM \"" + table+ "\"";
     this.execute(query, null, function(e,r) {
       callback(e,r);
     });
@@ -583,7 +569,7 @@ var it = new Date().getTime();
       }
       // set the current feed_date
       for (var i=0; i<data.length; i++) {
-        data[i]['lt_feed_date'] = "NOW()";
+        data[i]['feed_date'] = "NOW()";
       }
 
       var keys = Object.keys(data[0]);

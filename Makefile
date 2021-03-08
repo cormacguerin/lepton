@@ -1,23 +1,36 @@
 
+
+#  &copy; Cormac Guerin , Invoke Network
+#  Copyright 2021 All Rights Reserved.
+#
+#  All information contained herein is, and remains
+#  the property of Cormac Guerin & Invoke Network
+#
+#  The intellectual and technical concepts within remain
+#  the sole property of the aforementioned owners.
+#
+#  Reproduction and / or distriptions of this software is 
+#  strictly prohibited.
+
+
+
 #
 # Include Directories.
 #
 INC = /usr/include/
 LOCALINC = /usr/local/include/
-#REDISINC = /usr/local/include/cpp_redis/
 PQXXINC = /usr/include/pqxx/
 ASIOINC = /usr/include/asio/
-PQXXINCLOCAL = /usr/local/include/pqxx/
+# PQXXINCLOCAL = /usr/local/include/pqxx/
 PARALLEL_HASHMAP_INC = parallel-hashmap/
-INCLUDES = -I$(INC) -I$(LOCALINC) -I$(REDISINC) -I$(PQXXINC) -I$(PQXXINCLOCAL) -I$(ASIOINC) -I$(PARALLEL_HASHMAP_INC)
+INCLUDES = -I$(INC) -I$(LOCALINC) -I$(REDISINC) -I$(PQXXINC) -I$(ASIOINC) -I$(PARALLEL_HASHMAP_INC)
 #ICUOPTS = `/usr/bin/icu-config --ldflags --cppflags`
 
 #
 # Compiler and Linker Options.
 #
-COMPOPTS = -O0 -c -g -std=c++17 -lpthread -lpqxx -lpq -lstdc++fs -o build/$@
-#LINKOPTS = -O0 -g -lstdc++ -lm -std=c++17 -lpthread -lpqxx -lpq $(ICUOPTS) -lstdc++fs
-LINKOPTS = -O0 -g -lm -std=c++17 -lpthread -lpqxx -lpq $(ICUOPTS)
+COMPOPTS = -O0 -c -g -std=c++17 -pthread -lpqxx -lpq -lstdc++fs -o build/$@
+LINKOPTS = -O0 -g -lm -std=c++17 -pthread -lpqxx -lpq $(ICUOPTS)
 STATIC_LINKER = -lstdc++fs
 #
 # Library Files
@@ -42,15 +55,14 @@ CFLAGS    = ${INCLUDES}
 # Specify our compiler and linker settings
 #
 COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES) 
-LINKER = $(COMPILER) $(LINKOPTS)
 
 all: bin/serveroot bin/indexroot
 
 bin/serveroot: serveroot.o base64.o query.o query_builder.o index_server.o management_server.o query_server.o session.o segmenter.o frag_manager.o frag.o result.o
-	${LINKER} -o bin/serveroot build/serveroot.o build/base64.o build/query.o build/query_builder.o build/index_server.o build/management_server.o build/query_server.o build/session.o build/segmenter.o build/frag_manager.o build/frag.o build/result.o $(LD_FLAGS)
+	${COMPILER} -o bin/serveroot build/serveroot.o build/base64.o build/query.o build/query_builder.o build/index_server.o build/management_server.o build/query_server.o build/session.o build/segmenter.o build/frag_manager.o build/frag.o build/result.o $(LD_FLAGS) $(LINKOPTS)
 
 bin/indexroot: indexroot.o index_manager.o base64.o segmenter.o frag_manager.o frag.o murmur_hash3.o
-	${LINKER} -o bin/indexroot build/indexroot.o build/index_manager.o build/base64.o build/segmenter.o build/frag_manager.o build/frag.o build/murmur_hash3.o $(LD_FLAGS) 
+	${COMPILER} -o bin/indexroot build/indexroot.o build/index_manager.o build/base64.o build/segmenter.o build/frag_manager.o build/frag.o build/murmur_hash3.o $(LD_FLAGS) $(LINKOPTS)
 
 index_manager.o : src/index_manager.cc src/index_manager.h
 	${COMPILE} src/index_manager.cc

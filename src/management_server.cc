@@ -27,7 +27,7 @@ ManagementServer::~ManagementServer()
 void ManagementServer::adminConnect() {
     auto config = getConfig();
     try {
-        C = new pqxx::connection("dbname = admin user = postgres password = " + config.postgres_password + " hostaddr = 127.0.0.1 port = 5432");
+		    C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C->is_open()) {
             std::cout << "Opened database successfully: " << C->dbname() << std::endl;
         } else {

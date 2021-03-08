@@ -1,3 +1,19 @@
+
+/*
+ *  &copy; Cormac Guerin , Invoke Network
+ *  Copyright 2021 All Rights Reserved.
+ *
+ *  All information contained herein is, and remains
+ *  the property of Cormac Guerin & Invoke Network
+ *
+ *  The intellectual and technical concepts within remain
+ *  the sole property of the aforementioned owners.
+ *
+ *  Reproduction and / or distriptions of this software is 
+ *  strictly prohibited.
+ */
+
+
 #include "index_manager.h"
 #include <iostream>
 #include <fstream>
@@ -21,16 +37,11 @@ IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string
     do_run = true;
     //    unigramFragManager(u,db,tb), bigramFragManager(b,db,tb), trigramFragManager(t,db,tb) {
     for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
-      /*
-        std::cout << "*lit " << *lit << std::endl;
-        std::cout << "db " << db << std::endl;
-        std::cout << "tb " << tb << std::endl;
-      */
-        unigramFragManager[*lit] = new FragManager(u,db,tb,*lit);
-        bigramFragManager[*lit] = new FragManager(b,db,tb,*lit);
-        trigramFragManager[*lit] = new FragManager(t,db,tb,*lit);
+        unigramFragManager[*lit] = new FragManager(u,config.postgres_database,tb,*lit);
+        bigramFragManager[*lit] = new FragManager(b,config.postgres_database,tb,*lit);
+        trigramFragManager[*lit] = new FragManager(t,config.postgres_database,tb,*lit);
     }
-    database = db;
+    database = config.postgres_database;
     table = tb;
     columns = cl;
     init();
@@ -94,7 +105,7 @@ void IndexManager::processFeeds() {
 
         std::vector<int> ids;
 
-        std::string statement = "SELECT lt_id,url,concat(" + columns + ") as document,language FROM \"" + table + "\" WHERE (lt_feed_date > lt_index_date OR lt_index_date IS null) LIMIT $1";
+        std::string statement = "SELECT id,url,concat(" + columns + ") as document,lang FROM \"" + table + "\" WHERE (feed_date > index_date OR index_date IS null) LIMIT $1";
 
         pqxx::work txn(*C);
         C->prepare("process_docs_batch", statement);
@@ -207,7 +218,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
     while (indexManager->do_run) {
         
         std::map<int,std::string> purge_docs;
-        std::string statement = "SELECT lt_id, lt_index_date FROM \"" + indexManager->table + "\" WHERE lt_update = true";
+        std::string statement = "SELECT id, index_date FROM \"" + indexManager->table + "\" WHERE update = true";
         std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " " << statement << std::endl;
 
         pqxx::work txn(*C_);
@@ -238,7 +249,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
             }
         }
 
-        std::string statement_ = "UPDATE \"" + indexManager->table + "\" SET lt_update = false WHERE lt_id = $1 AND lt_index_date = $2";
+        std::string statement_ = "UPDATE \"" + indexManager->table + "\" SET update = false WHERE id = $1 AND index_date = $2";
         C_->prepare("update_purged_docs", statement_);
         // std::cout << "index_manager.cc " << indexManager->database << " " << indexManager->table << " " << statement_ << std::endl;
 
@@ -284,7 +295,7 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
             if (C__.is_open()) {
                 std::cout << "Opened database successfully: " << C__.dbname() << std::endl;
                 pqxx::work txn__(C__);
-                C__.prepare("docs_to_score", "SELECT lt_id FROM \"" + table + "\" WHERE lt_index_date IS NOT null AND lt_docscore IS null");
+                C__.prepare("docs_to_score", "SELECT id FROM \"" + table + "\" WHERE index_date IS NOT null AND docscore IS null");
                 pqxx::result r = txn__.prepared("docs_to_score").exec();
                 txn__.commit();
 
@@ -303,7 +314,7 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
     std::cout << "index_manager.cc : " << database << " " << table << "  processDocInfo batch size " << batch.size() << std::endl;
 
     try {
-        pqxx::connection C_("dbname = \'" + database + "\' user = postgres password = " + pwd + " hostaddr = 127.0.0.1 port = 5432");
+		    pqxx::connection C_("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C_.is_open()) {
             // since this can be a thread so we need a new connection for each call.
             pqxx::work txn_(C_);
@@ -313,7 +324,7 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
             // std::vector<std::string> unibitri{"trigrams","bigrams","unigrams"};
             std::vector<std::string> unibitri{"trigrams","bigrams","unigrams"};
 
-            std::string update_doc_entities = "UPDATE \"" + table + "\" SET lt_entities = $1 WHERE lt_id = $2";
+            std::string update_doc_entities = "UPDATE \"" + table + "\" SET entities = $1 WHERE id = $2";
 
             std::vector<std::pair<std::string,float>> grams;
 
@@ -323,14 +334,14 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
 
                 for (std::vector<std::string>::const_iterator it = unibitri.begin(); it != unibitri.end(); it++) {
 
-                    std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), language FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms WHERE d.lt_id = $1 GROUP BY docterms.key, language) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN lt_"+*it+" AS t ON d.key = t.gram WHERE d.language = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET lt_docscore = (SELECT score/freq FROM v) WHERE lt_id = $1";
+                    std::string update_docscore = "WITH v AS (WITH d AS (SELECT docterms.key, max(array_length(regexp_split_to_array(docterms.value, ','), 1)), lang FROM \"" + table + "\" d, jsonb_each_text(d.segmented_grams->'"+*it+"') docterms WHERE d.id = $1 GROUP BY docterms.key, lang) SELECT DISTINCT (SUM(d.max) OVER()) AS freq, (SUM(d.max * t.idf) OVER()) AS score FROM d INNER JOIN "+*it+" AS t ON d.key = t.gram WHERE d.lang = t.lang GROUP BY d.max, t.idf) UPDATE \"" + table + "\" SET docscore = (SELECT score/freq FROM v) WHERE id = $1";
                     C_.prepare("process_" + *it + "_docscore", update_docscore);
 
                     // update the docuscore using the idf / term frequencies
                     pqxx::result rds = txn_.prepared("process_" + *it + "_docscore")(*it_).exec();
 
                     // basic entity extraction function.
-                    std::string gram_terms = "SELECT d.lt_id, key, (CHAR_LENGTH(value) - CHAR_LENGTH(REPLACE(value, ',', ''))), lt_" + *it + ".idf AS i FROM \"" + table + "\" d, jsonb_each_text(d.lt_segmented_grams->'"+*it+"') docterms INNER JOIN lt_"+*it+" ON docterms.key = lt_"+*it+".gram WHERE d.lt_id = $1 ORDER BY i DESC LIMIT 30";
+                    std::string gram_terms = "SELECT d.id, key, (CHAR_LENGTH(value) - CHAR_LENGTH(REPLACE(value, ',', ''))), " + *it + ".idf AS i FROM \"" + table + "\" d, jsonb_each_text(d.segmented_grams->'"+*it+"') docterms INNER JOIN "+*it+" ON docterms.key = "+*it+".gram WHERE d.id = $1 ORDER BY i DESC LIMIT 30";
                     C_.prepare("process_"+*it+"_batch", gram_terms);
                     pqxx::result rgt = txn_.prepared("process_"+*it+"_batch")(*it_).exec();
 
@@ -567,11 +578,11 @@ void IndexManager::prepare_update_stop_suggest(pqxx::connection_base &c) {
 }
 
 void IndexManager::prepare_docscore_batch(pqxx::connection_base &c) {
-    c.prepare("docscore_batch", "SELECT lt_id, lang FROM \"" + table + "\" WHERE lt_segmented_grams IS NOT NULL AND entities IS NULL LIMIT 10");
+    c.prepare("docscore_batch", "SELECT id, lang FROM \"" + table + "\" WHERE segmented_grams IS NOT NULL AND entities IS NULL LIMIT 10");
 }
 
 void IndexManager::prepare_max_doc_id(pqxx::connection_base &c) {
-    c.prepare("max_doc_id", "SELECT MAX(lt_id) FROM \"" + table +"\"");
+    c.prepare("max_doc_id", "SELECT MAX(id) FROM \"" + table +"\"");
 }
 
 void IndexManager::prepare_max_unigram_id(pqxx::connection_base &c, std::string lang) {
@@ -587,7 +598,7 @@ void IndexManager::prepare_max_trigram_id(pqxx::connection_base &c, std::string 
 }
 
 void IndexManager::prepare_doc_count(pqxx::connection_base &c) {
-    c.prepare("doc_count", "SELECT language, COUNT(language) AS count FROM \"" + table + "\" GROUP BY language");
+    c.prepare("doc_count", "SELECT lang, COUNT(lang) AS count FROM \"" + table + "\" GROUP BY lang");
 }
 
 void IndexManager::prepare_unigram_count(pqxx::connection_base &c, std::string lang) {

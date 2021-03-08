@@ -1,4 +1,16 @@
+/*
 DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS user_clients CASCADE;
+DROP TABLE IF EXISTS mail_queue CASCADE;
+DROP TABLE IF EXISTS databases CASCADE;
+DROP TABLE IF EXISTS tables CASCADE;
+DROP TABLE IF EXISTS text_tables_index CASCADE;
+DROP TABLE IF EXISTS charts CASCADE;
+DROP TABLE IF EXISTS api_keys CASCADE;
+DROP TABLE IF EXISTS api_scopes CASCADE;
+DROP TABLE IF EXISTS ml_models CASCADE;
+DROP TABLE IF EXISTS ml_trainings CASCADE;
+*/
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(1024) UNIQUE,
@@ -18,7 +30,6 @@ CREATE TABLE users (
     created_date BIGINT
 );
 
-DROP TABLE IF EXISTS user_clients CASCADE;
 CREATE TABLE user_clients (
     user_id INT4 NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     client_id VARCHAR(16),
@@ -30,7 +41,6 @@ CREATE TABLE user_clients (
     PRIMARY KEY (user_id, client_id)
 );
 
-DROP TABLE IF EXISTS mail_queue CASCADE;
 CREATE TABLE mail_queue (
     id SERIAL PRIMARY KEY,
     email VARCHAR(1024),
@@ -38,7 +48,6 @@ CREATE TABLE mail_queue (
     status VARCHAR(64)
 );
 
-DROP TABLE IF EXISTS databases CASCADE;
 CREATE TABLE databases (
     id serial PRIMARY KEY,
     database VARCHAR (64) NOT NULL,
@@ -48,7 +57,6 @@ CREATE TABLE databases (
     UNIQUE (database, owner)
 );
 
-DROP TABLE IF EXISTS tables CASCADE;
 CREATE TABLE tables (
     id serial PRIMARY KEY,
     database INT REFERENCES databases (id) ON DELETE CASCADE NOT NULL,
@@ -61,7 +69,6 @@ CREATE TABLE tables (
     UNIQUE (database, tablename, owner)
 );
 
-DROP TABLE IF EXISTS text_tables_index CASCADE;
 CREATE TABLE text_tables_index (
     id serial PRIMARY KEY,
     database INT REFERENCES databases(id) ON DELETE CASCADE NOT NULL,
@@ -73,7 +80,6 @@ CREATE TABLE text_tables_index (
     UNIQUE (database,_table)
 );
 
-DROP TABLE IF EXISTS charts CASCADE;
 CREATE TABLE charts (
     id serial PRIMARY KEY,
     name VARCHAR (64) NOT NULL,
@@ -85,7 +91,6 @@ CREATE TABLE charts (
     UNIQUE (name, owner)
 );
 
-DROP TABLE IF EXISTS api_keys CASCADE;
 CREATE TABLE api_keys (
     id serial PRIMARY KEY,
     key VARCHAR (64) NOT NULL,
@@ -93,7 +98,6 @@ CREATE TABLE api_keys (
     owner INT REFERENCES users (id) ON DELETE CASCADE NOT NULL
 );
 
-DROP TABLE IF EXISTS api_scopes CASCADE;
 CREATE TABLE api_scopes (
     id INT REFERENCES api_keys(id) ON DELETE CASCADE,
     api VARCHAR (64) NOT NULL,
@@ -101,7 +105,6 @@ CREATE TABLE api_scopes (
     _table INT REFERENCES tables (id) ON DELETE CASCADE
 );
 
-DROP TABLE IF EXISTS ml_models CASCADE;
 CREATE TABLE ml_models (
     id serial PRIMARY KEY,
     model VARCHAR (256) NOT NULL,
@@ -112,7 +115,6 @@ CREATE TABLE ml_models (
     UNIQUE (model, owner)
 );
 
-DROP TABLE IF EXISTS ml_trainings CASCADE;
 CREATE TABLE ml_trainings (
     id serial PRIMARY KEY,
     model INT REFERENCES ml_models(id),

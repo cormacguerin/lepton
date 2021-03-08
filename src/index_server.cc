@@ -462,15 +462,14 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
     int snippet_size = 50;
 
     // TODO parse columns to make sure it's legit
-    std::string columns = "lt_id,lt_raw_text";
+    std::string columns = "id,raw_text";
     if (user_columns.length() > 0) {
         columns += ",";
         columns += user_columns;
     }
 
 	pqxx::work txn(*C);
-	C->prepare("get_docinfo_deep", "SELECT " + columns + " FROM \"" + tb + "\" WHERE lt_id = $1");
-    // std::cout << "SELECT " << columns << " FROM \"" << tb << "\" WHERE lt_id = $1" <<std::endl;
+	C->prepare("get_docinfo_deep", "SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1");
 
 	for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
       /*
@@ -543,7 +542,7 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
             std::string column_name = std::string(r.column_name(i));
             const pqxx::field v = r.back()[i];
             if (v.is_null() == false) {
-                if (column_name == "lt_raw_text") {
+                if (column_name == "raw_text") {
                     rit->snippet = seg.getSnippet(std::string(v.c_str()),lang,position);
                 } else {
                     rit->data[column_name] = std::string(v.c_str());
@@ -715,7 +714,7 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
       return;
     }
 
-    std::string filter_query = "SELECT DISTINCT(lt_id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE d.lt_id IN (" + prepstr_ + ") " + prep_filter;
+    std::string filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE d.id IN (" + prepstr_ + ") " + prep_filter;
     std::cout << filter_query << std::endl;
 
     // std::string prepared_filter = base64_encode(reinterpret_cast<const unsigned char*>(filter_query.c_str()),filter_query.length());
@@ -792,7 +791,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 		x++;
 	}
 
-	C->prepare("get_docinfo"+_q_,"SELECT lt_id, url, lt_tdscore, lt_docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.lt_segmented_grams->'unigrams') docterms WHERE d.lt_id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr);
+	C->prepare("get_docinfo"+_q_,"SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr);
     std::cout << "prepstr_ " << prepstr_ << std::endl;
     std::cout << "prepstr " << prepstr << std::endl;
 
@@ -941,7 +940,7 @@ pqxx::prepare::invocation& IndexServer::prep_dynamic(std::vector<std::string> da
 
 std::vector<std::string> IndexServer::getDocInfo(int doc_id) {
 	pqxx::work txn(*C);
-	C->prepare("get_url","SELECT url,lt_tdscore,lt_docscore FROM \"" + tb + "\" WHERE lt_id = $1");
+	C->prepare("get_url","SELECT url,tdscore,docscore FROM \"" + tb + "\" WHERE id = $1");
 	pqxx::result r = txn.prepared("get_url")(doc_id).exec();
 	txn.commit();
 	const pqxx::field u = r.back()[0];
@@ -963,7 +962,7 @@ std::map<std::string,std::vector<int>> IndexServer::getTermPositions(int doc_id,
 			termstr += ",";
 		}
 	}
-	C->prepare("get_positions","SELECT key, value FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.lt_id=$1 AND docterms.key IN ($2)");
+	C->prepare("get_positions","SELECT key, value FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id=$1 AND docterms.key IN ($2)");
 	pqxx::result r = txn.prepared("get_positions")(doc_id)(termstr).exec();
 	txn.commit();
 	std::map<std::string,std::vector<int>> term_positions;

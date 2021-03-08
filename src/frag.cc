@@ -1,3 +1,17 @@
+/*
+ *  &copy; Cormac Guerin , Invoke Network
+ *  Copyright 2021 All Rights Reserved.
+ *
+ *  All information contained herein is, and remains
+ *  the property of Cormac Guerin & Invoke Network
+ *
+ *  The intellectual and technical concepts within remain
+ *  the sole property of the aforementioned owners.
+ *
+ *  Reproduction and / or distriptions of this software is 
+ *  strictly prohibited.
+ */
+
 #include <iomanip>
 //#include <filesystem>
 #include "frag.h"
@@ -327,14 +341,14 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
     float gram_boost = 1.0;
     if (prefix_type==Frag::Type::UNIGRAM){
         update_gram_idf = "update_unigram_idf";
-        gram = "lt_unigrams";
+        gram = "unigrams";
     } else if (prefix_type==Frag::Type::BIGRAM){
         update_gram_idf = "update_bigram_idf";
-        gram = "lt_bigrams";
+        gram = "bigrams";
         gram_boost = 2.0;
     } else if (prefix_type==Frag::Type::TRIGRAM){
         update_gram_idf = "update_trigram_idf";
-        gram = "lt_trigrams";
+        gram = "trigrams";
         gram_boost = 3.0;
     } else {
         C->disconnect();

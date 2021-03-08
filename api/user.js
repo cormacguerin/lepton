@@ -1,5 +1,4 @@
 var postgres = require('./postgres.js');
-pg = new postgres({database:'admin'});
 
 var async = require('async');
 
@@ -17,24 +16,31 @@ var userClients = {};
 
 var qs = require('querystring');
 
+var pg
+
 exports.clients = userClients;
+
+exports.init = function(pg_admin) {
+  pg = pg_admin
+  loadExistingSessions();
+}
 
 /*
  * Load any previous user clients.
  */
-exports.loadExistingSessions = function() {
+loadExistingSessions = function() {
 	pg.getUserClients(function(err, clients) {
-      if (err){
-          console.log("unable to retrieve user_clients");
-          console.log(err);
+    if (err){
+      console.log("unable to retrieve user_clients");
+      console.log(err);
+    }
+    for (i in clients) {
+      if (!userClients[clients[i].user_id]) {
+        userClients[clients[i].user_id] = {};
       }
-      for (i in clients) {
-        if (!userClients[clients[i].user_id]) {
-          userClients[clients[i].user_id] = {};
-        }
-        userClients[clients[i].user_id][clients[i].client_id] = clients[i];
-      }
-    });
+      userClients[clients[i].user_id][clients[i].client_id] = clients[i];
+    }
+  });
 }
 
 /*
@@ -538,12 +544,12 @@ exports.login = function(req, res, next) {
 				res.send({"login":"failed"});
 			} else {
 				pg.getUserInfo(req.body.email, ['id','password','account_status'], function(e, userinfo) {
-                    if (e) {
-                        res.status(200);
-                        res.setHeader("Content-Type", "text/json");
-                        res.send({"login":"failed"});
-                        return;
-                    }
+          if (e) {
+              res.status(200);
+              res.setHeader("Content-Type", "text/json");
+              res.send({"login":"failed"});
+              return;
+          }
 					var password_data;
 					try {
 						password_data = JSON.parse(userinfo.password);

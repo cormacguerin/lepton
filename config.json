@@ -1,1 +1,1 @@
-{"postgres_user":"invoke","postgres_password":"invoke","postgres_host":"172.17.0.2","postgres_database":"invoke"}
+{"postgres_user":"invoke","postgres_password":"invoke","postgres_host":"172.17.0.2","postgres_database":"admin"}
