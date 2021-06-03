@@ -11,7 +11,6 @@ class Postgres {
 
     if (db) {
 
-      console.log('db')
       console.log(db)
 
       this.pool = new Pool({
@@ -39,10 +38,12 @@ class Postgres {
   }
 
   execute(statement, values, callback) {
-    console.log(statement);
-    console.log(values);
+    //console.log(statement);
+    //console.log(values);
+
     (async () => {
       const client = await this.pool.connect()
+      console.log('database connected')
       try {
         const reply = await client.query(statement, values)
         this.logger.write(statement + "\n");
@@ -190,14 +191,19 @@ var it = new Date().getTime();
    * initialize database from schema
    */
   init(database, callback) {
+    console.log('zzz')
     var query = fs.readFileSync('./server/admin_schema.psql').toString();
 
-    var vm = this;
     this.execute(query, null, function(e,r) {
+      console.log('1234')
       if (e) {
+        console.log('xx')
         console.log(e)
         callback();
       } else {
+        console.log(r)
+        console.log('yy')
+        console.log(r)
         callback(r)
       }
     });
@@ -409,9 +415,9 @@ var it = new Date().getTime();
     });
   }
 
-  getTableSchema(database, table, callback) {
-    var query = "SELECT column_name, data_type, character_maximum_length FROM INFORMATION_SCHEMA.COLUMNS WHERE udt_catalog=$1 AND table_name = $2;"
-    this.execute(query, [database,table], function(e,r) {
+  getTableSchema(table, callback) {
+    var query = "SELECT column_name, data_type, character_maximum_length FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = $1;"
+    this.execute(query, [table], function(e,r) {
       callback(e,r);
     });
   }

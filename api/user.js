@@ -29,7 +29,7 @@ exports.init = function(pg_admin) {
  * Load any previous user clients.
  */
 loadExistingSessions = function() {
-	pg.getUserClients(function(err, clients) {
+  pg.getUserClients(function(err, clients) {
     if (err){
       console.log("unable to retrieve user_clients");
       console.log(err);

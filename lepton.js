@@ -24,6 +24,7 @@ const v = process.argv.slice(2)[0]
 // const z = process.argv.slice(2)[1]
 
 data.init(v, function(pg_admin) {
+  console.log('lepton - data.init response')
   user.init(pg_admin)
 })
 
@@ -791,6 +792,6 @@ app.use('/insights/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/', express.static(__dirname + '/vue-app/dist/'));
 
 // start the server.
-var server = app.listen(process.env.PORT || 4000, function () {
-  console.log('Web app listening on port 4000!')
+var server = app.listen(process.env.PORT || 3000, function () {
+  console.log('Web app listening on port 3000!')
 });

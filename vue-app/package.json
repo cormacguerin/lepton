@@ -47,7 +47,9 @@
     "eslint": "^5.16.0",
     "eslint-plugin-vue": "^5.2.3",
     "stylelint-webpack-plugin": "^1.2.3",
-    "vue-template-compiler": "^2.6.12"
+    "vue-loader-v16": "^16.0.0-beta.5.4",
+    "vue-template-compiler": "^2.6.12",
+    "webpack": "^4.46.0"
   },
   "eslintConfig": {
     "root": true,

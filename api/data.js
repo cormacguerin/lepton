@@ -23,6 +23,59 @@ var config = {};
 
 exports.clients = userClients;
 
+exports.init = async function(v, callback) {
+  await loadConfig(function(r) {
+    console.log('config.json loaded')
+  })
+
+  function getInstanceName(filename, callback_) {
+    var f = fs.readFileSync(filename, 'utf8');
+    var lines = f.split("\n");
+    var instance;
+
+    lines.forEach(line => {
+      var match = line.match("s/docker-\(.*\).scope/\\1/")
+      if (match) {
+        callback_(null, match)
+        return
+      }
+    })
+    callback_(1)
+  }
+
+  if (!config.postgres_host) {
+    config.postgres_host = v
+  }
+  if (!config.postgres_database) {
+
+    await getInstanceName('/proc/self/cgroup', function(err, instance){
+      if (err) {
+        console.log(err)
+        console.log('WARNING : no docker id found, not a docker instance ? will use IP as internal instance instead')
+        config['postgres_database'] = v
+      } else {
+        config['postgres_database'] = instance
+      }
+    });
+
+    fs.writeFile('config.json', JSON.stringify(config), function(err) {
+      console.log('config')
+      console.log(config)
+      if (err) return console.log(err);
+    })
+  }
+
+  if (!db_pg['admin']) {
+    console.log('new pg')
+    db_pg['admin'] = new pg(config)
+  }
+
+  db_pg['admin'].init(config.database, function(r) {
+    callback(db_pg['admin'])
+  })
+
+}
+
 exports.getDatabases = function(u,c) {
   var res = res;
 	db_pg['admin'].getDatabases(u,function(err,d) {
@@ -96,7 +149,7 @@ exports.getTableSchema = function(user_id, d, table, c) {
         callback(e);
       } else {
         initDB(database, function() {
-          db_pg[database].getTableSchema(database, table, function(e, s) {
+          db_pg[database].getTableSchema(table, function(e, s) {
             if (e) {
               console.log("unable to retrieve user_clients");
               console.log(e);
@@ -1045,67 +1098,8 @@ exports.deleteApiScope = function(user_id,k,a,d,t,callback) {
   })
 }
 
-exports.init = async function(v, callback) {
-
-  await loadConfig(function(r) {
-    console.log('config.json loaded')
-  })
-
-  function getInstanceName(filename, callback_) {
-    var f = fs.readFileSync(filename, 'utf8');
-    var lines = f.split("\n");
-    var instance;
-
-    lines.forEach(line => {
-      console.log(line)
-      console.log("m: " + match)
-      var match = line.match("s/docker-\(.*\).scope/\\1/")
-      if (match) {
-        callback_(null, match)
-        return
-      }
-    })
-    callback_(1)
-  }
-
-  if (!config.postgres_host) {
-    config.postgres_host = v
-  }
-  if (!config.postgres_database) {
-
-    await getInstanceName('/proc/self/cgroup', function(err, instance){
-      if (err) {
-        console.log(err)
-        console.log('WARNING : no docker id found, not a docker instance ? will use IP as internal instance instead')
-        console.log('v')
-        console.log(v)
-        config['postgres_database'] = v
-      } else {
-        console.log('instance')
-        console.log(instance)
-        config['postgres_database'] = instance
-      }
-    });
-
-    fs.writeFile('config.json', JSON.stringify(config), function(err) {
-      console.log('config')
-      console.log(config)
-      if (err) return console.log(err);
-    })
-  }
-
-  if (!db_pg['admin']) {
-    console.log('new pg')
-    db_pg['admin'] = new pg(config)
-  }
-
-  callback(db_pg['admin'].init(config.database, function(r){console.log(db_pg['admin'])}))
-
-}
-
 function initDB(database, callback) {
 
-  console.log(password);
   let config_ = config;
   config_.database = database
 
