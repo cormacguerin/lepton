@@ -291,6 +291,7 @@ exports.addDatabase = function(u,d,c) {
       if (r.length === 0) {
         // add hidden search ngram tables (we do not register these so not visible by end user)
         initDB(db, function() {
+          /*
           db_pg[db].addNgramTables(function(e,r) {
             if (e) {
               c({status:'failed'})
@@ -298,6 +299,8 @@ exports.addDatabase = function(u,d,c) {
               c({status:'success'})
             }
           })
+          */
+          c({status:'success'})
         })
       } else {
         c({status:'failed'})

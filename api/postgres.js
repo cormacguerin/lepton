@@ -210,12 +210,7 @@ var it = new Date().getTime();
    */
   addDatabase(user, database, callback) {
 
-    var query = "CREATE DATABASE \""
-      + database
-      + "\" WITH owner postgres"
-      + " ENCODING 'UTF8'";
-    //  + " LC_COLLATE = 'en_US.UTF-8'"
-    //  + " LC_CTYPE = 'en_US.UTF-8';"
+    var query = fs.readFileSync('./server/index_schema.psql').toString();
 
     var vm = this;
     this.execute(query, null, function(e,r) {
@@ -230,6 +225,8 @@ var it = new Date().getTime();
     });
   }
 
+  //  todo , load from server/index script instead (like we do for admin creation)
+  /*
   addNgramTables(callback) {
     var vm = this;
     var promises = [];
@@ -252,6 +249,23 @@ var it = new Date().getTime();
           });
         }));
       }
+      promises.push(new Promise((pr, pe) => {
+        var query = "CREATE TABLE stop_suggest ("
+          + "id SERIAL PRIMARY KEY,"
+          + "lang VARCHAR(2),"
+          + "gram VARCHAR(1024) NOT NULL UNIQUE,"
+          + "stop VARCHAR(32),"
+          + "idf real,"
+          + "UNIQUE (lang,gram)"
+          + ");"
+        vm.execute(query, null, function(e,r) {
+          if (e) {
+            pe(e)
+          } else {
+            pr(r)
+          }
+        });
+      }));
       await Promise.all(promises)
       .then((r)=> {
         callback(null, r);
@@ -263,6 +277,7 @@ var it = new Date().getTime();
     }
     promisePush();
   }
+    */
 
   getDatabases(user, callback) {
     // var query = "SELECT datname FROM pg_database WHERE datistemplate = false;"

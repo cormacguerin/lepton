@@ -43,10 +43,6 @@ class IndexManager {
     std::map<std::string, FragManager*> trigramFragManager;
         // lang map of stop word suggestions (which get mixed in to all suggestions at servetime)
     std::map<std::string, std::map<std::vector<std::string>,double>> stopSuggest;
-//        std::map<std::string, Frag::Item> doc_unigram_map;
-//        std::map<std::string, Frag::Item> doc_bigram_map;
-//        std::map<std::string, Frag::Item> doc_trigram_map;
-
 
         // these two bools control the status of running threads
         // merge_frags - the actual merge frags run status.
@@ -90,7 +86,7 @@ class IndexManager {
 		void exportVocab(std::string lang);
 		bool isSPS(char firstchar);
 		void indexDocument(std::string id, std::string doc, std::string lang);
-        static void runFragMerge(IndexManager* indexManager);
+    static void runFragMerge(IndexManager* indexManager);
 		std::vector<int> GetDocscoreBatch();
 
 };

@@ -35,13 +35,12 @@ static auto config = getConfig();
 
 IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string db, std::string tb, std::string cl) {
     do_run = true;
-    //    unigramFragManager(u,db,tb), bigramFragManager(b,db,tb), trigramFragManager(t,db,tb) {
     for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
-        unigramFragManager[*lit] = new FragManager(u,config.postgres_database,tb,*lit);
-        bigramFragManager[*lit] = new FragManager(b,config.postgres_database,tb,*lit);
-        trigramFragManager[*lit] = new FragManager(t,config.postgres_database,tb,*lit);
+        unigramFragManager[*lit] = new FragManager(u,db,tb,*lit);
+        bigramFragManager[*lit] = new FragManager(b,db,tb,*lit);
+        trigramFragManager[*lit] = new FragManager(t,db,tb,*lit);
     }
-    database = config.postgres_database;
+    //database = config.postgres_database;
     table = tb;
     columns = cl;
     init();
@@ -70,7 +69,7 @@ void IndexManager::init() {
     // client.connect();
     // postgres connection
     try {
-		    C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+		    C = new pqxx::connection("dbname = " + database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C->is_open()) {
             cout << "Opened database successfully: " << C->dbname() << endl;
         } else {
@@ -150,7 +149,7 @@ void IndexManager::processFeeds() {
 
             // process suggestions that begin with stop words, this is really a hack
             // we should relpace with ML suggestions
-			if (counter == base_batch_size-1) {
+			      if (counter == base_batch_size-1) {
                 for (std::set<std::string>::iterator lit = run_langs.begin(); lit != run_langs.end(); lit++) {
                     updateStopSuggest(*lit, (int)r.size());
                 }
@@ -204,7 +203,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
 
     pqxx::connection* C_;
     try {
-		    C_ = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+		    C_ = new pqxx::connection("dbname = " + indexManager->database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C_->is_open()) {
             cout << "Opened database successfully: " << C_->dbname() << endl;
         } else {
@@ -291,7 +290,7 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
 
     if (batch.empty()) {
         try {
-		        pqxx::connection C__("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+		        pqxx::connection C__("dbname = " + database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
             if (C__.is_open()) {
                 std::cout << "Opened database successfully: " << C__.dbname() << std::endl;
                 pqxx::work txn__(C__);
@@ -314,7 +313,7 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
     std::cout << "index_manager.cc : " << database << " " << table << "  processDocInfo batch size " << batch.size() << std::endl;
 
     try {
-		    pqxx::connection C_("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+		    pqxx::connection C_("dbname = " + database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C_.is_open()) {
             // since this can be a thread so we need a new connection for each call.
             pqxx::work txn_(C_);
@@ -475,7 +474,7 @@ void IndexManager::exportVocab(std::string lang) {
 
 void IndexManager::getNumDocs(std::map<std::string, int> &count) {
     try {
-		    pqxx::connection C__("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+		    pqxx::connection C__("dbname = " + database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C__.is_open()) {
             pqxx::work txn__(C__);
             prepare_doc_count(C__);

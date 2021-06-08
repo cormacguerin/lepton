@@ -353,7 +353,7 @@ function authorizeApi(req, res, next) {
                  + query_parameters + "\n"
                  + signed_headers_str
 
-  if (parsedurl.pathname === 'testApiKey') {
+  //if (parsedurl.pathname === 'testApiKey') {
     console.log('API debug info');
     console.log(' - credential key id')
     console.log(key_id)
@@ -363,9 +363,7 @@ function authorizeApi(req, res, next) {
     console.log(key_scope)
     console.log(' - signing string');
     console.log(signing_string)
-  }
-  //console.log(' - signing string');
-  //console.log(signing_string)
+  //}
   // TODO add datetime window auth logic
 
   // get the key details from the backend and authorize the request
@@ -376,19 +374,21 @@ function authorizeApi(req, res, next) {
         return res.json({error:errors})
       } else {
         const signing_key = getSigningKey(apiKey.key, key_datestamp, apiKey.name, key_scope)
-        // console.log(signing_key)
+        console.log('key_scope')
+        console.log(key_scope)
+        console.log('signing_key')
+        console.log(signing_key)
         const request_signature = hmac(signing_key, signing_string, 'hex')
 
         // add the key into the request
         req.scope = apiKey.scope;
-        /*
+        
         console.log('signing_key hex')
         console.log(Buffer.from(signing_key, 'utf8').toString('hex'))
         console.log('request_signature')
         console.log(request_signature)
         console.log('client_signature')
         console.log(client_signature)
-        */
         
         if (request_signature !== client_signature) {
           res.status(403)
@@ -405,6 +405,12 @@ function authorizeApi(req, res, next) {
 }
 
 function getSigningKey(key_secret, key_datestamp, key_name, key_scope) {
+      console.log(' - - - - ')
+    console.log(key_secret)
+    console.log(key_datestamp)
+    console.log(key_name)
+    console.log(key_scope)
+    console.log(' - - - - ')
   var kDate = hmac("LT" + key_secret, key_datestamp);
   var kName = hmac(kDate, key_name);
   var kScope = hmac(kName, key_scope);

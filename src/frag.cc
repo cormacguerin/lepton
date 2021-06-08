@@ -325,7 +325,7 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
     auto config = getConfig();
 
     try {
-		    C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+		    C = new pqxx::connection("dbname = " + database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C->is_open()) {
             std::cout << "Opened database successfully: " << C->dbname() << std::endl;
         } else {

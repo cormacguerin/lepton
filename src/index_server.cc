@@ -32,7 +32,7 @@ IndexServer::~IndexServer()
 void IndexServer::init() {
   auto config = getConfig();
   try {
-    C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+    C = new pqxx::connection("dbname = " + db + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
     if (C->is_open()) {
       cout << "Opened database successfully: " << C->dbname() << endl;
     } else {
