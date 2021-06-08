@@ -77,7 +77,7 @@ CREATE TABLE text_tables_index (
     display_field VARCHAR(64) DEFAULT 'url',
     indexing BOOLEAN,
     serving BOOLEAN,
-    UNIQUE (database,_table)
+    CONSTRAINT text_tables_index_database__table__column UNIQUE (database,_table,_column)
 );
 
 CREATE TABLE charts (

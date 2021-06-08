@@ -388,9 +388,6 @@ exports.createDataSetTable = function(u,d,t,q,callback) {
         console.log(err);
         callback({status:'failed',error:err})
       } else {
-        console.log(r);
-        console.log('r.length');
-        console.log(r.length);
         if (r.length > 0) {
           var dataset = {}
           dataset.query = q;
@@ -1101,9 +1098,10 @@ exports.deleteApiScope = function(user_id,k,a,d,t,callback) {
 function initDB(database, callback) {
 
   let config_ = config;
-  config_.database = database
+  config_.postgres_database = database
 
   if (!db_pg[database]) {
+    console.log(config_)
     db_pg[database] = new pg(config_)
   }
   callback();

@@ -123,7 +123,6 @@ app.get('/api/getUserInfo', user.authorize, function(req,res,next) {
   });
 });
 app.get('/api/addDatabase', user.authorize, function(req, res, next) {
-  console.log('wut')
   var queryData = url.parse(req.url, true).query;
   data.addDatabase(req.user_id, queryData.database, function(r) {
     res.json(r);
@@ -597,6 +596,7 @@ app.get('/search', user.authorize, function(req, res, next) {
 app.get('/suggest', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   var database;
+  console.log('x')
 
   if (!queryData.query) {
     res.json({"error":"no query provided"});
@@ -618,11 +618,14 @@ app.get('/suggest', user.authorize, function(req, res, next) {
   }
   // handle user or token request
   if (req.user_id) {
+  console.log('y')
       database = req.user_id + "_" + queryData.database;
   } else {
+  console.log('z')
     // validate scope
     var access = false;
     for (var i in req.scope) {
+      console.log(queryData)
       if (queryData.database === req.scope[i].database) {
         if (req.scope[i].table) {
           if (queryData.table === req.scope[i].table) {

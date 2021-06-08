@@ -191,19 +191,13 @@ var it = new Date().getTime();
    * initialize database from schema
    */
   init(database, callback) {
-    console.log('zzz')
     var query = fs.readFileSync('./server/admin_schema.psql').toString();
 
     this.execute(query, null, function(e,r) {
-      console.log('1234')
       if (e) {
-        console.log('xx')
         console.log(e)
         callback();
       } else {
-        console.log(r)
-        console.log('yy')
-        console.log(r)
         callback(r)
       }
     });
@@ -902,7 +896,7 @@ var it = new Date().getTime();
     var query = "INSERT INTO text_tables_index(database,_table,_column,indexing)"
       + " SELECT r.db, r.t, r.c, r.e::boolean FROM"
       + " (SELECT * FROM (VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $5), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $5)), $3, $4)) AS v (db,t,c,e)) r"
-      + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column_key DO UPDATE SET"
+      + " ON CONFLICT ON CONSTRAINT text_tables_index_database__table__column DO UPDATE SET"
       + " _table = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $5)),"
       + " _column = $3,"
       + " indexing = $4::boolean";
