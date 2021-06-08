@@ -40,7 +40,7 @@ IndexManager::IndexManager(Frag::Type u, Frag::Type b, Frag::Type t, std::string
         bigramFragManager[*lit] = new FragManager(b,db,tb,*lit);
         trigramFragManager[*lit] = new FragManager(t,db,tb,*lit);
     }
-    //database = config.postgres_database;
+    database = db;
     table = tb;
     columns = cl;
     init();
