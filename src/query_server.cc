@@ -110,7 +110,6 @@ void QueryServer::run() {
 }
 
 std::map<std::string,int> QueryServer::getServingInfo() {
-    std::cout << "CORMAC " << std::endl;
     return indexServer->getServingInfo();
 }
 

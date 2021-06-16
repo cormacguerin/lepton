@@ -417,6 +417,22 @@ var it = new Date().getTime();
     });
   }
 
+  getDataSetData(database, tablename, callback) {
+    var query = "SELECT data FROM tables WHERE database = (SELECT id FROM databases WHERE database = $1) and tablename = $2;"
+    this.execute(query, [database, tablename], function(e,r) {
+      if (r[0].data) {
+        try {
+          let q = JSON.parse(r[0].data)
+          callback(e,q.query);
+        } catch(e) {
+          callback(e)
+        }
+      } else {
+        callback('{"status":"invalid data"}')
+      }
+    });
+  }
+
   getTables(user, database, callback) {
     var query = "SELECT tablename, type, data FROM tables WHERE database = (SELECT id FROM databases WHERE database = $1) AND owner = $2;"
     this.execute(query, [database, user], function(e,r) {

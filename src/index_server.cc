@@ -52,6 +52,7 @@ void IndexServer::run() {
   do_run = true;
   while (do_run) {
     for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
+      //std::cout << "lit " << *lit << std::endl;
       if (softMutexLock(m)==true) {
         if (unigramurls_map.find(*lit) == unigramurls_map.end()) {
           unigramurls_map[*lit] = phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>();
@@ -60,11 +61,13 @@ void IndexServer::run() {
       } else {
         continue;
       }
+      //std::cout << "loadIndex " << *lit << std::endl;
       loadIndex(Frag::Type::UNIGRAM, *lit);
       loadIndex(Frag::Type::BIGRAM, *lit);
       loadIndex(Frag::Type::TRIGRAM, *lit);
       buildSuggestions(*lit);
     }
+    usleep(6000000);
     // we handle suggestions starting with stopwords separately.
     getStopSuggest();
     status = "serving";
@@ -91,7 +94,7 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
   }
 
   time_t beforeload = getTime();
-  // std::cout << "loading index " << lang << " ... (this might take a while)." << std::endl;
+  std::cout << "loading index " << lang << " ... (this might take a while)." << std::endl;
 
   std::vector<std::string> index_files;
 
@@ -99,7 +102,7 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
   DIR *dp;
 
   std::string path = "index/" + db + "/" + tb + "/";
-  std::cout << path << std::endl;
+  //std::cout << "loadIndex " << path << std::endl;
   std::replace(path.begin(),path.end(),' ','_');
 
   dp = opendir(path.c_str());
@@ -375,6 +378,13 @@ void IndexServer::suggest(std::string lang, std::string parsed_query, std::promi
   time_t beforeload = indexServer->getTime();
   time_t afterload = indexServer->getTime();
   double seconds = difftime(afterload, beforeload);
+  
+  /*
+  for (std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator ssit = indexServer->suggestions[lang].begin(); ssit != indexServer->suggestions[lang].end(); ssit++) {
+    std::cout << ssit->first << std::endl;
+  }
+  */
+  
   std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator sit = indexServer->suggestions[lang].find(indexServer->seg.segmentTerm(parsed_query,lang));
   if (sit != indexServer->suggestions[lang].end()) {
     rapidjson::Document suggest_response;
@@ -382,7 +392,7 @@ void IndexServer::suggest(std::string lang, std::string parsed_query, std::promi
     rapidjson::Document::AllocatorType& allocator = suggest_response.GetAllocator();
     rapidjson::Value suggest_array(rapidjson::kArrayType);
     for (std::vector<std::pair<std::string,int>>::const_iterator it = sit->second.begin(); it != sit->second.end(); it++) {
-      std::cout << it->first << std::endl;
+      //std::cout << it->first << std::endl;
       suggest_array.PushBack(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), allocator);
     }
     suggest_response.AddMember("suggestions", rapidjson::Value(suggest_array, allocator).Move(), allocator);
@@ -402,7 +412,7 @@ void IndexServer::buildSuggestions(std::string lang) {
   int j = 0;
   std::cout << "unigramurls_map[lang].size() " << unigramurls_map[lang].size() << std::endl;
   for (phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[lang].begin(); urls != unigramurls_map[lang].end(); urls++) {
-    // std::cout << tb << " - " << urls->first << " " << urls->second.size() << std::endl;
+    //std::cout << "tb" << tb << " - " << urls->first << " " << urls->second.size() << std::endl;
     if (urls->second.size() > 1) {
       addSuggestion(urls->first, lang, urls->second.size());
     }

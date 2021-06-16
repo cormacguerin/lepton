@@ -360,7 +360,7 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
     pqxx::work txn(*C);
 
     C->prepare(update_gram_idf, "INSERT INTO " + gram + " (idf,gram,lang) VALUES ($1,$2,$3) ON CONFLICT "
-            "ON CONSTRAINT " + gram + "_gram_key DO UPDATE SET idf = $1, lang = $3 WHERE " + gram + ".gram = $2");
+            "ON CONSTRAINT " + gram + "_lang_gram_key DO UPDATE SET idf = $1, lang = $3 WHERE " + gram + ".gram = $2");
 
     std::cout << "proceed to add weights " << std::endl;
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {

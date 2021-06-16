@@ -249,6 +249,45 @@ app.get('/api/createMemoryTable', user.authorize, function(req, res, next) {
     });
   });
 });
+app.get('/getDataset', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  var table = queryData.table;
+  var database = queryData.database;
+
+  // handle user or token request
+  if (req.user_id) {
+    database = req.user_id + "_" + queryData.database;
+  } else {
+    var queryData = url.parse(req.url, true).query;
+    // validate scope
+    var access = false;
+    for (var i in req.scope) {
+      if (queryData.database === req.scope[i].database) {
+        if (req.scope[i].table) {
+          if (queryData.table === req.scope[i].table) {
+            access = true;
+            database = req.scope[i]._database;
+          }
+        } else {
+          access = true;
+          database = req.scope[i]._database;
+        }
+      }
+    }
+    if (access != true) {
+      res.status(403);
+      return res.json({});
+    }
+  }
+  if (table && database) {
+    data.getDataSet(database, table, function(r) {
+      res.json(r);
+    });
+  } else {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+});
 app.get('/api/setFTS', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   if (!(queryData.database && queryData.table && queryData.column && queryData.fts)) {
@@ -508,22 +547,26 @@ app.get('/search', user.authorize, function(req, res, next) {
   } else {
     table = queryData.table;
   }
+  var queryData = url.parse(req.url, true).query;
   if (!queryData.database) {
     res.json({"error":"no database provided"});
     return;
   } else {
     database = queryData.database;
   }
+  var queryData = url.parse(req.url, true).query;
   if (!queryData.table) {
     res.json({"error":"no table provided"});
     return;
   } else {
     table = queryData.table;
   }
+  var queryData = url.parse(req.url, true).query;
   // handle user or token request
   if (req.user_id) {
     database = req.user_id + "_" + queryData.database;
   } else {
+    var queryData = url.parse(req.url, true).query;
     // validate scope
     var access = false;
     for (var i in req.scope) {
@@ -573,6 +616,7 @@ app.get('/search', user.authorize, function(req, res, next) {
         data.getServingColumns(user_id, database, table, function(c) {
           queryData.columns = c.join();
           execute(queryData,queryServers[database][table].port,function(r) {
+            console.log(r)
             res.json(r);
           });
         });
@@ -596,7 +640,6 @@ app.get('/search', user.authorize, function(req, res, next) {
 app.get('/suggest', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   var database;
-  console.log('x')
 
   if (!queryData.query) {
     res.json({"error":"no query provided"});
@@ -618,10 +661,8 @@ app.get('/suggest', user.authorize, function(req, res, next) {
   }
   // handle user or token request
   if (req.user_id) {
-  console.log('y')
-      database = req.user_id + "_" + queryData.database;
+    database = req.user_id + "_" + queryData.database;
   } else {
-  console.log('z')
     // validate scope
     var access = false;
     for (var i in req.scope) {
@@ -791,6 +832,7 @@ app.use('/serving/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/models/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/inference/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/insights/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/assets/', express.static(__dirname + '/assets/'));
 // web root
 app.use('/', express.static(__dirname + '/vue-app/dist/'));
 

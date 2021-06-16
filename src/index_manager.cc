@@ -82,7 +82,6 @@ void IndexManager::init() {
 }
 
 void IndexManager::spawnProcessFeeds() {
-    std::cout << "index_manager.cc : " << database << " " << table << "  spawnProcessFeeds" << std::endl;
     processFeeds();
 }
 
@@ -218,7 +217,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         
         std::map<int,std::string> purge_docs;
         std::string statement = "SELECT id, index_date FROM \"" + indexManager->table + "\" WHERE update = true";
-        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " " << statement << std::endl;
+        //std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " " << statement << std::endl;
 
         pqxx::work txn(*C_);
         C_->prepare("get_updated_docs", statement);
@@ -254,7 +253,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
 
         std::cout << statement_ << std::endl;
         for (std::map<int,std::string>::const_iterator ii = purge_docs.begin(); ii != purge_docs.end(); ii++) {
-            std::cout << "index_manager.cc " << indexManager->database << " " << indexManager->table << " " << ii->first << " " << ii->second << std::endl;
+            //std::cout << "index_manager.cc " << indexManager->database << " " << indexManager->table << " " << ii->first << " " << ii->second << std::endl;
             pqxx::result r = txn.prepared("update_purged_docs")(ii->first)(ii->second).exec();
         }
 
@@ -286,7 +285,6 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
  * could do other processing too eg. ML stuff etc
  */
 void IndexManager::processDocInfo(std::vector<int> batch, std::string database, std::string table, std::string pwd) {
-    std::cout << "index_manager.cc : " << database << " " << table << "  processDocInfo " << std::endl;
 
     if (batch.empty()) {
         try {
@@ -309,8 +307,6 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
             std::cerr << e.what() << std::endl;
         }
     }
-
-    std::cout << "index_manager.cc : " << database << " " << table << "  processDocInfo batch size " << batch.size() << std::endl;
 
     try {
 		    pqxx::connection C_("dbname = " + database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);

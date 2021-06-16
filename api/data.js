@@ -431,6 +431,42 @@ exports.deleteDataSetTable = function(u,d,t,callback) {
   });
 }
 
+exports.getDataSet = function(d,t,callback) {
+  if (!d) {
+    callback({status:'failed'})
+  }
+  if (d.length > 63) {
+    callback({status:'failed'})
+  }
+
+  db_pg['admin'].getDataSetData(d, t, function(e,q) {
+    if (e) {
+      console.log(e);
+      callback({status:'failed'})
+    } else {
+      console.log(q)
+      initDB(d, function() {
+        db_pg[d].runQuery(q,function(err,r) {
+          console.log(r)
+          if (err){
+            console.log("unable to create search table");
+            console.log(err);
+            callback({status:'failed',error:err})
+          } else {
+            if (r.length > 0) {
+              callback(r)
+            } else {
+              callback({status:'failed'})
+            }
+          }
+        });
+      });
+    }
+  });
+/*
+    */
+}
+
 exports.addTableColumn = function(u,d,t,c,dt,callback) {
   if (!(d&&t&&c)) {
     return callback({status:'failed'})
