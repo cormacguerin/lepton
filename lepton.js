@@ -541,7 +541,7 @@ app.get('/search', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   var database;
 
-  if (!queryData.query) {
+  if (!queryData.query && !(queryData.filter || queryData['filter[]'])) {
     res.json({"error":"no query provided"});
     return;
   } else {

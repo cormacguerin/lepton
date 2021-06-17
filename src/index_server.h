@@ -54,7 +54,7 @@ class IndexServer {
         std::vector<std::string> getDocInfo(int doc_id);
         std::map<std::string,std::vector<int>> getTermPositions(int doc_id, std::vector<std::string> terms);
         Result getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates);
-        void doFilter(std::string filter, std::vector<Frag::Item> &candidates);
+        void doFilter(std::string filter, std::vector<Frag::Item> &candidates, bool has_query);
         void getResultInfo(Result& result, std::vector<std::string> terms, std::string columns, std::string lang);
         pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
         void loadIndex(Frag::Type type, std::string lang);

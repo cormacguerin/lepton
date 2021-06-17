@@ -315,7 +315,12 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   // filter the candidates against supplied filters
   // TODO ACLs can be done in the same way.
   beforeload = indexServer->getTime();
-  indexServer->doFilter(filter, candidates);
+  if (parsed_query == "") {
+    indexServer->doFilter(filter, candidates, false);
+  } else {
+    indexServer->doFilter(filter, candidates, true);
+  }
+  
   afterload = indexServer->getTime();
   seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc " << candidates.size() << " candidates after filtering in " << seconds << " miliseconds." << std::endl;
@@ -479,7 +484,7 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
   }
 
   pqxx::work txn(*C);
-  C->prepare("get_docinfo_deep", "SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1");
+ // C->prepare("get_docinfo_deep", "SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1");
 
   for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
     /*
@@ -488,7 +493,7 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
        std::cout << tit__->first << " " << *tit___ << std::endl;
        }
        }
-       */
+    */
     std::map<int,int> best_match;
     int position = 0;
     int tophits = 0;
@@ -517,7 +522,7 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
           }
         }
       }
-    } else {
+    } else if (terms.size() == 1) {
       // there is only one term so get the first occurrence of the term as the snippet position.
       // this could be better, we should look for meaningful prose..
       std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.find(terms[0]);
@@ -542,7 +547,8 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
     */
     pqxx::result r;
     try {
-      r = txn.prepared("get_docinfo_deep")(rit->doc_id).exec();
+      //r = txn.prepared("get_docinfo_deep")(rit->doc_id).exec();
+      r = txn.exec_params("SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1",rit->doc_id);
     } catch (const std::exception &e) {
       std::cout << "ERROR" << std::endl;
       cerr << e.what() << std::endl;
@@ -565,15 +571,13 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
 
 }
 
-void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidates) {
+void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidates, bool has_query) {
 
   if (filter == "") {
     return;
   }
 
-  if (candidates.size() == 0) {
-    return;
-  }
+  std::cout << "filter " << filter << std::endl;
 
   std::string prepstr_="";
   for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
@@ -720,11 +724,18 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
     }
 
   } else {
-    std::cout << "IS NOT ARRAY CONTINUEa" << std::endl;
     return;
   }
 
-  std::string filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE d.id IN (" + prepstr_ + ") " + prep_filter;
+  std::string filter_query = "";
+  if (has_query) {
+    filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE d.id IN (" + prepstr_ + ") " + prep_filter;
+  } else if (prep_filter.length() > 10) {
+    prep_filter.erase(0,4);
+    filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE " + prep_filter;
+  } else {
+    return;
+  }
   std::cout << filter_query << std::endl;
 
   // std::string prepared_filter = base64_encode(reinterpret_cast<const unsigned char*>(filter_query.c_str()),filter_query.length());
@@ -743,20 +754,32 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
     int id = atoi(pqxx::to_string(i).c_str());
     // std::cout << "index_server.cc doFilter id " << id << std::endl;
 
-    std::vector<Frag::Item>::iterator fit = std::find_if(
-        candidates.begin(),
-        candidates.end(),
-        [id](const Frag::Item& f) { return f.doc_id == id; }
-        );
-    if (fit != candidates.end() && num < candidates.size()) {
-      // std::cout << num << " index_server.cc doFilter id " << fit->doc_id << " found." << std::endl;
-      std::swap(candidates.at(num), *fit);
-      num++;
+    if (has_query) {
+      std::vector<Frag::Item>::iterator fit = std::find_if(
+          candidates.begin(),
+          candidates.end(),
+          [id](const Frag::Item& f) { return f.doc_id == id; }
+          );
+      if (fit != candidates.end() && num < candidates.size()) {
+        // std::cout << num << " index_server.cc doFilter id " << fit->doc_id << " found." << std::endl;
+        std::swap(candidates.at(num), *fit);
+        num++;
+      }
+    } else {
+      Frag::Item F;
+      F.doc_id = id;
+      F.weight = 1.0;
+      F.tf = 1.0;
+      candidates.push_back(F);
     }
   }
+
   std::cout << "index_server.cc filter size " << r.size() << std::endl;
   std::cout << "index_server.cc candidates.size " << candidates.size() << std::endl;
-  candidates.resize(num);
+
+  if (has_query) {
+    candidates.resize(num);
+  }
 }
 
 Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates) {
@@ -767,19 +790,24 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
     return result;
   }
 
+  /*
   if (terms.empty()) {
     return result;
   }
+  */
 
   _q_++;
   int p = 0;
   std::string prepstr="(";
+  std::string termsstr="";
   pqxx::work txn(*C);
   for (std::vector<std::string>::const_iterator it = terms.begin(); it != terms.end(); ++it) {
     p++;
     prepstr += "$" + std::to_string(p);
+    termsstr += *it;
     if (std::next(it) != terms.end()) {
       prepstr += ",";
+      termsstr += ",";
     }
   }
   prepstr += ")";
@@ -801,20 +829,24 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
     x++;
   }
 
-  C->prepare("get_docinfo"+_q_,"SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr);
-  std::cout << "prepstr_ " << prepstr_ << std::endl;
-  std::cout << "prepstr " << prepstr << std::endl;
-
   std::map<std::string,std::vector<int>> term_positions;
   std::vector<pqxx::result> pqxx_results;
 
   // sql timing
   time_t beforeload = getTime();
   time_t getResultTime = 0;
+  std::string statement;
 
-  pqxx::prepare::invocation w_invocation = txn.prepared("get_docinfo"+_q_);
-  prep_dynamic(terms, w_invocation);
-  pqxx::result r = w_invocation.exec();
+  if (terms.size() > 0) {
+    statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr;
+  } else {
+    statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ")";
+  }
+
+  // pqxx::prepare::invocation w_invocation = txn.exec_params(statement);
+  // prep_dynamic(terms, w_invocation);
+  // pqxx::result r = w_invocation.exec();
+  pqxx::result r = txn.exec_params(statement, termsstr);
 
   time_t afterload = getTime();
   double seconds = difftime(afterload, beforeload);
