@@ -210,16 +210,16 @@ var it = new Date().getTime();
    */
   addDatabase(user, database, callback) {
 
-    var query = fs.readFileSync('./server/index_schema.psql').toString();
-
     var vm = this;
+    var query = "CREATE DATABASE \"" + database +  "\" ENCODING UTF8;"
+    console.log(query)
     this.execute(query, null, function(e,r) {
       if (e) {
-        callback(e, r);
+        callback(e);
       } else {
         var query = "INSERT INTO databases(database,owner,reader,writer) VALUES($1,$2,$2,$2);"
         vm.execute(query, [database, user], function(e,r) {
-            callback(e, r);
+          callback(e, r);
         });
       }
     });
@@ -227,7 +227,7 @@ var it = new Date().getTime();
 
   //  todo , load from server/index script instead (like we do for admin creation)
   /*
-  addNgramTables(callback) {
+  addNgramTable(callback) {
     var vm = this;
     var promises = [];
     const promisePush = async function() {
@@ -1002,6 +1002,63 @@ var it = new Date().getTime();
       console.log(e);
       console.log(r);
       callback(e,r);
+    });
+  }
+
+  addCrawlerUrl(u,d,t,url,callback) {
+    var query = "INSERT INTO crawler_urls(database,_table,url,owner) VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $4), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)), $3,$4) ON CONFLICT DO NOTHING";
+
+    var values = [d,t,url,u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  deleteCrawlerUrl(u,d,t,url,callback) {
+    var query = "DELETE FROM crawler_urls WHERE database = (SELECT id FROM databases WHERE database = $1 AND owner = $4) AND _table = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)) AND url = $3";
+
+
+    var values = [d,t,url,u]
+
+    console.log(query)
+    console.log('d')
+    console.log(d)
+    console.log('t')
+    console.log(t)
+    console.log('url')
+    console.log(url)
+    console.log('u')
+    console.log(u)
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  getCrawlerUrls(u,callback) {
+    var query = "SELECT url, (SELECT tablename FROM tables where id=_table), (SELECT database FROM databases WHERE id=crawler_urls.database) FROM crawler_urls WHERE owner = $1";
+
+    var values = [u]
+
+    this.execute(query, values, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(e,r);
+    });
+  }
+
+  getAllCrawlerUrls(callback) {
+    var query = "SELECT url, database, _table FROM crawler_urls";
+
+    this.execute(query, null, function(e,r) {
+      console.log(e);
+      console.log(r);
+      callback(r);
     });
   }
 

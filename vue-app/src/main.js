@@ -17,6 +17,7 @@ import Insights from './components/Insights.vue'
 import Indexing from './components/Indexing.vue'
 import Serving from './components/Serving.vue'
 import ApiKeys from './components/ApiKeys.vue'
+import Crawler from './components/Crawler.vue'
 import 'vue-flex/dist/vue-flex.css'
 import '@coreui/icons/css/all.css'
 import '@coreui/icons/css/free.css'
@@ -75,7 +76,8 @@ const routes = [
   { path: '/indexing', name: 'indexing', component: Indexing },
   { path: '/serving', name: 'serving', component: Serving },
   { path: '/insights', name: 'insights', component: Insights },
-  { path: '/apikeys', name: 'apikeys', component: ApiKeys }
+  { path: '/apikeys', name: 'apikeys', component: ApiKeys },
+  { path: '/crawler', name: 'crawler', component: Crawler }
 ]
 
 const router = new VueRouter({

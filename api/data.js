@@ -24,6 +24,7 @@ var config = {};
 exports.clients = userClients;
 
 exports.init = async function(v, callback) {
+
   await loadConfig(function(r) {
     console.log('config.json loaded')
   })
@@ -282,17 +283,22 @@ exports.addDatabase = function(u,d,c) {
     c({status:'failed'})
   }
   const db = u + '_' + d;
+  console.log('u')
+  console.log(u)
+  console.log('db')
+  console.log(db)
 	db_pg['admin'].addDatabase(u, db, function(e,r) {
 		if (e){
 			console.log("unable to retrieve user_clients");
 			console.log(e);
-            c({status:'failed',error:e})
+      c({status:'failed',error:e})
 		} else {
       if (r.length === 0) {
         // add hidden search ngram tables (we do not register these so not visible by end user)
         initDB(db, function() {
+          
           /*
-          db_pg[db].addNgramTables(function(e,r) {
+          db_pg[db].addIndexTable(function(e,r) {
             if (e) {
               c({status:'failed'})
             } else {
@@ -300,6 +306,7 @@ exports.addDatabase = function(u,d,c) {
             }
           })
           */
+          
           c({status:'success'})
         })
       } else {
@@ -872,6 +879,59 @@ exports.deleteDatabase = function(u,d,c) {
       } else {
         c({status:'failed'})
       }
+    }
+  });
+}
+
+exports.addCrawlerUrl = function(u,d,t,url,c) {
+  const db = u + '_' + d;
+	db_pg['admin'].addCrawlerUrl(u, db, t, url, function(err,r) {
+		if (err) {
+			console.log(err);
+      c({status:'failed',error:err})
+		} else {
+      console.log(r);
+      console.log('r.length');
+      console.log(r.length);
+      if (r.length === 0) {
+        c({status:'success'})
+      } else {
+        c({status:'failed'})
+      }
+    }
+  });
+}
+
+exports.deleteCrawlerUrl = function(u,d,t,url,c) {
+  const db = u + '_' + d;
+	db_pg['admin'].deleteCrawlerUrl(u, db, t, url, function(err,r) {
+		if (err) {
+			console.log(err);
+      c({status:'failed',error:err})
+		} else {
+      console.log(r);
+      console.log('r.length');
+      console.log(r.length);
+      if (r.length === 0) {
+        c({status:'success'})
+      } else {
+        c({status:'failed'})
+      }
+    }
+  });
+}
+
+exports.getCrawlerUrls = function(u,c) {
+	db_pg['admin'].getCrawlerUrls(u, function(err,r) {
+		if (err) {
+			console.log(err);
+      c({status:'failed',error:err})
+		} else {
+      const re = /^[0-9]+_/gi;
+      for (var i=0; i< r.length; i++) {
+        r[i].database = r[i].database.replace(re,'')
+      }
+      c(r)
     }
   });
 }

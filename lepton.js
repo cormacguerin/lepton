@@ -340,6 +340,24 @@ app.get('/api/setFTSDisplayField', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
+app.get('/api/addCrawlerUrl', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  data.addCrawlerUrl(req.user_id, queryData.database, queryData.table, queryData.url, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/deleteCrawlerUrl', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  data.deleteCrawlerUrl(req.user_id, queryData.database, queryData.table, queryData.url, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/getCrawlerUrls', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  data.getCrawlerUrls(req.user_id, function(r) {
+    res.json(r);
+  });
+});
 app.get('/api/runQuery', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   if (!(queryData.database && queryData.query)) {
@@ -437,6 +455,22 @@ app.get('/api/deleteApiScope', user.authorize, function(req, res, next) {
   }
   data.deleteApiScope(req.user_id, queryData.key_id, queryData.api_scope, queryData.api_database, queryData.api_table, function(r) {
     res.json(r);
+  });
+});
+app.get('/api/image', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.key_id && queryData.api_scope && queryData.api_database)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+  const { spawn } = require('child_process');
+  const pyProg = spawn('python', ['./../pypy.py']);
+
+  pyProg.stdout.on('data', function(data) {
+
+      console.log(data.toString());
+      res.write(data);
+      res.end('end');
   });
 });
 
@@ -832,6 +866,7 @@ app.use('/serving/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/models/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/inference/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/insights/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/crawler/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/assets/', express.static(__dirname + '/assets/'));
 // web root
 app.use('/', express.static(__dirname + '/vue-app/dist/'));

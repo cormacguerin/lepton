@@ -242,7 +242,6 @@ void IndexServer::execute(std::string lang, std::string type, std::string parsed
 void IndexServer::search(std::string lang, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryBuilder) {
 
   Query::Node query;
-  //Result::Item item;
   queryBuilder.build(lang, parsed_query, query);
 
   int page_num = 0;
@@ -297,6 +296,12 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   double seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc gathered " << candidates.size() << " candidates for " << parsed_query << " in " << seconds << " miliseconds." << std::endl;
   total_seconds += seconds;
+
+  if (candidates.size() == 0) {
+    Result result;
+    promiseObj.set_value(result.serialize());
+    return;
+  }
 
   // new
   std::sort(candidates.begin(), candidates.end(),
@@ -800,10 +805,12 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
   int p = 0;
   std::string prepstr="(";
   std::string termsstr="";
+  std::vector<std::string> prepterms;
   pqxx::work txn(*C);
   for (std::vector<std::string>::const_iterator it = terms.begin(); it != terms.end(); ++it) {
     p++;
     prepstr += "$" + std::to_string(p);
+    prepterms.push_back(*it);
     termsstr += *it;
     if (std::next(it) != terms.end()) {
       prepstr += ",";
@@ -837,8 +844,11 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
   time_t getResultTime = 0;
   std::string statement;
 
+
   if (terms.size() > 0) {
     statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr;
+    std::cout << statement << std::endl;
+    std::cout << termsstr << std::endl;
   } else {
     statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ")";
   }
@@ -846,7 +856,8 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
   // pqxx::prepare::invocation w_invocation = txn.exec_params(statement);
   // prep_dynamic(terms, w_invocation);
   // pqxx::result r = w_invocation.exec();
-  pqxx::result r = txn.exec_params(statement, termsstr);
+  //pqxx::result r = txn.exec_params(statement, termsstr);
+  pqxx::result r = txn.exec_params(statement, pqxx::prepare::make_dynamic_params(prepterms));
 
   time_t afterload = getTime();
   double seconds = difftime(afterload, beforeload);
