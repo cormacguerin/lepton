@@ -62,6 +62,14 @@
         </div>
       </flex-row>
     </flex-row>
+
+    <toggle-button
+      class="switch"
+      :value="crawling"
+      :sync="true"
+      @click.native="toggleCrawling"
+    />
+
     <div class="items">
       <flex-row
         v-for="item in items"
@@ -76,12 +84,7 @@
         <div
           class="item"
         >
-          {{ item.database }}
-        </div>
-        <div
-          class="item"
-        >
-          {{ item.tablename }}
+          {{ item._table }}
         </div>
         <div
           class="delete"
@@ -108,11 +111,18 @@
 </template>
 <script>
 
+import { ToggleButton } from 'vue-js-toggle-button'
+
 export default {
   name: 'Crawler',
   components: {
+    ToggleButton
   },
   props: {
+    crawling: {
+      type: Boolean,
+      default: false
+    }
   },
   data () {
     return {
@@ -124,7 +134,6 @@ export default {
   },
   created () {
     this.getDatabases()
-    this.getCrawlerUrls()
   },
   methods: {
     addUrl () {
@@ -152,8 +161,8 @@ export default {
       this.$axios.get(this.$SERVER_URI + '/api/deleteCrawlerUrl', {
         params: {
           url: item.url,
-          database: item.database,
-          table: item.tablename
+          database: this.selectedDatabase,
+          table: item._table
         }
       })
         .then(function (response) {
@@ -165,8 +174,14 @@ export default {
         })
     },
     getCrawlerUrls () {
+      if (!this.selectedDatabase) {
+        return
+      }
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/getCrawlerUrls', {
+        params: {
+          database: this.selectedDatabase
+        }
       })
         .then(function (response) {
           if (response.data) {
@@ -176,6 +191,41 @@ export default {
         .catch(function (error) {
           console.log(error)
         })
+    },
+    getCrawlerStatus (a) {
+      if (!(this.selectedTable && this.selectedDatabase)) {
+        return
+      }
+      var vm = this
+      this.$axios.get(this.$SERVER_URI + '/api/getCrawlerStatus', {
+        params: {
+          database: vm.selectedDatabase,
+          table: vm.selectedTable,
+          action: a
+        }
+      })
+        .then(function (response) {
+          if (response.data) {
+            console.log(response.data)
+            if (response.data.status === 'running') {
+              vm.crawling = true
+            } else {
+              vm.crawling = false
+            }
+          }
+        })
+        .catch(function (error) {
+          console.log(error)
+        })
+    },
+    toggleCrawling () {
+      console.log(this.crawling)
+      if (this.crawling === false) {
+        this.getCrawlerStatus('start')
+      }
+      if (this.crawling === true) {
+        this.getCrawlerStatus('stop')
+      }
     },
     getDatabases () {
       var vm = this
@@ -194,6 +244,7 @@ export default {
       this.tables = []
       if (d.key) {
         this.selectedDatabase = d.key
+        this.getCrawlerUrls()
         for (var t in d.tables) {
           this.tables.push(d.tables[t].tablename)
         }
@@ -202,6 +253,7 @@ export default {
     selectTable (t) {
       if (t) {
         this.selectedTable = t
+        this.getCrawlerStatus()
       }
     },
     selectOperator (o) {
@@ -249,7 +301,7 @@ input.search {
     background-color: #fafafa;
 }
 .delete {
-    pointer: cursor;
+    cursor: pointer;
     padding: 10px;
     padding-top: 20px;
     font-weight: bold;
@@ -270,10 +322,9 @@ input.search {
     margin-left: 10px;
     margin-top: 20px;
 }
-h2 {
-    padding: 15px 0px 0px 0px;
-    margin: 0px;
-    text-align: center;
-    font-size: 24px;
+.switch {
+    width: 100%;
+    margin: 20px;
 }
+
 </style>

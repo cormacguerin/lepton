@@ -19,11 +19,12 @@ class IndexServer {
     public:
         IndexServer(std::string database, std::string table);
         ~IndexServer();
-		Segmenter seg;
+        Segmenter seg;
         std::string status;
         std::mutex m;
         void init();
         void run();
+        void stop();
         void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates);
         void execute(std::string lang, std::string type, std::string query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj);
         static void search(std::string lang, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryParser);

@@ -177,7 +177,20 @@ std::string ManagementServer::getStats() {
 }
 
 std::string ManagementServer::toggleServing(std::string database, std::string table, std::string action) {
-    return "{status:stopped}";
+    for (std::vector<QueryServer*>::iterator it = servers.begin(); it != servers.end(); it++) {
+      if ((*it)->database == database && (*it)->table == table) {
+        std::cout << "AAA action " << action << std::endl;
+        if (action == "serving") {
+          (*it)->stop();
+        } else if (action == "shutdown") {
+          (*it)->run();
+        }
+        std::string status = "{\"status\":\"" + (*it)->getServingStatus() + "\"}";
+      }
+    }
+    // reckless
+    servers.push_back(new QueryServer(port++, database, table));
+    return "{\"status\":\"loading\"}";
 }
 
 /*

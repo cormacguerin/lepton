@@ -126,13 +126,3 @@ CREATE TABLE ml_trainings (
     modelfile VARCHAR (256),
     owner INT REFERENCES users (id) ON DELETE CASCADE NOT NULL
 );
-
-CREATE TABLE crawler_urls (
-    id serial PRIMARY KEY,
-    url VARCHAR (2048),
-    database INT REFERENCES databases (id) ON DELETE CASCADE NOT NULL,
-    _table INT REFERENCES tables (id) ON DELETE CASCADE NOT NULL,
-    owner INT REFERENCES users (id) ON DELETE CASCADE NOT NULL,
-    priority INT
-)
-

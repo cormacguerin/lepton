@@ -1,5 +1,8 @@
 <template>
-  <div class="result-card">
+  <div
+    class="result-card"
+    @click="load"
+  >
     <flex-col
       justify="left"
     >
@@ -10,7 +13,7 @@
         {{ snippet }}
       </div>
       <div class="result-card-url">
-        <a class="result-link">
+        <a href="{{ url }}" class="result-link">
           {{ url }}
         </a>
       </div>
@@ -81,6 +84,11 @@ export default {
       type: String,
       default: ''
     }
+  },
+  methods: {
+    load () {
+      window.location.href = this.url
+    }
   }
 }
 </script>
@@ -90,25 +98,40 @@ export default {
     font-size: 1.2em;
     font-weight: bold;
     text-align: left;
-    color: white;
+    color: #171f24;
+}
+.result-card-title:hover {
+    text-decoration: underline;
 }
 .result-card {
-    background-color: #171f24;
+    background-color: #fafafa;
+    color: #171f24;
     border-radius: 5px;
     padding: 10px;
     margin: 20px;
     color: #efefef;
     text-align: left;
+    border: 1px solid #fafafa;
+}
+.result-card:hover {
+    cursor: pointer;
+    background-color: white;
+    border: 1px solid #efefef;
+    color: black;
+}
+.result-card-snippet {
+    color: #171f24;
 }
 .result-card-url {
   margin-top: 5px;
 }
 a.result-link {
     text-decoration: underline;
-    color: #efefef;
+    color: grey;
     font-weight: bold;
 }
 .debug {
+    display: none;
     margin-top: 10px;
 }
 .debugitem {

@@ -21,6 +21,7 @@ class QueryServer {
 		QueryServer(short port, std::string database, std::string table);
 		~QueryServer();
 		void run();
+		void stop();
     std::map<std::string,int> getPercentLoaded();
     std::map<std::string,int> getServingInfo();
     std::string getServingStatus();

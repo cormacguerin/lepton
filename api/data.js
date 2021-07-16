@@ -296,18 +296,13 @@ exports.addDatabase = function(u,d,c) {
       if (r.length === 0) {
         // add hidden search ngram tables (we do not register these so not visible by end user)
         initDB(db, function() {
-          
-          /*
-          db_pg[db].addIndexTable(function(e,r) {
+          db_pg[db].addIndexSchema(function(e,r) {
             if (e) {
               c({status:'failed'})
             } else {
               c({status:'success'})
             }
           })
-          */
-          
-          c({status:'success'})
         })
       } else {
         c({status:'failed'})
@@ -885,54 +880,58 @@ exports.deleteDatabase = function(u,d,c) {
 
 exports.addCrawlerUrl = function(u,d,t,url,c) {
   const db = u + '_' + d;
-	db_pg['admin'].addCrawlerUrl(u, db, t, url, function(err,r) {
-		if (err) {
-			console.log(err);
-      c({status:'failed',error:err})
-		} else {
-      console.log(r);
-      console.log('r.length');
-      console.log(r.length);
-      if (r.length === 0) {
-        c({status:'success'})
+  initDB(db, function() {
+    db_pg[db].addCrawlerUrl(t, url, function(err,r) {
+      if (err) {
+        console.log(err);
+        c({status:'failed',error:err})
       } else {
-        c({status:'failed'})
+        console.log(r);
+        console.log('r.length');
+        console.log(r.length);
+        if (r.length === 0) {
+          c({status:'success'})
+        } else {
+          c({status:'failed'})
+        }
       }
-    }
+    });
   });
 }
 
 exports.deleteCrawlerUrl = function(u,d,t,url,c) {
   const db = u + '_' + d;
-	db_pg['admin'].deleteCrawlerUrl(u, db, t, url, function(err,r) {
-		if (err) {
-			console.log(err);
-      c({status:'failed',error:err})
-		} else {
-      console.log(r);
-      console.log('r.length');
-      console.log(r.length);
-      if (r.length === 0) {
-        c({status:'success'})
+  initDB(db, function() {
+    db_pg[db].deleteCrawlerUrl(t, url, function(err,r) {
+      if (err) {
+        console.log(err);
+        c({status:'failed',error:err})
       } else {
-        c({status:'failed'})
+        console.log(r);
+        console.log('r.length');
+        console.log(r.length);
+        if (r.length === 0) {
+          c({status:'success'})
+        } else {
+          c({status:'failed'})
+        }
       }
-    }
-  });
+    });
+  })
 }
 
-exports.getCrawlerUrls = function(u,c) {
-	db_pg['admin'].getCrawlerUrls(u, function(err,r) {
-		if (err) {
-			console.log(err);
-      c({status:'failed',error:err})
-		} else {
-      const re = /^[0-9]+_/gi;
-      for (var i=0; i< r.length; i++) {
-        r[i].database = r[i].database.replace(re,'')
+exports.getCrawlerUrls = function(u,d,c) {
+  const db = u + '_' + d;
+  initDB(db, function() {
+    db_pg[db].getCrawlerUrls(function(err,r) {
+      if (err) {
+        console.log(err);
+        c({status:'failed',error:err})
+      } else {
+        const re = /^[0-9]+_/gi;
+        c(r)
       }
-      c(r)
-    }
+    });
   });
 }
 

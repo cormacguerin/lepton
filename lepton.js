@@ -2,7 +2,6 @@
 var express = require('express');
 var app = express();
 var net = require('net');
- //var cors = require('cors')
 
 var cookieParser = require('cookie-parser');
 
@@ -16,7 +15,13 @@ var user = require('./api/user.js');
 
 var data = require('./api/data.js');
 
+var crawler = require('./crawler.js');
+
+var crypto = require('crypto');
+
 var queryServers = {}
+
+var crawlers = {}
 
 const url = require('url');
 
@@ -354,9 +359,25 @@ app.get('/api/deleteCrawlerUrl', user.authorize, function(req, res, next) {
 });
 app.get('/api/getCrawlerUrls', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
-  data.getCrawlerUrls(req.user_id, function(r) {
+  data.getCrawlerUrls(req.user_id, queryData.database, function(r) {
     res.json(r);
   });
+});
+app.get('/api/getCrawlerStatus', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  let this_crawler = crypto.createHash('md5').update(req.user_id + queryData.database + queryData.table).digest('hex')
+  if (!crawlers[this_crawler]) {
+    crawlers[this_crawler] = new crawler(req.user_id + "_" + queryData.database,queryData.table)
+  }
+  if (queryData.action == 'start') {
+    crawlers[this_crawler].start()
+  }
+  if (queryData.action == 'stop') {
+    crawlers[this_crawler].stop()
+  }
+  setTimeout(()=> {
+    res.json({'status':crawlers[this_crawler].status_})
+  }, 3000);
 });
 app.get('/api/runQuery', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;

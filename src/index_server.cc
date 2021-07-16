@@ -27,6 +27,7 @@ IndexServer::IndexServer(std::string database, std::string table)
 
 IndexServer::~IndexServer()
 {
+  delete C;
 }
 
 void IndexServer::init() {
@@ -76,6 +77,14 @@ void IndexServer::run() {
   unigramurls_map.clear();
   m.unlock();
   status = "shutdown";
+}
+
+void IndexServer::stop() {
+  do_run = false;
+  unigramurls_map.empty();
+  bigramurls_map.empty();
+  trigramurls_map.empty();
+  suggestions.empty();
 }
 
 /*
@@ -297,11 +306,13 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   std::cout << "index_server.cc gathered " << candidates.size() << " candidates for " << parsed_query << " in " << seconds << " miliseconds." << std::endl;
   total_seconds += seconds;
 
+  /*
   if (candidates.size() == 0) {
     Result result;
     promiseObj.set_value(result.serialize());
     return;
   }
+  */
 
   // new
   std::sort(candidates.begin(), candidates.end(),

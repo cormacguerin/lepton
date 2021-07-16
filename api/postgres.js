@@ -203,6 +203,19 @@ var it = new Date().getTime();
     });
   }
 
+  addIndexSchema(callback) {
+    var query = fs.readFileSync('./server/index_schema.psql').toString();
+
+    this.execute(query, null, function(e,r) {
+      if (e) {
+        console.log(e)
+        callback(e,r);
+      } else {
+        callback(e,r)
+      }
+    })
+  }
+
   /*
    * Add database
    * We prepend database names with the user_id to ensure no duplicates.
@@ -1005,33 +1018,12 @@ var it = new Date().getTime();
     });
   }
 
-  addCrawlerUrl(u,d,t,url,callback) {
-    var query = "INSERT INTO crawler_urls(database,_table,url,owner) VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $4), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)), $3,$4) ON CONFLICT DO NOTHING";
+  addCrawlerUrl(t,url,callback) {
+    var query = "INSERT INTO crawler_urls(_table,url) VALUES ($1,$2) ON CONFLICT DO NOTHING";
+    console.log('t ' + t)
+    console.log('rul ' + url)
 
-    var values = [d,t,url,u]
-
-    this.execute(query, values, function(e,r) {
-      console.log(e);
-      console.log(r);
-      callback(e,r);
-    });
-  }
-
-  deleteCrawlerUrl(u,d,t,url,callback) {
-    var query = "DELETE FROM crawler_urls WHERE database = (SELECT id FROM databases WHERE database = $1 AND owner = $4) AND _table = (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)) AND url = $3";
-
-
-    var values = [d,t,url,u]
-
-    console.log(query)
-    console.log('d')
-    console.log(d)
-    console.log('t')
-    console.log(t)
-    console.log('url')
-    console.log(url)
-    console.log('u')
-    console.log(u)
+    var values = [t,url]
 
     this.execute(query, values, function(e,r) {
       console.log(e);
@@ -1040,10 +1032,11 @@ var it = new Date().getTime();
     });
   }
 
-  getCrawlerUrls(u,callback) {
-    var query = "SELECT url, (SELECT tablename FROM tables where id=_table), (SELECT database FROM databases WHERE id=crawler_urls.database) FROM crawler_urls WHERE owner = $1";
+  deleteCrawlerUrl(t,url,callback) {
+    var query = "DELETE FROM crawler_urls WHERE _table = $1 AND url = $2";
 
-    var values = [u]
+
+    var values = [t,url]
 
     this.execute(query, values, function(e,r) {
       console.log(e);
@@ -1052,13 +1045,13 @@ var it = new Date().getTime();
     });
   }
 
-  getAllCrawlerUrls(callback) {
-    var query = "SELECT url, database, _table FROM crawler_urls";
+  getCrawlerUrls(callback) {
+    var query = "SELECT url, _table FROM crawler_urls";
 
     this.execute(query, null, function(e,r) {
       console.log(e);
       console.log(r);
-      callback(r);
+      callback(e,r);
     });
   }
 
