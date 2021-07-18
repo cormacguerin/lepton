@@ -351,7 +351,7 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
         gram = "trigrams";
         gram_boost = 3.0;
     } else {
-        C->disconnect();
+        C->close();
         delete C;
         return;
     }
@@ -374,7 +374,7 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
             tit->second.weight = idf*tit->second.tf*gram_boost;
         }
         // std::cout << "frag.cc addWeights it->first.c_str() " << " " << gram << " " << it->first.c_str() << std::endl;
-        pqxx::result r = txn.prepared(update_gram_idf)(std::to_string(idf))(it->first.c_str())(lang).exec();
+        pqxx::result r = txn.exec_prepared(update_gram_idf, std::to_string(idf), it->first.c_str(), lang);
         /*
            int n = pv.size();
            for (int i=1; i<=n;i++) {
@@ -410,7 +410,7 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
 	std::cout << "finish addWeights for " << update_gram_idf << " executed in " << seconds << " milliseconds." << std::endl;
 
     txn.commit();
-    C->disconnect();
+    C->close();
     delete C;
 }
 

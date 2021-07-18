@@ -20,7 +20,7 @@ ManagementServer::~ManagementServer()
     for (std::vector<QueryServer*>::iterator it = servers.begin(); it != servers.end(); it++) {
         delete *it;
     }
-    C->disconnect();
+    C->close();
     delete C;
 }
 
@@ -78,7 +78,7 @@ void ManagementServer::run() {
     std::string statement = "SELECT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table WHERE indexing = true";
     C->prepare("get_tables_to_serve", statement);
 
-    pqxx::result r = txn.prepared("get_tables_to_serve").exec();
+    pqxx::result r = txn.exec_prepared("get_tables_to_serve");
     txn.commit();
 
     std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>> tables;

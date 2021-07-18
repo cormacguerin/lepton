@@ -40,7 +40,7 @@ void IndexRoot::process() {
   std::string statement = "SELECT DISTINCT databases.database, tables.tablename, _column, indexing FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table WHERE indexing = true";
   C->prepare("get_tables_to_index", statement);
 
-  pqxx::result r = txn.prepared("get_tables_to_index").exec();
+  pqxx::result r = txn.exec_prepared("get_tables_to_index");
   txn.commit();
 
   std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>> tables;

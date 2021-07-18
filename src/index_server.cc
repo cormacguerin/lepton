@@ -326,7 +326,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   } else {
     eit = candidates.end();
   }
-  candidates=std::vector(bit,eit);
+  candidates=std::vector<Frag::Item>(bit, eit);
 
   // filter the candidates against supplied filters
   // TODO ACLs can be done in the same way.
@@ -763,7 +763,7 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
   pm.lock();
   pqxx::work txn(*C);
   C->prepare(prepared_filter,filter_query);
-  pqxx::result r = txn.prepared(prepared_filter).exec();
+  pqxx::result r = txn.exec_prepared(prepared_filter);
   txn.commit();
   pm.unlock();
 
@@ -869,10 +869,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 
   pm.lock();
   pqxx::work txn(*C);
-  // pqxx::prepare::invocation w_invocation = txn.exec_params(statement);
-  // prep_dynamic(terms, w_invocation);
-  // pqxx::result r = w_invocation.exec();
-  //pqxx::result r = txn.exec_params(statement, termsstr);
+
   pqxx::result r = txn.exec_params(statement, pqxx::prepare::make_dynamic_params(prepterms));
   txn.commit();
   pm.unlock();
@@ -1001,12 +998,14 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
   return result;
 }
 
+/*
 pqxx::prepare::invocation& IndexServer::prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv)
 {
   for(auto data_val : data)
     inv(data_val);
   return inv;
 }
+*/
 
 /*
 std::vector<std::string> IndexServer::getDocInfo(int doc_id) {
@@ -1097,7 +1096,7 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
       } else {
         eit = urls->second.end();
       }
-      candidates=std::vector(bit,eit);
+      candidates=std::vector<Frag::Item>(bit,eit);
     }
   } else {
     std::vector<Frag::Item> node_candidates;
@@ -1174,7 +1173,7 @@ void IndexServer::getStopSuggest() {
   pm.lock();
   pqxx::work txn(*C);
   C->prepare("get_stop_suggest", "SELECT stop,lang,gram,idf FROM stop_suggest ORDER BY lang, stop, idf DESC;");
-  pqxx::result r = txn.prepared("get_stop_suggest").exec();
+  pqxx::result r = txn.exec_prepared("get_stop_suggest");
   txn.commit();
   pm.unlock();
 

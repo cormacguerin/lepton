@@ -19,7 +19,7 @@ Segmenter::Segmenter()
 
 Segmenter::~Segmenter()
 {
-  C->disconnect();
+  C->close();
   delete C;
 }
 
@@ -619,7 +619,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 //	pqxx::result a_ = txn.prepared("delete_doc_text")(id).exec();
 
 //	pqxx::result e_ = txn.prepared("update_segmented_grams")((std::string)buffer.GetString())(std::to_string(tdscore))(id).exec();
-	pqxx::result e_ = txn.prepared("update_segmented_grams")(buffer.GetString())(std::to_string(tdscore))(str_in)("true")(id).exec();
+	pqxx::result e_ = txn.exec_prepared("update_segmented_grams", buffer.GetString(), std::to_string(tdscore), str_in, "true", id);
 
 	txn.commit();
 

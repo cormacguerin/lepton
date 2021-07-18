@@ -53,7 +53,7 @@ IndexManager::~IndexManager()
         delete bigramFragManager[*lit];
         delete trigramFragManager[*lit];
     }
-    C->disconnect();
+    C->close();
     delete C;
 }
 
@@ -108,7 +108,7 @@ void IndexManager::processFeeds() {
         pqxx::work txn(*C);
         C->prepare("process_docs_batch", statement);
 
-        pqxx::result r = txn.prepared("process_docs_batch")(base_batch_size).exec();
+        pqxx::result r = txn.exec_prepared("process_docs_batch", base_batch_size);
         txn.commit();
 
         // std::cout << "index_manager.cc : " << database << " " << table << "  index " << columns << " for " << " " << r.size() << " docs." << std::endl;
@@ -222,7 +222,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         pqxx::work txn(*C_);
         C_->prepare("get_updated_docs", statement);
 
-        pqxx::result r = txn.prepared("get_updated_docs").exec();
+        pqxx::result r = txn.exec_prepared("get_updated_docs");
 
         for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
             const pqxx::field id = (row)[0];
@@ -254,7 +254,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         std::cout << statement_ << std::endl;
         for (std::map<int,std::string>::const_iterator ii = purge_docs.begin(); ii != purge_docs.end(); ii++) {
             //std::cout << "index_manager.cc " << indexManager->database << " " << indexManager->table << " " << ii->first << " " << ii->second << std::endl;
-            pqxx::result r = txn.prepared("update_purged_docs")(ii->first)(ii->second).exec();
+            pqxx::result r = txn.exec_prepared("update_purged_docs", ii->first, ii->second);
         }
 
         txn.commit();
@@ -293,13 +293,13 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                 std::cout << "Opened database successfully: " << C__.dbname() << std::endl;
                 pqxx::work txn__(C__);
                 C__.prepare("docs_to_score", "SELECT id FROM \"" + table + "\" WHERE index_date IS NOT null AND docscore IS null");
-                pqxx::result r = txn__.prepared("docs_to_score").exec();
+                pqxx::result r = txn__.exec_prepared("docs_to_score");
                 txn__.commit();
 
                 for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
                     batch.push_back(atoi((row)[0].c_str()));
                 }
-                C__.disconnect();
+                C__.close();
             } else {
                 std::cout << "Can't open database" << std::endl;
             }
@@ -333,12 +333,12 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                     C_.prepare("process_" + *it + "_docscore", update_docscore);
 
                     // update the docuscore using the idf / term frequencies
-                    pqxx::result rds = txn_.prepared("process_" + *it + "_docscore")(*it_).exec();
+                    pqxx::result rds = txn_.exec_prepared("process_" + *it + "_docscore", *it_);
 
                     // basic entity extraction function.
                     std::string gram_terms = "SELECT d.id, key, (CHAR_LENGTH(value) - CHAR_LENGTH(REPLACE(value, ',', ''))), " + *it + ".idf AS i FROM \"" + table + "\" d, jsonb_each_text(d.segmented_grams->'"+*it+"') docterms INNER JOIN "+*it+" ON docterms.key = "+*it+".gram WHERE d.id = $1 ORDER BY i DESC LIMIT 30";
                     C_.prepare("process_"+*it+"_batch", gram_terms);
-                    pqxx::result rgt = txn_.prepared("process_"+*it+"_batch")(*it_).exec();
+                    pqxx::result rgt = txn_.exec_prepared("process_"+*it+"_batch", *it_);
 
                     for (pqxx::result::const_iterator row = rgt.begin(); row != rgt.end(); ++row) {
                         const pqxx::field gram = (row)[1];
@@ -384,7 +384,7 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
                 }
                 grams.clear();
                 C_.prepare("process_doc_entities", update_doc_entities);
-                pqxx::result ent = txn_.prepared("process_doc_entities")(strarray)(*it_).exec();
+                pqxx::result ent = txn_.exec_prepared("process_doc_entities", strarray, *it_);
             }
             txn_.commit();
         }
@@ -454,7 +454,7 @@ bool IndexManager::isSPS(char firstchar) {
 void IndexManager::exportVocab(std::string lang) {
     C->prepare("export_vocab", "SELECT gram, incidence FROM ngrams WHERE lang = $1 AND gram NOT LIKE '% %' ORDER BY gram");
     pqxx::work txn(*C);
-    pqxx::result r = txn.prepared("export_vocab")(lang).exec();
+    pqxx::result r = txn.exec_prepared("export_vocab", lang);
     txn.commit();
 
     for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
@@ -474,7 +474,7 @@ void IndexManager::getNumDocs(std::map<std::string, int> &count) {
         if (C__.is_open()) {
             pqxx::work txn__(C__);
             prepare_doc_count(C__);
-            pqxx::result r = txn__.prepared("doc_count").exec();
+            pqxx::result r = txn__.exec_prepared("doc_count");
             txn__.commit();
             int total = 0;
             for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
@@ -483,7 +483,7 @@ void IndexManager::getNumDocs(std::map<std::string, int> &count) {
                 count[l.c_str()] = atoi(c.c_str());
                 total += atoi(c.c_str());
             }
-            C__.disconnect();
+            C__.close();
         } else {
             std::cout << "Can't open database" << std::endl;
         }
@@ -504,7 +504,7 @@ void IndexManager::getNumNgrams(int &count, std::string gram, std::string lang) 
         return;
     }
     pqxx::work txn(*C);
-    pqxx::result r = txn.prepared(gram+"gram_count").exec();
+    pqxx::result r = txn.exec_prepared(gram+"gram_count");
     txn.commit();
     const pqxx::field c = r.back()[0];
     count = atoi(c.c_str());
@@ -521,7 +521,7 @@ void IndexManager::getMaxNgramId(int &num, std::string gram, std::string lang) {
         return;
     }
     pqxx::work txn(*C);
-    pqxx::result r = txn.prepared("max_"+gram+"gram_id").exec();
+    pqxx::result r = txn.exec_prepared("max_"+gram+"gram_id");
     txn.commit();
     const pqxx::field c = r.back()[0];
     num = atoi(c.c_str());
@@ -530,7 +530,7 @@ void IndexManager::getMaxNgramId(int &num, std::string gram, std::string lang) {
 void IndexManager::getMaxDocId(int &num) {
     prepare_max_doc_id(*C);
     pqxx::work txn(*C);
-    pqxx::result r = txn.prepared("max_doc_id").exec();
+    pqxx::result r = txn.exec_prepared("max_doc_id");
     txn.commit();
     const pqxx::field c = r.back()[0];
     num = atoi(c.c_str());
@@ -539,7 +539,7 @@ void IndexManager::getMaxDocId(int &num) {
 std::vector<int> IndexManager::GetDocscoreBatch() {
     prepare_docscore_batch(*C);
     pqxx::work txn(*C);
-    pqxx::result r = txn.prepared("docscore_batch").exec();
+    pqxx::result r = txn.exec_prepared("docscore_batch");
     txn.commit();
 
     std::vector<int> b;
@@ -563,7 +563,7 @@ void IndexManager::updateStopSuggest(std::string lang, int batchsize) {
             }
         }
         // std::cout <<  "sugg " << s << " " << it->second << std::endl;
-        pqxx::result r = txn.prepared("update_stop_suggest")(lang)(gram)(it->first.at(0))(it->second/batchsize).exec();
+        pqxx::result r = txn.exec_prepared("update_stop_suggest", lang, gram, it->first.at(0), it->second/batchsize);
     }
     txn.commit();
 }
