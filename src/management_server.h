@@ -7,6 +7,7 @@
 
 class ManagementServer {
   private:
+    void init();
     pqxx::connection* C;
     void do_accept();
     const asio::ip::tcp::endpoint endpoint;
@@ -15,7 +16,6 @@ class ManagementServer {
     std::string do_management(std::string body);
     std::vector<QueryServer*> servers;
     const std::vector<QueryServer*> &constServers = servers;
-    void adminConnect();
     int port = 3334;
     std::string getStats();
     //  void startServerThread(int port, std::string database, std::string table);

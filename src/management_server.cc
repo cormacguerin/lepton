@@ -11,7 +11,7 @@
 
 ManagementServer::ManagementServer(short port) : acceptor_(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
 {
-    adminConnect();
+    init();
     do_accept();
 }
 
@@ -24,7 +24,7 @@ ManagementServer::~ManagementServer()
     delete C;
 }
 
-void ManagementServer::adminConnect() {
+void ManagementServer::init() {
     auto config = getConfig();
     try {
 		    C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
@@ -37,6 +37,9 @@ void ManagementServer::adminConnect() {
         std::cerr << e.what() << std::endl;
         exit;
     }
+    // SELECT all database table columns which have indexing enabled
+    std::string statement = "SELECT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table WHERE indexing = true";
+    C->prepare("get_tables_to_serve", statement);
 }
 
 void ManagementServer::do_accept() {
@@ -74,9 +77,6 @@ std::string ManagementServer::do_management(std::string body) {
 void ManagementServer::run() {
     std::cout << "Run ManagementServer." << std::endl;
     pqxx::work txn(*C);
-    // SELECT all database table columns which have indexing enabled
-    std::string statement = "SELECT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table WHERE indexing = true";
-    C->prepare("get_tables_to_serve", statement);
 
     pqxx::result r = txn.exec_prepared("get_tables_to_serve");
     txn.commit();

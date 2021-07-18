@@ -43,6 +43,7 @@ void IndexServer::init() {
     status = "failed";
     cerr << e.what() << std::endl;
   }
+  C->prepare("get_stop_suggest", "SELECT stop,lang,gram,idf FROM stop_suggest ORDER BY lang, stop, idf DESC;");
   status = "loading";
   seg.init("");
   //std::string ngrams[] = {"uni","bi","tri"};
@@ -306,14 +307,6 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   std::cout << "index_server.cc gathered " << candidates.size() << " candidates for " << parsed_query << " in " << seconds << " miliseconds." << std::endl;
   total_seconds += seconds;
 
-  /*
-  if (candidates.size() == 0) {
-    Result result;
-    promiseObj.set_value(result.serialize());
-    return;
-  }
-  */
-
   // new
   std::sort(candidates.begin(), candidates.end(),
       [](const Frag::Item& l, const Frag::Item& r) {
@@ -333,8 +326,14 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   beforeload = indexServer->getTime();
   if (parsed_query == "") {
     indexServer->doFilter(filter, candidates, false);
-  } else {
+  } else if (candidates.size() > 0) {
     indexServer->doFilter(filter, candidates, true);
+  } else {
+    Result result;
+    result.query = query;
+    result.result_count = candidates.size();
+    promiseObj.set_value(result.serialize());
+    return;
   }
   
   afterload = indexServer->getTime();
@@ -764,6 +763,7 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
   pqxx::work txn(*C);
   C->prepare(prepared_filter,filter_query);
   pqxx::result r = txn.exec_prepared(prepared_filter);
+  C->unprepare(prepared_filter);
   txn.commit();
   pm.unlock();
 
@@ -1172,7 +1172,6 @@ void IndexServer::getStopSuggest() {
 
   pm.lock();
   pqxx::work txn(*C);
-  C->prepare("get_stop_suggest", "SELECT stop,lang,gram,idf FROM stop_suggest ORDER BY lang, stop, idf DESC;");
   pqxx::result r = txn.exec_prepared("get_stop_suggest");
   txn.commit();
   pm.unlock();
