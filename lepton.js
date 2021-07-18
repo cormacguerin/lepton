@@ -23,6 +23,8 @@ var queryServers = {}
 
 var crawlers = {}
 
+const compression = require('compression');
+
 const url = require('url');
 
 const v = process.argv.slice(2)[0]
@@ -33,6 +35,7 @@ data.init(v, function(pg_admin) {
   user.init(pg_admin)
 })
 
+app.use(compression());
 app.use(cookieParser());
 app.use(bodyParser.json({limit: '100mb'}));
 app.use(bodyParser.urlencoded({limit: '100mb', extended: true, parameterLimit: 1000000})); // for parsing application/x-www-form-urlencoded
