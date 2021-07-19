@@ -64,6 +64,7 @@ Frag::~Frag()
 {
 }
 
+/*
 void Frag::load() {
     time_t beforetime = time(0);
     std::ifstream ifs(filename);
@@ -89,15 +90,18 @@ void Frag::load() {
         return;
     }
 }
-
+*/
 /*
  * TODO : Sean to implement.
  */
-void Frag::loadRawFrag(std::string filename) {
+//void Frag::loadRawFrag(std::string filename) {
+void Frag::load() {
     // std::cout << "frag.cc : load raw frag " << filename << std::endl;
     std::ifstream in (filename);
-    in >> bits(frag_map);
-    in.close();
+    if (in.good()) {
+      in >> bits(frag_map);
+      in.close();
+    }
     /*
        for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
        for (std::map<int, Frag::Item>::const_iterator vit = (it->second).begin() ; vit != (it->second).end(); ++vit) {
@@ -259,6 +263,7 @@ void Frag::writeRawFrag(std::string filename) {
     int lck;
     if (fileLock(filename,lck) == true) {
         rename(tmp_filename.c_str(),filename.c_str());
+        fileUnlock(lck);
     } else {
         std::cout << "frag.cc : WARNING : unable to get lock on writeRawFrag." << std::endl;
     }

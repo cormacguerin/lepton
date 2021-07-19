@@ -288,6 +288,7 @@ void FragManager::loadFragIndex() {
                 }
 
             }
+            ifs.close();
         }
     }
 }

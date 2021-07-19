@@ -12,6 +12,8 @@ sudo locale-gen en_US.UTF-8
 
 # increase the system wide soft limit in /etc/security/limits.conf
 *   soft    nofile  100000
+# NOTE , if you have a stupid OS like ubuntu you will need to change /etc/security/limits.d/efa.conf
+# NOTE , if you use a stupid init like systemd you may need to change /etc/systemd/user.conf && system.conf
 # then run sysctl and log back in for the changes to take effect.
 sysctl -p
 

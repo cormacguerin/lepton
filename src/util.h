@@ -119,7 +119,6 @@ inline int acquireLock (std::string filename) {
 inline int releaseLock (int lockFd) {
     int fl = flock (lockFd, LOCK_UN);
     close (lockFd);
-    std::cout << "fl " << fl << std::endl;
     return fl;
 }
 
