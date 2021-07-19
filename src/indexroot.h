@@ -8,7 +8,7 @@
 class IndexRoot {
 	private:
 		pqxx::connection* C;
-		void adminConnect();
+		void init();
         std::vector<IndexManager*> ims;
 
 	public:

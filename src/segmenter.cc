@@ -23,7 +23,7 @@ Segmenter::~Segmenter()
   delete C;
 }
 
-void Segmenter::init(std::string database) {
+void Segmenter::init(std::string database, std::string table) {
 	
 	//sentencepiece::Segmenter processor;
 	//spec = processor.model_proto().normalizer_spec();
@@ -82,16 +82,17 @@ void Segmenter::init(std::string database) {
 		}
 	}
 
+	C->prepare("update_segmented_grams", "UPDATE \"" + table + "\" SET (index_date, segmented_grams, tdscore, raw_text, update) = (NOW(), $1, $2, $3, $4) WHERE id = $5");
+
 }
 
 
-void Segmenter::parse(std::string id, std::string lang, std::string str_in, std::string table,
+void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 				   std::map<std::string, Frag::Item> &doc_unigram_map,
 				   std::map<std::string, Frag::Item> &doc_bigram_map,
 				   std::map<std::string, Frag::Item> &doc_trigram_map,
                    std::map<std::vector<std::string>,double> &stopSuggest) {
 	// postgres worker
-	pqxx::work txn(*C);
 
 	// prepared statements
 //	C->prepare("delete_doc_text", "UPDATE docs_en SET raw_text = NULL WHERE id=$1");
@@ -125,13 +126,13 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 
 	UErrorCode status = U_ZERO_ERROR;
 
-    icu::BreakIterator *wordIterator;
+  icu::BreakIterator *wordIterator;
 	// BreakIterator *wordIterator = BreakIterator::createWordInstance(Locale("ja","JAPAN"), status);
-    if (lang == "ja") {
-	    wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("ja","JP"), status);
-    } else {
-	    wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("en","US"), status);
-    }
+  if (lang == "ja") {
+   wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("ja","JP"), status);
+  } else {
+   wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("en","US"), status);
+  }
 	wordIterator->setText(uni_str);
 	int32_t p = wordIterator->first();
 	int32_t l = p;
@@ -161,7 +162,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 		std::string converted;
 		icu::UnicodeString tmp = uni_str.tempSubString(l,p-l);
 		tmp.toUTF8String(converted);
-        l=p;
+    l=p;
 
 		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
 		if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
@@ -174,13 +175,13 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 		for (unsigned int i = 0; i < sizeof(specchars)/sizeof(*specchars); ++i) {
 			converted.erase (std::remove(converted.begin(), converted.end(), specchars[i]), converted.end());
 		}
-        // I want to remove apostrphies but I had trouble with these
-        // in our implementation we are not using a stemmer but some plurals casue issue
-        if (converted.size() > 3) {
-            if (converted.substr(converted.length()-4) == "’s") {
-                converted.erase(converted.length()-4);
-            }
+    // I want to remove apostrphies but I had trouble with these
+    // in our implementation we are not using a stemmer but some plurals casue issue
+    if (converted.size() > 3) {
+        if (converted.substr(converted.length()-4) == "’s") {
+            converted.erase(converted.length()-4);
         }
+    }
 		// remove / trim all white space and process if not empty.
 		trimInPlace(converted);
 		if (converted.empty()) {
@@ -613,14 +614,11 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in, std:
 //    std::cout << "(std::string)buffer.GetString()" << std::endl;
   //  std::cout << buffer.GetString() << std::endl;
 
-	C->prepare("update_segmented_grams", "UPDATE \"" + table + "\" SET (index_date, segmented_grams, tdscore, raw_text, update) = (NOW(), $1, $2, $3, $4) WHERE id = $5");
-
 //  reset any existing content
 //	pqxx::result a_ = txn.prepared("delete_doc_text")(id).exec();
 
-//	pqxx::result e_ = txn.prepared("update_segmented_grams")((std::string)buffer.GetString())(std::to_string(tdscore))(id).exec();
+	pqxx::work txn(*C);
 	pqxx::result e_ = txn.exec_prepared("update_segmented_grams", buffer.GetString(), std::to_string(tdscore), str_in, "true", id);
-
 	txn.commit();
 
     // std::cout << "doc id " << id << " indexed." << std::endl;

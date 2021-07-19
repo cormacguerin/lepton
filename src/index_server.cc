@@ -45,7 +45,7 @@ void IndexServer::init() {
   }
   C->prepare("get_stop_suggest", "SELECT stop,lang,gram,idf FROM stop_suggest ORDER BY lang, stop, idf DESC;");
   status = "loading";
-  seg.init("");
+  seg.init("","");
   //std::string ngrams[] = {"uni","bi","tri"};
   //std::string langs[] = {"en","ja","zh"};
 }

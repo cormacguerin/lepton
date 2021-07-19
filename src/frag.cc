@@ -319,6 +319,9 @@ std::vector<std::string> Frag::getItemKeys() {
  * function to assign a weight to each item for each url.
  * standard calculation for this is the item frequency times the idf(inverse document frequency).
  * idf is usually calculated as log(no. docs in corpus/no. of documents that contain the item)
+ * udpate can take time, do avoid deadlock/mutexes open a new connection just for this proceess
+ * TODO : beacuse this is done for every indexfile regularly, opening a new connection each time is absurd.
+ * We should batch these into large transactions
  */
 void Frag::addWeights(int num_docs, std::string database, std::string lang) {
     pqxx::connection* C;
@@ -355,7 +358,7 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
         delete C;
         return;
     }
-	time_t beforeload = getTime();
+    time_t beforeload = getTime();
 
     pqxx::work txn(*C);
 
@@ -405,9 +408,9 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
            pv.clear();
            */
     }
-	time_t afterload = getTime();
-	double seconds = difftime(afterload, beforeload);
-	std::cout << "finish addWeights for " << update_gram_idf << " executed in " << seconds << " milliseconds." << std::endl;
+    time_t afterload = getTime();
+    double seconds = difftime(afterload, beforeload);
+    std::cout << "finish addWeights for " << update_gram_idf << " executed in " << seconds << " milliseconds." << std::endl;
 
     txn.commit();
     C->close();
