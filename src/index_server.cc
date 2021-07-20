@@ -45,7 +45,7 @@ void IndexServer::init() {
   }
   C->prepare("get_stop_suggest", "SELECT stop,lang,gram,idf FROM stop_suggest ORDER BY lang, stop, idf DESC;");
   status = "loading";
-  seg.init("","");
+  seg.init(db,tb);
   //std::string ngrams[] = {"uni","bi","tri"};
   //std::string langs[] = {"en","ja","zh"};
 }
@@ -560,17 +560,21 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
     }
     */
 
-    pm.lock();
     pqxx::work txn(*C);
     pqxx::result r;
+    std::cout << "LOCK GET RESULT INFO" << std::endl;
+    pm.lock();
     try {
       r = txn.exec_params("SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1",rit->doc_id);
     } catch (const std::exception &e) {
       std::cout << "ERROR" << std::endl;
       cerr << e.what() << std::endl;
+      std::cout << "unlock" << std::endl;
+      pm.unlock();
       return;
     }
     txn.commit();
+    std::cout << "UNLOCK GET RESULT INFO" << std::endl;
     pm.unlock();
 
     for (int i=0; i < r.columns(); i++) {
@@ -745,11 +749,12 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
   }
 
   std::string filter_query = "";
+  std::cout << "prep_filter " << prep_filter << std::endl;
   if (has_query) {
-    filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE d.id IN (" + prepstr_ + ") " + prep_filter;
+    filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE d.id IN (" + prepstr_ + ") " + prep_filter + ";";
   } else if (prep_filter.length() > 10) {
     prep_filter.erase(0,4);
-    filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE " + prep_filter;
+    filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE " + prep_filter + ";";
   } else {
     return;
   }
@@ -759,13 +764,25 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
   std::string prepared_filter = std::to_string(std::hash<std::string>{}(filter_query));
   std::cout << "prepared_filter " << prepared_filter << std::endl;
 
-  pm.lock();
   pqxx::work txn(*C);
   C->prepare(prepared_filter,filter_query);
-  pqxx::result r = txn.exec_prepared(prepared_filter);
+  pqxx::result r;
+  std::cout << "LOCK DOFILTER" << std::endl;
+  pm.lock();
+  try {
+    r = txn.exec_prepared(prepared_filter);
+  } catch (const std::exception &e) {
+    std::cout << "ERROR" << std::endl;
+    cerr << e.what() << std::endl;
+    std::cout << "UNLOCK DOFILTER" << std::endl;
+    pm.unlock();
+    return;
+  }
   C->unprepare(prepared_filter);
   txn.commit();
+  std::cout << "UNLOCK DOFILTER" << std::endl;
   pm.unlock();
+  std::cout << "done" << std::endl;
 
   int num = 0;
   for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
@@ -860,19 +877,31 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 
 
   if (terms.size() > 0) {
-    statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr;
+    statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr + ";";
     std::cout << statement << std::endl;
     std::cout << termsstr << std::endl;
   } else {
     statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ")";
   }
 
-  pm.lock();
   pqxx::work txn(*C);
-
-  pqxx::result r = txn.exec_params(statement, pqxx::prepare::make_dynamic_params(prepterms));
+  pqxx::result r;
+  std::cout << "LOCK GETRESULT" << std::endl;
+  pm.lock();
+  try {
+    r = txn.exec_params(statement, pqxx::prepare::make_dynamic_params(prepterms));
+  } catch (const std::exception &e) {
+    std::cout << "ERROR" << std::endl;
+    cerr << e.what() << std::endl;
+    std::cout << "unlock" << std::endl;
+    pm.unlock();
+    Result result;
+    return result;
+  }
   txn.commit();
+  std::cout << "UNLOCK GETRESULT" << std::endl;
   pm.unlock();
+  std::cout << "done" << std::endl;
 
   time_t afterload = getTime();
   double seconds = difftime(afterload, beforeload);
@@ -1170,11 +1199,14 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 void IndexServer::getStopSuggest() {
   std::cout << " getStopSuggest " << std::endl;
 
+  std::cout << "LOCK GET STOP SUGGEST" << std::endl;
   pm.lock();
   pqxx::work txn(*C);
   pqxx::result r = txn.exec_prepared("get_stop_suggest");
   txn.commit();
+  std::cout << "UNLOCK GET STOP SUGGEST" << std::endl;
   pm.unlock();
+  std::cout << "done" << std::endl;
 
   for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
     const pqxx::field stop = (row)[0];
