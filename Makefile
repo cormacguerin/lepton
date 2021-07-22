@@ -58,8 +58,8 @@ COMPILE = $(COMPILER) $(COMPOPTS) $(INCLUDES)
 
 all: bin/serveroot bin/indexroot
 
-bin/serveroot: serveroot.o base64.o query.o query_builder.o index_server.o management_server.o query_server.o session.o segmenter.o frag_manager.o frag.o result.o
-	${COMPILER} -o bin/serveroot build/serveroot.o build/base64.o build/query.o build/query_builder.o build/index_server.o build/management_server.o build/query_server.o build/session.o build/segmenter.o build/frag_manager.o build/frag.o build/result.o $(LD_FLAGS) $(LINKOPTS)
+bin/serveroot: serveroot.o base64.o query.o query_builder.o index_server.o management_server.o query_server.o session.o segmenter.o frag_manager.o frag.o result.o pg_pool.o
+	${COMPILER} -o bin/serveroot build/serveroot.o build/base64.o build/query.o build/query_builder.o build/index_server.o build/management_server.o build/query_server.o build/session.o build/segmenter.o build/frag_manager.o build/frag.o build/result.o build/pg_pool.o $(LD_FLAGS) $(LINKOPTS)
 
 bin/indexroot: indexroot.o index_manager.o base64.o segmenter.o frag_manager.o frag.o murmur_hash3.o
 	${COMPILER} -o bin/indexroot build/indexroot.o build/index_manager.o build/base64.o build/segmenter.o build/frag_manager.o build/frag.o build/murmur_hash3.o $(LD_FLAGS) $(LINKOPTS)
@@ -111,6 +111,9 @@ segmenter.o : src/segmenter.cc src/segmenter.h
 
 base64.o : src/base64.cc src/base64.h
 	${COMPILE} src/base64.cc
+
+pg_pool.o : src/pg_pool.cc src/pg_pool.h
+	${COMPILE} src/pg_pool.cc
 
 #sentence_piece_processor.o : sentence_piece_processor.cc
 #	${COMPILE} sentence_piece_processor.cc sentence_piece_processor.h

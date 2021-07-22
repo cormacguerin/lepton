@@ -370,7 +370,7 @@ app.get('/api/getCrawlerStatus', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   let this_crawler = crypto.createHash('md5').update(req.user_id + queryData.database + queryData.table).digest('hex')
   if (!crawlers[this_crawler]) {
-    crawlers[this_crawler] = new crawler(req.user_id + "_" + queryData.database,queryData.table)
+    crawlers[this_crawler] = new crawler(req.user_id + "_" + queryData.database, queryData.table)
   }
   if (queryData.action == 'start') {
     crawlers[this_crawler].start()

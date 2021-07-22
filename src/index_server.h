@@ -13,6 +13,7 @@
 #include "result.h"
 #include "parallel_hashmap/phmap.h"
 #include "segmenter.h"
+#include "pg_pool.h"
 
 class IndexServer {
 
@@ -38,7 +39,10 @@ class IndexServer {
         std::string separateGram(const char* c, bool isCJK);
 
     private:
-        // this is the reverse index
+        PgPool pgPool;
+        pqxx::connection* C;
+        // pqxx::work* txn;
+
         // a map of langages to a parallel flat hash map of terms(words) to fragments (url id and weight) 
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> unigramurls_map;
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> bigramurls_map;
@@ -49,9 +53,6 @@ class IndexServer {
         std::map<std::string, std::map<std::string, std::vector<std::pair<std::string,int>>>> suggestions;
         std::string db;
         std::string tb;
-        int _q_;
-        pqxx::connection* C;
-        pqxx::work* txn;
         // std::vector<std::string> getDocInfo(int doc_id);
         // std::map<std::string,std::vector<int>> getTermPositions(int doc_id, std::vector<std::string> terms);
         Result getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates);

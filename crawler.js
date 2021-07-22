@@ -1,5 +1,6 @@
 var supercrawler = require("supercrawler");
 var psl = require('psl');
+// var urlMod = require("url");
 var db_pg = {}
 
 const textract = require('textract')
@@ -18,7 +19,7 @@ class Crawler {
 
     this.database = db_
     this.table = tb_
-    this.status_ = "disabled";
+    this.status_ = "disabled"
 
     var init = async function(database, callback) {
 
@@ -68,85 +69,103 @@ class Crawler {
 
     init().then(crawler=> {
 
-      // Get "Sitemaps:" directives from robots.txt
-      crawler.addHandler(supercrawler.handlers.robotsParser());
-
-      // Crawl sitemap files and extract their URLs.
-      crawler.addHandler(supercrawler.handlers.sitemapsParser());
-
       let vm = this
       db_pg.getCrawlerUrls(function(e,r) {
         var domains=[]
         for (var i=0; i < r.length; i++) {
           let d = psl.get(extractHostname(r[i].url))
+          //let d = urlMod.parse(r[i].url).hostname
           domains.push(d)
           domains.push('www.' + d)
         }
+        vm.domains = domains
+        console.log(domains)
 
         crawler.addHandler("text/html", supercrawler.handlers.htmlLinkParser({
           // Restrict discovered links to the following hostnames.
-          hostnames: domains
+          // hostnames: domains,
+          urlFilter: function(url) {
+            let d = psl.get(extractHostname(r[i].url))
+            if (domains.indexOf(d)) {
+              return true
+            } else {
+              return false
+            }
+          }
         }));
 
-        crawler.addHandler(["text/plain", "text/html"], parseHandler);
+        // Get "Sitemaps:" directives from robots.txt
+        crawler.addHandler(supercrawler.handlers.robotsParser());
+
+        // Crawl sitemap files and extract their URLs.
+        crawler.addHandler(supercrawler.handlers.sitemapsParser());
+        
+        crawler.addHandler(["text/plain", "text/html"], parseHandler.bind(this,domains));
 
         for (var i=0; i < r.length; i++) {
           crawler.getUrlList()
-          .insertIfNotExists(new supercrawler.Url(r[i].url))
+          //.insertIfNotExists(new supercrawler.Url(r[i].url))
+          .upsert(new supercrawler.Url(r[i].url))
           .then(function () {
           });
         }
 
-        //crawler.start();
+        // crawler.start();
         vm.crawler = crawler
 
       })
 
     });
 
-    function parseHandler(h) {
-      let vm = this
-      textract.fromBufferWithMime(h.contentType, h.body, function( error, text ) {
-        if (error) {
-          console.log(error)
-        } else {
-          getMetaData({html:h.body.toString()}).then((data) => {
-            var feed = {}
-            feed.url = data.url
-            if (data.title) {
-              feed.title = data.title
-            } else {
-              feed.title = text.substring(0,50)
-            }
-            if (data.language) {
-              feed.lang = data.language
-            } else {
-              feed.lang = "en"
-            }
-            if (text) {
-              feed.document = text
-            } else if (data.description) {
-              feed.document = data.description
-            }
-            feed.last_modified = data.modified
-            feed.feed_date = new Date()
-            feed.metadata = {}
-            for (var i in data) {
-              if (data[i]) {
-                feed.metadata[i] = data[i]
+    function parseHandler(domains, h) {
+      let d = psl.get(extractHostname(h.url))
+      // let d = urlMod.parse(h.url).hostname;
+      console.log(d)
+      if (domains.indexOf(d) != -1) {
+        console.log('go')
+        textract.fromBufferWithMime(h.contentType, h.body, function( error, text ) {
+          if (error) {
+            console.log(error)
+          } else {
+            getMetaData({html:h.body.toString()}).then((data) => {
+
+              var feed = {}
+              feed.url = data.url
+              if (data.title) {
+                feed.title = data.title
+              } else {
+                feed.title = text.substring(0,50)
               }
-            }
-            delete feed.metadata.title
-            delete feed.metadata.robots
-            delete feed.metadata.url
-            delete feed.metadata.image
-            delete feed.metadata.icon
-            db_pg.addTableData(tb_, [feed], function(r) {
-              console.log(r)
+              if (data.language) {
+                feed.lang = data.language
+              } else {
+                feed.lang = "en"
+              }
+              if (text) {
+                feed.document = text
+              } else if (data.description) {
+                feed.document = data.description
+              }
+              feed.last_modified = data.modified
+              feed.feed_date = new Date()
+              feed.metadata = {}
+              for (var i in data) {
+                if (data[i]) {
+                  feed.metadata[i] = data[i]
+                }
+              }
+              delete feed.metadata.title
+              delete feed.metadata.robots
+              delete feed.metadata.url
+              delete feed.metadata.image
+              delete feed.metadata.icon
+              db_pg.addTableData(tb_, [feed], function(r) {
+                console.log(r)
+              })
             })
-          })
-        }
-      })
+          }
+        })
+      }
     }
   }
 
