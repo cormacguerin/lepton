@@ -505,6 +505,8 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
   }
 
  // C->prepare("get_docinfo_deep", "SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1");
+  auto C_ = pgPool.getConn();
+  pqxx::work txn(*C_.get());
 
   for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
     /*
@@ -566,18 +568,14 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
     }
     */
 
-    pqxx::connection C_ = pgPool.getConn().get();
-    pqxx::work txn(*C_);
     pqxx::result r;
     try {
       r = txn.exec_params("SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1",rit->doc_id);
     } catch (const std::exception &e) {
       std::cout << "ERROR" << std::endl;
       cerr << e.what() << std::endl;
-      std::cout << "unlock" << std::endl;
       return;
     }
-    txn.commit();
 
     for (int i=0; i < r.columns(); i++) {
       std::string column_name = std::string(r.column_name(i));
@@ -591,6 +589,8 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
       }
     }
   }
+  txn.commit();
+  pgPool.freeConn(C_);
 
 }
 
@@ -766,8 +766,9 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
   std::string prepared_filter = std::to_string(std::hash<std::string>{}(filter_query));
   std::cout << "prepared_filter " << prepared_filter << std::endl;
 
-  pqxx::work txn(*C);
-  C->prepare(prepared_filter,filter_query);
+  auto C_ = pgPool.getConn();
+  pqxx::work txn(*C_.get());
+  C_->prepare(prepared_filter,filter_query);
   pqxx::result r;
   try {
     r = txn.exec_prepared(prepared_filter);
@@ -776,8 +777,9 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
     cerr << e.what() << std::endl;
     return;
   }
-  C->unprepare(prepared_filter);
+  C_->unprepare(prepared_filter);
   txn.commit();
+  pgPool.freeConn(C_);
 
   int num = 0;
   for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
@@ -876,7 +878,8 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
     statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ")";
   }
 
-  pqxx::work txn(*C);
+  auto C_ = pgPool.getConn();
+  pqxx::work txn(*C_.get());
   pqxx::result r;
   try {
     r = txn.exec_params(statement, pqxx::prepare::make_dynamic_params(prepterms));
@@ -886,6 +889,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
     return result;
   }
   txn.commit();
+  pgPool.freeConn(C_);
 
   time_t afterload = getTime();
   double seconds = difftime(afterload, beforeload);

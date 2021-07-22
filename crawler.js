@@ -83,12 +83,14 @@ class Crawler {
 
         crawler.addHandler("text/html", supercrawler.handlers.htmlLinkParser({
           // Restrict discovered links to the following hostnames.
-          // hostnames: domains,
+          // hostnames: domains,         
           urlFilter: function(url) {
-            let d = psl.get(extractHostname(r[i].url))
-            if (domains.indexOf(d)) {
+            let d = psl.get(extractHostname(url))
+            if (domains.indexOf(d) !== -1) {
+              // console.log('index url with domain ' + d)
               return true
             } else {
+              // console.log('do NOT index url with domain ' + d)
               return false
             }
           }
