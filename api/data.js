@@ -24,6 +24,7 @@ var config = {};
 exports.clients = userClients;
 
 exports.init = async function(v, callback) {
+
   await loadConfig(function(r) {
     console.log('config.json loaded')
   })
@@ -282,16 +283,20 @@ exports.addDatabase = function(u,d,c) {
     c({status:'failed'})
   }
   const db = u + '_' + d;
+  console.log('u')
+  console.log(u)
+  console.log('db')
+  console.log(db)
 	db_pg['admin'].addDatabase(u, db, function(e,r) {
 		if (e){
 			console.log("unable to retrieve user_clients");
 			console.log(e);
-            c({status:'failed',error:e})
+      c({status:'failed',error:e})
 		} else {
       if (r.length === 0) {
         // add hidden search ngram tables (we do not register these so not visible by end user)
         initDB(db, function() {
-          db_pg[db].addNgramTables(function(e,r) {
+          db_pg[db].addIndexSchema(function(e,r) {
             if (e) {
               c({status:'failed'})
             } else {
@@ -388,9 +393,6 @@ exports.createDataSetTable = function(u,d,t,q,callback) {
         console.log(err);
         callback({status:'failed',error:err})
       } else {
-        console.log(r);
-        console.log('r.length');
-        console.log(r.length);
         if (r.length > 0) {
           var dataset = {}
           dataset.query = q;
@@ -429,6 +431,42 @@ exports.deleteDataSetTable = function(u,d,t,callback) {
       }
     });
   });
+}
+
+exports.getDataSet = function(d,t,callback) {
+  if (!d) {
+    callback({status:'failed'})
+  }
+  if (d.length > 63) {
+    callback({status:'failed'})
+  }
+
+  db_pg['admin'].getDataSetData(d, t, function(e,q) {
+    if (e) {
+      console.log(e);
+      callback({status:'failed'})
+    } else {
+      console.log(q)
+      initDB(d, function() {
+        db_pg[d].runQuery(q,function(err,r) {
+          console.log(r)
+          if (err){
+            console.log("unable to create search table");
+            console.log(err);
+            callback({status:'failed',error:err})
+          } else {
+            if (r.length > 0) {
+              callback(r)
+            } else {
+              callback({status:'failed'})
+            }
+          }
+        });
+      });
+    }
+  });
+/*
+    */
 }
 
 exports.addTableColumn = function(u,d,t,c,dt,callback) {
@@ -840,6 +878,63 @@ exports.deleteDatabase = function(u,d,c) {
   });
 }
 
+exports.addCrawlerUrl = function(u,d,t,url,c) {
+  const db = u + '_' + d;
+  initDB(db, function() {
+    db_pg[db].addCrawlerUrl(t, url, function(err,r) {
+      if (err) {
+        console.log(err);
+        c({status:'failed',error:err})
+      } else {
+        console.log(r);
+        console.log('r.length');
+        console.log(r.length);
+        if (r.length === 0) {
+          c({status:'success'})
+        } else {
+          c({status:'failed'})
+        }
+      }
+    });
+  });
+}
+
+exports.deleteCrawlerUrl = function(u,d,t,url,c) {
+  const db = u + '_' + d;
+  initDB(db, function() {
+    db_pg[db].deleteCrawlerUrl(t, url, function(err,r) {
+      if (err) {
+        console.log(err);
+        c({status:'failed',error:err})
+      } else {
+        console.log(r);
+        console.log('r.length');
+        console.log(r.length);
+        if (r.length === 0) {
+          c({status:'success'})
+        } else {
+          c({status:'failed'})
+        }
+      }
+    });
+  })
+}
+
+exports.getCrawlerUrls = function(u,d,c) {
+  const db = u + '_' + d;
+  initDB(db, function() {
+    db_pg[db].getCrawlerUrls(function(err,r) {
+      if (err) {
+        console.log(err);
+        c({status:'failed',error:err})
+      } else {
+        const re = /^[0-9]+_/gi;
+        c(r)
+      }
+    });
+  });
+}
+
 exports.runQuery = function(u,d,q,callback) {
   if (!(d&&q)) {
     return callback({status:'failed'})
@@ -1101,9 +1196,10 @@ exports.deleteApiScope = function(user_id,k,a,d,t,callback) {
 function initDB(database, callback) {
 
   let config_ = config;
-  config_.database = database
+  config_.postgres_database = database
 
   if (!db_pg[database]) {
+    console.log(config_)
     db_pg[database] = new pg(config_)
   }
   callback();

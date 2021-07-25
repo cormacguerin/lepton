@@ -2,7 +2,6 @@
 var express = require('express');
 var app = express();
 var net = require('net');
- //var cors = require('cors')
 
 var cookieParser = require('cookie-parser');
 
@@ -16,7 +15,15 @@ var user = require('./api/user.js');
 
 var data = require('./api/data.js');
 
+var crawler = require('./crawler.js');
+
+var crypto = require('crypto');
+
 var queryServers = {}
+
+var crawlers = {}
+
+const compression = require('compression');
 
 const url = require('url');
 
@@ -28,6 +35,7 @@ data.init(v, function(pg_admin) {
   user.init(pg_admin)
 })
 
+app.use(compression());
 app.use(cookieParser());
 app.use(bodyParser.json({limit: '100mb'}));
 app.use(bodyParser.urlencoded({limit: '100mb', extended: true, parameterLimit: 1000000})); // for parsing application/x-www-form-urlencoded
@@ -123,7 +131,6 @@ app.get('/api/getUserInfo', user.authorize, function(req,res,next) {
   });
 });
 app.get('/api/addDatabase', user.authorize, function(req, res, next) {
-  console.log('wut')
   var queryData = url.parse(req.url, true).query;
   data.addDatabase(req.user_id, queryData.database, function(r) {
     res.json(r);
@@ -250,6 +257,45 @@ app.get('/api/createMemoryTable', user.authorize, function(req, res, next) {
     });
   });
 });
+app.get('/getDataset', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  var table = queryData.table;
+  var database = queryData.database;
+
+  // handle user or token request
+  if (req.user_id) {
+    database = req.user_id + "_" + queryData.database;
+  } else {
+    var queryData = url.parse(req.url, true).query;
+    // validate scope
+    var access = false;
+    for (var i in req.scope) {
+      if (queryData.database === req.scope[i].database) {
+        if (req.scope[i].table) {
+          if (queryData.table === req.scope[i].table) {
+            access = true;
+            database = req.scope[i]._database;
+          }
+        } else {
+          access = true;
+          database = req.scope[i]._database;
+        }
+      }
+    }
+    if (access != true) {
+      res.status(403);
+      return res.json({});
+    }
+  }
+  if (table && database) {
+    data.getDataSet(database, table, function(r) {
+      res.json(r);
+    });
+  } else {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+});
 app.get('/api/setFTS', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   if (!(queryData.database && queryData.table && queryData.column && queryData.fts)) {
@@ -301,6 +347,40 @@ app.get('/api/setFTSDisplayField', user.authorize, function(req, res, next) {
   data.setFTSDisplayField(req.user_id, queryData.database, queryData.table, queryData.display_field, function(r) {
     res.json(r);
   });
+});
+app.get('/api/addCrawlerUrl', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  data.addCrawlerUrl(req.user_id, queryData.database, queryData.table, queryData.url, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/deleteCrawlerUrl', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  data.deleteCrawlerUrl(req.user_id, queryData.database, queryData.table, queryData.url, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/getCrawlerUrls', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  data.getCrawlerUrls(req.user_id, queryData.database, function(r) {
+    res.json(r);
+  });
+});
+app.get('/api/getCrawlerStatus', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  let this_crawler = crypto.createHash('md5').update(req.user_id + queryData.database + queryData.table).digest('hex')
+  if (!crawlers[this_crawler]) {
+    crawlers[this_crawler] = new crawler(req.user_id + "_" + queryData.database, queryData.table)
+  }
+  if (queryData.action == 'start') {
+    crawlers[this_crawler].start()
+  }
+  if (queryData.action == 'stop') {
+    crawlers[this_crawler].stop()
+  }
+  setTimeout(()=> {
+    res.json({'status':crawlers[this_crawler].status_})
+  }, 3000);
 });
 app.get('/api/runQuery', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
@@ -399,6 +479,22 @@ app.get('/api/deleteApiScope', user.authorize, function(req, res, next) {
   }
   data.deleteApiScope(req.user_id, queryData.key_id, queryData.api_scope, queryData.api_database, queryData.api_table, function(r) {
     res.json(r);
+  });
+});
+app.get('/api/image', user.authorize, function(req, res, next) {
+  var queryData = url.parse(req.url, true).query;
+  if (!(queryData.key_id && queryData.api_scope && queryData.api_database)) {
+    res.json({status:'failed', message:'invalid parameters'});
+    return;
+  }
+  const { spawn } = require('child_process');
+  const pyProg = spawn('python', ['./../pypy.py']);
+
+  pyProg.stdout.on('data', function(data) {
+
+      console.log(data.toString());
+      res.write(data);
+      res.end('end');
   });
 });
 
@@ -503,28 +599,32 @@ app.get('/search', user.authorize, function(req, res, next) {
   var queryData = url.parse(req.url, true).query;
   var database;
 
-  if (!queryData.query) {
+  if (!queryData.query && !(queryData.filter || queryData['filter[]'])) {
     res.json({"error":"no query provided"});
     return;
   } else {
     table = queryData.table;
   }
+  var queryData = url.parse(req.url, true).query;
   if (!queryData.database) {
     res.json({"error":"no database provided"});
     return;
   } else {
     database = queryData.database;
   }
+  var queryData = url.parse(req.url, true).query;
   if (!queryData.table) {
     res.json({"error":"no table provided"});
     return;
   } else {
     table = queryData.table;
   }
+  var queryData = url.parse(req.url, true).query;
   // handle user or token request
   if (req.user_id) {
     database = req.user_id + "_" + queryData.database;
   } else {
+    var queryData = url.parse(req.url, true).query;
     // validate scope
     var access = false;
     for (var i in req.scope) {
@@ -574,6 +674,7 @@ app.get('/search', user.authorize, function(req, res, next) {
         data.getServingColumns(user_id, database, table, function(c) {
           queryData.columns = c.join();
           execute(queryData,queryServers[database][table].port,function(r) {
+            console.log(r)
             res.json(r);
           });
         });
@@ -618,11 +719,12 @@ app.get('/suggest', user.authorize, function(req, res, next) {
   }
   // handle user or token request
   if (req.user_id) {
-      database = req.user_id + "_" + queryData.database;
+    database = req.user_id + "_" + queryData.database;
   } else {
     // validate scope
     var access = false;
     for (var i in req.scope) {
+      console.log(queryData)
       if (queryData.database === req.scope[i].database) {
         if (req.scope[i].table) {
           if (queryData.table === req.scope[i].table) {
@@ -788,6 +890,8 @@ app.use('/serving/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/models/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/inference/', express.static(__dirname + '/vue-app/dist/'));
 app.use('/insights/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/crawler/', express.static(__dirname + '/vue-app/dist/'));
+app.use('/assets/', express.static(__dirname + '/assets/'));
 // web root
 app.use('/', express.static(__dirname + '/vue-app/dist/'));
 

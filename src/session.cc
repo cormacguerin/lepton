@@ -56,9 +56,11 @@ void Session::do_read_body() {
 }
 
 void Session::do_write(std::string response) {
+  /*
 	std::cout << "session.cc : res.body_length " << res.body_length << std::endl;
 	std::cout << "session.cc : responese.length " << response.length() << std::endl;
-    std::cout << "session.cc - response - " << response << " - " << std::endl;
+  std::cout << "session.cc - response - " << response << " - " << std::endl;
+  */
 	auto self(shared_from_this());
 	asio::async_write(socket_,
 			asio::buffer(response, response.length()),

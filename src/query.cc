@@ -98,7 +98,7 @@ void Query::Node::getTerms_(std::vector<std::string> &terms) {
 	if (this->op==Query::Operator::TERM && this->term.gram==Query::Gram::UNIGRAM) {
 		std::string converted;
 		this->term.term.toUTF8String(converted);
-        std::cout << "get terms : " << converted << std::endl;
+    std::cout << "get terms : " << converted << std::endl;
 		terms.push_back(converted);
 		for (std::vector<std::pair<Modifier, AttributeValue>>::iterator it = this->term.mods.begin() ; it != this->term.mods.end(); ++it) {
 			if (it->first == Query::Modifier::STOPWORD) {

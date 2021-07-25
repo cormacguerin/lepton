@@ -9,14 +9,14 @@ using namespace std;
 std::string port = "3333";
 
 IndexRoot::IndexRoot() {
-    adminConnect();
+    init();
 }
 
 IndexRoot::~IndexRoot()
 {
 }
 
-void IndexRoot::adminConnect() {
+void IndexRoot::init() {
   auto config = getConfig();
 	try {
 		C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
@@ -29,6 +29,8 @@ void IndexRoot::adminConnect() {
 		cerr << e.what() << std::endl;
 		exit;
 	}
+  std::string statement = "SELECT DISTINCT databases.database, tables.tablename, _column, indexing FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table WHERE indexing = true";
+  C->prepare("get_tables_to_index", statement);
 }
 
 /*
@@ -37,10 +39,8 @@ void IndexRoot::adminConnect() {
 void IndexRoot::process() {
   pqxx::work txn(*C);
   // SELECT all database table columns which have indexing enabled
-  std::string statement = "SELECT DISTINCT databases.database, tables.tablename, _column, indexing FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table WHERE indexing = true";
-  C->prepare("get_tables_to_index", statement);
 
-  pqxx::result r = txn.prepared("get_tables_to_index").exec();
+  pqxx::result r = txn.exec_prepared("get_tables_to_index");
   txn.commit();
 
   std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>> tables;

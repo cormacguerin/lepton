@@ -64,6 +64,7 @@ Frag::~Frag()
 {
 }
 
+/*
 void Frag::load() {
     time_t beforetime = time(0);
     std::ifstream ifs(filename);
@@ -89,15 +90,18 @@ void Frag::load() {
         return;
     }
 }
-
+*/
 /*
  * TODO : Sean to implement.
  */
-void Frag::loadRawFrag(std::string filename) {
+//void Frag::loadRawFrag(std::string filename) {
+void Frag::load() {
     // std::cout << "frag.cc : load raw frag " << filename << std::endl;
     std::ifstream in (filename);
-    in >> bits(frag_map);
-    in.close();
+    if (in.good()) {
+      in >> bits(frag_map);
+      in.close();
+    }
     /*
        for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
        for (std::map<int, Frag::Item>::const_iterator vit = (it->second).begin() ; vit != (it->second).end(); ++vit) {
@@ -259,6 +263,7 @@ void Frag::writeRawFrag(std::string filename) {
     int lck;
     if (fileLock(filename,lck) == true) {
         rename(tmp_filename.c_str(),filename.c_str());
+        fileUnlock(lck);
     } else {
         std::cout << "frag.cc : WARNING : unable to get lock on writeRawFrag." << std::endl;
     }
@@ -319,13 +324,16 @@ std::vector<std::string> Frag::getItemKeys() {
  * function to assign a weight to each item for each url.
  * standard calculation for this is the item frequency times the idf(inverse document frequency).
  * idf is usually calculated as log(no. docs in corpus/no. of documents that contain the item)
+ * udpate can take time, do avoid deadlock/mutexes open a new connection just for this proceess
+ * TODO : beacuse this is done for every indexfile regularly, opening a new connection each time is absurd.
+ * We should batch these into large transactions
  */
 void Frag::addWeights(int num_docs, std::string database, std::string lang) {
     pqxx::connection* C;
     auto config = getConfig();
 
     try {
-		    C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+		    C = new pqxx::connection("dbname = " + database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
         if (C->is_open()) {
             std::cout << "Opened database successfully: " << C->dbname() << std::endl;
         } else {
@@ -351,16 +359,16 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
         gram = "trigrams";
         gram_boost = 3.0;
     } else {
-        C->disconnect();
+        C->close();
         delete C;
         return;
     }
-	time_t beforeload = getTime();
+    time_t beforeload = getTime();
 
     pqxx::work txn(*C);
 
     C->prepare(update_gram_idf, "INSERT INTO " + gram + " (idf,gram,lang) VALUES ($1,$2,$3) ON CONFLICT "
-            "ON CONSTRAINT " + gram + "_gram_key DO UPDATE SET idf = $1, lang = $3 WHERE " + gram + ".gram = $2");
+            "ON CONSTRAINT " + gram + "_lang_gram_key DO UPDATE SET idf = $1, lang = $3 WHERE " + gram + ".gram = $2");
 
     std::cout << "proceed to add weights " << std::endl;
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
@@ -374,7 +382,7 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
             tit->second.weight = idf*tit->second.tf*gram_boost;
         }
         // std::cout << "frag.cc addWeights it->first.c_str() " << " " << gram << " " << it->first.c_str() << std::endl;
-        pqxx::result r = txn.prepared(update_gram_idf)(std::to_string(idf))(it->first.c_str())(lang).exec();
+        pqxx::result r = txn.exec_prepared(update_gram_idf, std::to_string(idf), it->first.c_str(), lang);
         /*
            int n = pv.size();
            for (int i=1; i<=n;i++) {
@@ -405,12 +413,12 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
            pv.clear();
            */
     }
-	time_t afterload = getTime();
-	double seconds = difftime(afterload, beforeload);
-	std::cout << "finish addWeights for " << update_gram_idf << " executed in " << seconds << " milliseconds." << std::endl;
+    time_t afterload = getTime();
+    double seconds = difftime(afterload, beforeload);
+    std::cout << "finish addWeights for " << update_gram_idf << " executed in " << seconds << " milliseconds." << std::endl;
 
     txn.commit();
-    C->disconnect();
+    C->close();
     delete C;
 }
 

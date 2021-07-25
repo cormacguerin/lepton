@@ -13,17 +13,20 @@
 #include "result.h"
 #include "parallel_hashmap/phmap.h"
 #include "segmenter.h"
+#include "pg_pool.h"
 
 class IndexServer {
 
     public:
         IndexServer(std::string database, std::string table);
         ~IndexServer();
-		Segmenter seg;
+        Segmenter seg;
         std::string status;
         std::mutex m;
+        std::mutex pm;
         void init();
         void run();
+        void stop();
         void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates);
         void execute(std::string lang, std::string type, std::string query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj);
         static void search(std::string lang, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryParser);
@@ -36,7 +39,10 @@ class IndexServer {
         std::string separateGram(const char* c, bool isCJK);
 
     private:
-        // this is the reverse index
+        PgPool pgPool;
+        pqxx::connection* C;
+        // pqxx::work* txn;
+
         // a map of langages to a parallel flat hash map of terms(words) to fragments (url id and weight) 
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> unigramurls_map;
         std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> bigramurls_map;
@@ -47,16 +53,12 @@ class IndexServer {
         std::map<std::string, std::map<std::string, std::vector<std::pair<std::string,int>>>> suggestions;
         std::string db;
         std::string tb;
-        int _q_;
-//        int x;
-        pqxx::connection* C;
-        pqxx::work* txn;
-        std::vector<std::string> getDocInfo(int doc_id);
-        std::map<std::string,std::vector<int>> getTermPositions(int doc_id, std::vector<std::string> terms);
+        // std::vector<std::string> getDocInfo(int doc_id);
+        // std::map<std::string,std::vector<int>> getTermPositions(int doc_id, std::vector<std::string> terms);
         Result getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates);
-        void doFilter(std::string filter, std::vector<Frag::Item> &candidates);
+        void doFilter(std::string filter, std::vector<Frag::Item> &candidates, bool has_query);
         void getResultInfo(Result& result, std::vector<std::string> terms, std::string columns, std::string lang);
-        pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
+        // pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
         void loadIndex(Frag::Type type, std::string lang);
         void buildSuggestions(std::string lang);
         void addSuggestion(std::string term, std::string lang, int count);

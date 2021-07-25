@@ -77,7 +77,7 @@ CREATE TABLE text_tables_index (
     display_field VARCHAR(64) DEFAULT 'url',
     indexing BOOLEAN,
     serving BOOLEAN,
-    UNIQUE (database,_table)
+    CONSTRAINT text_tables_index_database__table__column UNIQUE (database,_table,_column)
 );
 
 CREATE TABLE charts (
@@ -108,7 +108,7 @@ CREATE TABLE api_scopes (
 CREATE TABLE ml_models (
     id serial PRIMARY KEY,
     model VARCHAR (256) NOT NULL,
-    language VARCHAR (64) NOT NULL,
+    lang VARCHAR (64) NOT NULL,
     program TEXT,
     dataset INT REFERENCES tables (id),
     owner INT REFERENCES users (id) ON DELETE CASCADE NOT NULL,
@@ -126,4 +126,3 @@ CREATE TABLE ml_trainings (
     modelfile VARCHAR (256),
     owner INT REFERENCES users (id) ON DELETE CASCADE NOT NULL
 );
-

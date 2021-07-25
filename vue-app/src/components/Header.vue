@@ -153,6 +153,12 @@
                   >
                     Insights
                   </div>
+                  <div
+                    class="nav-item"
+                    @click="gotoTab('crawler')"
+                  >
+                    Crawler
+                  </div>
                 </div>
               </div>
             </div>
@@ -210,6 +216,10 @@
     />
     <div
       id="serving"
+      hidden
+    />
+    <div
+      id="crawler"
       hidden
     />
     <div

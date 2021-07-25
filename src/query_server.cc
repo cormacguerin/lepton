@@ -109,8 +109,12 @@ void QueryServer::run() {
     indexServer.get()->run();
 }
 
+void QueryServer::stop() {
+    indexServer.get()->stop();
+    io_context.stop();
+}
+
 std::map<std::string,int> QueryServer::getServingInfo() {
-    std::cout << "CORMAC " << std::endl;
     return indexServer->getServingInfo();
 }
 

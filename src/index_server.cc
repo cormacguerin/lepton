@@ -17,9 +17,11 @@ using namespace std;
 using namespace pqxx;
 
 
+/*
+ * Index Servers are per database table
+ */
 IndexServer::IndexServer(std::string database, std::string table)
 {
-  _q_ = 0;
   db = database;
   tb = table;
   init();
@@ -27,12 +29,17 @@ IndexServer::IndexServer(std::string database, std::string table)
 
 IndexServer::~IndexServer()
 {
+  delete C;
 }
 
 void IndexServer::init() {
+
+  // init the serving pool connections, these are per database
+  pgPool.init(db);
+
   auto config = getConfig();
   try {
-    C = new pqxx::connection("dbname = " + config.postgres_database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+    C = new pqxx::connection("dbname = " + db + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
     if (C->is_open()) {
       cout << "Opened database successfully: " << C->dbname() << endl;
     } else {
@@ -42,8 +49,9 @@ void IndexServer::init() {
     status = "failed";
     cerr << e.what() << std::endl;
   }
+  C->prepare("get_stop_suggest", "SELECT stop,lang,gram,idf FROM stop_suggest ORDER BY lang, stop, idf DESC;");
   status = "loading";
-  seg.init("");
+  seg.init(db,tb);
   //std::string ngrams[] = {"uni","bi","tri"};
   //std::string langs[] = {"en","ja","zh"};
 }
@@ -52,6 +60,7 @@ void IndexServer::run() {
   do_run = true;
   while (do_run) {
     for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
+      //std::cout << "lit " << *lit << std::endl;
       if (softMutexLock(m)==true) {
         if (unigramurls_map.find(*lit) == unigramurls_map.end()) {
           unigramurls_map[*lit] = phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>();
@@ -60,11 +69,13 @@ void IndexServer::run() {
       } else {
         continue;
       }
+      //std::cout << "loadIndex " << *lit << std::endl;
       loadIndex(Frag::Type::UNIGRAM, *lit);
       loadIndex(Frag::Type::BIGRAM, *lit);
       loadIndex(Frag::Type::TRIGRAM, *lit);
       buildSuggestions(*lit);
     }
+    usleep(6000000);
     // we handle suggestions starting with stopwords separately.
     getStopSuggest();
     status = "serving";
@@ -73,6 +84,14 @@ void IndexServer::run() {
   unigramurls_map.clear();
   m.unlock();
   status = "shutdown";
+}
+
+void IndexServer::stop() {
+  do_run = false;
+  unigramurls_map.empty();
+  bigramurls_map.empty();
+  trigramurls_map.empty();
+  suggestions.empty();
 }
 
 /*
@@ -91,7 +110,7 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
   }
 
   time_t beforeload = getTime();
-  // std::cout << "loading index " << lang << " ... (this might take a while)." << std::endl;
+  std::cout << "loading index " << lang << " ... (this might take a while)." << std::endl;
 
   std::vector<std::string> index_files;
 
@@ -99,7 +118,7 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
   DIR *dp;
 
   std::string path = "index/" + db + "/" + tb + "/";
-  std::cout << path << std::endl;
+  //std::cout << "loadIndex " << path << std::endl;
   std::replace(path.begin(),path.end(),' ','_');
 
   dp = opendir(path.c_str());
@@ -229,8 +248,8 @@ void IndexServer::execute(std::string lang, std::string type, std::string parsed
 
 /*
  * We do 4 disk (db) calls here
- *  - applyFilters, where we read jsonb filters for each candidate doc
- *  - applyAcls, where we read jsonb ACL filters for each candidate doc
+ *  - doFilter, where we read jsonb filters for each candidate doc
+ *  - applyAcl, where we read jsonb ACL filters for each candidate doc
  *  - getResults, where we get word positions and apply base score
  *  - getResultInfo, where we get all information for a set of results (20 by default)
  *  TODO
@@ -239,7 +258,6 @@ void IndexServer::execute(std::string lang, std::string type, std::string parsed
 void IndexServer::search(std::string lang, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryBuilder) {
 
   Query::Node query;
-  //Result::Item item;
   queryBuilder.build(lang, parsed_query, query);
 
   int page_num = 0;
@@ -307,12 +325,23 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   } else {
     eit = candidates.end();
   }
-  candidates=std::vector(bit,eit);
+  candidates=std::vector<Frag::Item>(bit, eit);
 
   // filter the candidates against supplied filters
   // TODO ACLs can be done in the same way.
   beforeload = indexServer->getTime();
-  indexServer->doFilter(filter, candidates);
+  if (parsed_query == "") {
+    indexServer->doFilter(filter, candidates, false);
+  } else if (candidates.size() > 0) {
+    indexServer->doFilter(filter, candidates, true);
+  } else {
+    Result result;
+    result.query = query;
+    result.result_count = candidates.size();
+    promiseObj.set_value(result.serialize());
+    return;
+  }
+  
   afterload = indexServer->getTime();
   seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc " << candidates.size() << " candidates after filtering in " << seconds << " miliseconds." << std::endl;
@@ -375,6 +404,13 @@ void IndexServer::suggest(std::string lang, std::string parsed_query, std::promi
   time_t beforeload = indexServer->getTime();
   time_t afterload = indexServer->getTime();
   double seconds = difftime(afterload, beforeload);
+  
+  /*
+  for (std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator ssit = indexServer->suggestions[lang].begin(); ssit != indexServer->suggestions[lang].end(); ssit++) {
+    std::cout << ssit->first << std::endl;
+  }
+  */
+  
   std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator sit = indexServer->suggestions[lang].find(indexServer->seg.segmentTerm(parsed_query,lang));
   if (sit != indexServer->suggestions[lang].end()) {
     rapidjson::Document suggest_response;
@@ -382,7 +418,7 @@ void IndexServer::suggest(std::string lang, std::string parsed_query, std::promi
     rapidjson::Document::AllocatorType& allocator = suggest_response.GetAllocator();
     rapidjson::Value suggest_array(rapidjson::kArrayType);
     for (std::vector<std::pair<std::string,int>>::const_iterator it = sit->second.begin(); it != sit->second.end(); it++) {
-      std::cout << it->first << std::endl;
+      //std::cout << it->first << std::endl;
       suggest_array.PushBack(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), allocator);
     }
     suggest_response.AddMember("suggestions", rapidjson::Value(suggest_array, allocator).Move(), allocator);
@@ -402,7 +438,7 @@ void IndexServer::buildSuggestions(std::string lang) {
   int j = 0;
   std::cout << "unigramurls_map[lang].size() " << unigramurls_map[lang].size() << std::endl;
   for (phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[lang].begin(); urls != unigramurls_map[lang].end(); urls++) {
-    // std::cout << tb << " - " << urls->first << " " << urls->second.size() << std::endl;
+    //std::cout << "tb" << tb << " - " << urls->first << " " << urls->second.size() << std::endl;
     if (urls->second.size() > 1) {
       addSuggestion(urls->first, lang, urls->second.size());
     }
@@ -468,8 +504,9 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
     columns += user_columns;
   }
 
-  pqxx::work txn(*C);
-  C->prepare("get_docinfo_deep", "SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1");
+ // C->prepare("get_docinfo_deep", "SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1");
+  auto C_ = pgPool.getConn();
+  pqxx::work txn(*C_.get());
 
   for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
     /*
@@ -478,7 +515,7 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
        std::cout << tit__->first << " " << *tit___ << std::endl;
        }
        }
-       */
+    */
     std::map<int,int> best_match;
     int position = 0;
     int tophits = 0;
@@ -507,7 +544,7 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
           }
         }
       }
-    } else {
+    } else if (terms.size() == 1) {
       // there is only one term so get the first occurrence of the term as the snippet position.
       // this could be better, we should look for meaningful prose..
       std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.find(terms[0]);
@@ -530,14 +567,16 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
     std::cout << "best match " << it->first << " : " << it->second << std::endl;
     }
     */
+
     pqxx::result r;
     try {
-      r = txn.prepared("get_docinfo_deep")(rit->doc_id).exec();
+      r = txn.exec_params("SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1",rit->doc_id);
     } catch (const std::exception &e) {
       std::cout << "ERROR" << std::endl;
       cerr << e.what() << std::endl;
       return;
     }
+
     for (int i=0; i < r.columns(); i++) {
       std::string column_name = std::string(r.column_name(i));
       const pqxx::field v = r.back()[i];
@@ -550,20 +589,18 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
       }
     }
   }
-
   txn.commit();
+  pgPool.freeConn(C_);
 
 }
 
-void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidates) {
+void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidates, bool has_query) {
 
   if (filter == "") {
     return;
   }
 
-  if (candidates.size() == 0) {
-    return;
-  }
+  std::cout << "filter " << filter << std::endl;
 
   std::string prepstr_="";
   for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
@@ -710,21 +747,39 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
     }
 
   } else {
-    std::cout << "IS NOT ARRAY CONTINUEa" << std::endl;
     return;
   }
 
-  std::string filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE d.id IN (" + prepstr_ + ") " + prep_filter;
+  std::string filter_query = "";
+  std::cout << "prep_filter " << prep_filter << std::endl;
+  if (has_query) {
+    filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE d.id IN (" + prepstr_ + ") " + prep_filter + ";";
+  } else if (prep_filter.length() > 10) {
+    prep_filter.erase(0,4);
+    filter_query = "SELECT DISTINCT(id) FROM \"" + tb + "\" d, jsonb_each_text(d.metadata) metadata WHERE " + prep_filter + ";";
+  } else {
+    return;
+  }
   std::cout << filter_query << std::endl;
 
   // std::string prepared_filter = base64_encode(reinterpret_cast<const unsigned char*>(filter_query.c_str()),filter_query.length());
   std::string prepared_filter = std::to_string(std::hash<std::string>{}(filter_query));
   std::cout << "prepared_filter " << prepared_filter << std::endl;
 
-  pqxx::work txn(*C);
-  C->prepare(prepared_filter,filter_query);
-  pqxx::result r = txn.prepared(prepared_filter).exec();
+  auto C_ = pgPool.getConn();
+  pqxx::work txn(*C_.get());
+  C_->prepare(prepared_filter,filter_query);
+  pqxx::result r;
+  try {
+    r = txn.exec_prepared(prepared_filter);
+  } catch (const std::exception &e) {
+    std::cout << "ERROR" << std::endl;
+    cerr << e.what() << std::endl;
+    return;
+  }
+  C_->unprepare(prepared_filter);
   txn.commit();
+  pgPool.freeConn(C_);
 
   int num = 0;
   for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
@@ -733,20 +788,32 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
     int id = atoi(pqxx::to_string(i).c_str());
     // std::cout << "index_server.cc doFilter id " << id << std::endl;
 
-    std::vector<Frag::Item>::iterator fit = std::find_if(
-        candidates.begin(),
-        candidates.end(),
-        [id](const Frag::Item& f) { return f.doc_id == id; }
-        );
-    if (fit != candidates.end() && num < candidates.size()) {
-      // std::cout << num << " index_server.cc doFilter id " << fit->doc_id << " found." << std::endl;
-      std::swap(candidates.at(num), *fit);
-      num++;
+    if (has_query) {
+      std::vector<Frag::Item>::iterator fit = std::find_if(
+          candidates.begin(),
+          candidates.end(),
+          [id](const Frag::Item& f) { return f.doc_id == id; }
+          );
+      if (fit != candidates.end() && num < candidates.size()) {
+        // std::cout << num << " index_server.cc doFilter id " << fit->doc_id << " found." << std::endl;
+        std::swap(candidates.at(num), *fit);
+        num++;
+      }
+    } else {
+      Frag::Item F;
+      F.doc_id = id;
+      F.weight = 1.0;
+      F.tf = 1.0;
+      candidates.push_back(F);
     }
   }
+
   std::cout << "index_server.cc filter size " << r.size() << std::endl;
   std::cout << "index_server.cc candidates.size " << candidates.size() << std::endl;
-  candidates.resize(num);
+
+  if (has_query) {
+    candidates.resize(num);
+  }
 }
 
 Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates) {
@@ -757,19 +824,24 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
     return result;
   }
 
+  /*
   if (terms.empty()) {
     return result;
   }
+  */
 
-  _q_++;
   int p = 0;
   std::string prepstr="(";
-  pqxx::work txn(*C);
+  std::string termsstr="";
+  std::vector<std::string> prepterms;
   for (std::vector<std::string>::const_iterator it = terms.begin(); it != terms.end(); ++it) {
     p++;
     prepstr += "$" + std::to_string(p);
+    prepterms.push_back(*it);
+    termsstr += *it;
     if (std::next(it) != terms.end()) {
       prepstr += ",";
+      termsstr += ",";
     }
   }
   prepstr += ")";
@@ -791,20 +863,33 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
     x++;
   }
 
-  C->prepare("get_docinfo"+_q_,"SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr);
-  std::cout << "prepstr_ " << prepstr_ << std::endl;
-  std::cout << "prepstr " << prepstr << std::endl;
-
   std::map<std::string,std::vector<int>> term_positions;
   std::vector<pqxx::result> pqxx_results;
 
   // sql timing
   time_t beforeload = getTime();
   time_t getResultTime = 0;
+  std::string statement;
 
-  pqxx::prepare::invocation w_invocation = txn.prepared("get_docinfo"+_q_);
-  prep_dynamic(terms, w_invocation);
-  pqxx::result r = w_invocation.exec();
+
+  if (terms.size() > 0) {
+    statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr + ";";
+  } else {
+    statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ")";
+  }
+
+  auto C_ = pgPool.getConn();
+  pqxx::work txn(*C_.get());
+  pqxx::result r;
+  try {
+    r = txn.exec_params(statement, pqxx::prepare::make_dynamic_params(prepterms));
+  } catch (const std::exception &e) {
+    cerr << e.what() << std::endl;
+    Result result;
+    return result;
+  }
+  txn.commit();
+  pgPool.freeConn(C_);
 
   time_t afterload = getTime();
   double seconds = difftime(afterload, beforeload);
@@ -900,7 +985,6 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
   std::cout << "index_server.cc : results time : " << seconds << std::endl;
 
   beforeload = getTime();
-  txn.commit();
   afterload = getTime();
   seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc : commit time : " << seconds << std::endl;
@@ -931,13 +1015,16 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
   return result;
 }
 
+/*
 pqxx::prepare::invocation& IndexServer::prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv)
 {
   for(auto data_val : data)
     inv(data_val);
   return inv;
 }
+*/
 
+/*
 std::vector<std::string> IndexServer::getDocInfo(int doc_id) {
   pqxx::work txn(*C);
   C->prepare("get_url","SELECT url,tdscore,docscore FROM \"" + tb + "\" WHERE id = $1");
@@ -983,6 +1070,7 @@ std::map<std::string,std::vector<int>> IndexServer::getTermPositions(int doc_id,
   }
   return term_positions;
 }
+*/
 
 /*
  * Retrieval function populate the query.
@@ -1025,7 +1113,7 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
       } else {
         eit = urls->second.end();
       }
-      candidates=std::vector(bit,eit);
+      candidates=std::vector<Frag::Item>(bit,eit);
     }
   } else {
     std::vector<Frag::Item> node_candidates;
@@ -1099,9 +1187,9 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 void IndexServer::getStopSuggest() {
   std::cout << " getStopSuggest " << std::endl;
   pqxx::work txn(*C);
-  C->prepare("get_stop_suggest", "SELECT stop,lang,gram,idf FROM stop_suggest ORDER BY lang, stop, idf DESC;");
-  pqxx::result r = txn.prepared("get_stop_suggest").exec();
+  pqxx::result r = txn.exec_prepared("get_stop_suggest");
   txn.commit();
+
   for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
     const pqxx::field stop = (row)[0];
     const pqxx::field lang = (row)[1];
