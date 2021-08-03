@@ -66,9 +66,9 @@ void IndexRoot::process() {
   }
   for (std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>>::iterator dit = tables.begin(); dit != tables.end(); dit++) {
     for (std::map<std::string, std::pair<std::string, std::string>>::iterator tit = dit->second.begin(); tit != dit->second.end(); tit++) {
-      std::cout << "indexroot.cc : run() : " << dit->first << " : " << tit->first << " : " << (tit->second).second << " : " << (tit->second).first << std::endl;
       // loop over existing index managers to see if there is one already for this database table
       bool exists = false;
+      std::cout << "indexroot.cc : run : " << dit->first << " : " << tit->first << " : " << (tit->second).second << " : " << (tit->second).first << std::endl;
       for (std::vector<IndexManager*>::iterator imit = ims.begin(); imit != ims.end(); imit++) {
           // test for this database/table
           if ((*imit)->database == dit->first && (*imit)->table == tit->first) {

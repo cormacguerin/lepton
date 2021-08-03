@@ -73,26 +73,74 @@ class Crawler {
       db_pg.getCrawlerUrls(function(e,r) {
         var domains=[]
         for (var i=0; i < r.length; i++) {
-          let d = psl.get(extractHostname(r[i].url))
+          let d = psl.parse(extractHostname(r[i].url))
           //let d = urlMod.parse(r[i].url).hostname
-          domains.push(d)
-          domains.push('www.' + d)
+          domains.push(d.subdomain + "." + d.domain)
+          console.log(d)
         }
         vm.domains = domains
         console.log(domains)
+
+        crawler.addHandler(
+          ["application/gzip",
+           "image/gif",
+           "image/bmp",
+           "image/jpeg",
+           "image/jpg",
+           "image/png",
+           "image/vnd.microsoft.icon",
+           "image/tiff",
+           "image/webp",
+           "image/svg+xml",
+           "audio/mpeg",
+           "audio/ogg",
+           "audio/wav",
+           "audio/webm",
+           "video/x-msvideo",
+           "video/mp4",
+           "video/ogg",
+           "video/mpeg",
+           "video/3gpp",
+           "video/3gpp2",
+           "video/mp2t",
+           "video/webm",
+           "video/mp2t",
+           "application/java-archive",
+           "application/json",
+           "application/ld+json",
+           "application/x-tar",
+           "application/xhtml+xml",
+           "application/zip",
+           "application/x-httpd-php",
+           "application/x-7z-compressed",
+           "font/ttf",
+           "font/woff",
+           "font/woff2",
+           "font/otf",
+           "text/javascript",
+           "text/csv"
+          ], supercrawler.handlers.htmlLinkParser({
+            urlFilter: function(url) {
+              return false
+            }
+        }));
 
         crawler.addHandler("text/html", supercrawler.handlers.htmlLinkParser({
           // Restrict discovered links to the following hostnames.
           // hostnames: domains,         
           urlFilter: function(url) {
-            let d = psl.get(extractHostname(url))
-            if (domains.indexOf(d) !== -1) {
-              // console.log('index url with domain ' + d)
-              return true
-            } else {
-              // console.log('do NOT index url with domain ' + d)
+            if (url == undefined) {
               return false
             }
+            const ext_re = /(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|zip|gz|tar|rar|mp4|mov|avi)|.*%3A%2F%2F.*)/g
+            if (url.match(ext_re)) {
+              return false
+            }
+            let d = psl.parse(extractHostname(url))
+            if (domains.indexOf(d.subdomain + "." + d.domain) === -1) {
+              return false
+            }
+            return true
           }
         }));
 
@@ -120,10 +168,17 @@ class Crawler {
     });
 
     function parseHandler(domains, h) {
-      let d = psl.get(extractHostname(h.url))
-      // let d = urlMod.parse(h.url).hostname;
-      console.log(d)
-      if (domains.indexOf(d) != -1) {
+      if (h.url == undefined || h.url == null) {
+        return false
+      }
+      const ext_re = /(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|zip|gz|tar|rar|mp4|mov|avi)|.*%3A%2F%2F.*)/g
+      if (h.url.match(ext_re)) {
+        console.log("regex matched - return false")
+        return false
+      }
+      let d = psl.parse(extractHostname(h.url))
+      console.log("domain : " + d.subdomain + "." + d.domain)
+      if (domains.indexOf(d.subdomain + "." + d.domain) !== -1) {
         console.log('go')
         textract.fromBufferWithMime(h.contentType, h.body, function( error, text ) {
           if (error) {

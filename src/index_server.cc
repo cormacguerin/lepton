@@ -257,12 +257,13 @@ void IndexServer::execute(std::string lang, std::string type, std::string parsed
  */
 void IndexServer::search(std::string lang, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryBuilder) {
 
+  time_t startTime = indexServer->getTime();
+
   Query::Node query;
   queryBuilder.build(lang, parsed_query, query);
 
   int page_num = 0;
   int page_result_num = 20;
-  double total_seconds = 0.0;
 
   rapidjson::Document pagination;
   try {
@@ -311,7 +312,6 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   time_t afterload = indexServer->getTime();
   double seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc gathered " << candidates.size() << " candidates for " << parsed_query << " in " << seconds << " miliseconds." << std::endl;
-  total_seconds += seconds;
 
   // new
   std::sort(candidates.begin(), candidates.end(),
@@ -345,7 +345,6 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   afterload = indexServer->getTime();
   seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc " << candidates.size() << " candidates after filtering in " << seconds << " miliseconds." << std::endl;
-  total_seconds += seconds;
 
   // get and score the documents from the backend.
   std::vector<std::string> terms = query.getTerms();
@@ -359,7 +358,6 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc getResult " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
   std::cout << "result size " << result.items.size() << std::endl;
-  total_seconds += seconds;
 
   // order the first 20 documents according to score 
   // TODO add pagination
@@ -382,16 +380,16 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   afterload = indexServer->getTime();
   seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc sort and resize " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
-  total_seconds += seconds;
 
   beforeload = indexServer->getTime();
   indexServer->getResultInfo(result,terms,columns,lang);
   afterload = indexServer->getTime();
   seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc getResultInfo " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
-  total_seconds += seconds;
 
-  result.query_time = total_seconds;
+  time_t endTime = indexServer->getTime();
+  seconds = difftime(endTime, startTime);
+  std::cout << "index_server.cc total time taken for query : " << seconds << " miliseconds." << std::endl;
 
   promiseObj.set_value(result.serialize());
 }
@@ -878,6 +876,8 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
     statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ")";
   }
 
+  std::cout << "index_server.cc getResult : " << statement << std::endl;
+
   auto C_ = pgPool.getConn();
   pqxx::work txn(*C_.get());
   pqxx::result r;
@@ -893,7 +893,7 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
 
   time_t afterload = getTime();
   double seconds = difftime(afterload, beforeload);
-  std::cout << "index_server.cc : sql for getResult processed in " << seconds << std::endl;
+  std::cout << "index_server.cc : sql for getResult processed in " << seconds << " milliseconds." << std::endl;
 
   beforeload = getTime();
   getResultTime = 0;

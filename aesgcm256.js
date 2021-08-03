@@ -14,9 +14,10 @@ const aes256gcm = (key) => {
   };
 
   const decrypt = (enc, iv, authTag) => {
-//console.log("enc " + enc);
-//console.log("iv " + iv);
-//console.log("at" + authTag);
+  // console.log("enc " + enc);
+  // console.log("iv " + iv);
+  // console.log("at" + authTag);
+
 	const decipher = crypto.createDecipheriv(ALGO, key, iv);
 	decipher.setAuthTag(authTag);
 	let str = decipher.update(enc, 'base64', 'utf8');

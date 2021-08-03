@@ -35,6 +35,7 @@ class IndexManager {
 		Segmenter seg;
 		pqxx::connection* C;
 		pqxx::connection* C_;
+    pqxx::work* txn_;
 		char SPS[4];
     std::vector<std::string> langs{"en","ja","zh","ko","es","de","fr"};
     std::vector<std::string> unibitri{"trigrams","bigrams","unigrams"};
@@ -64,6 +65,10 @@ class IndexManager {
     void prepare_docs_batch();
     void prepare_docs_to_score();
     void purgeDocs(int id, std::string docs);
+    void commitTxn();
+    void initTxn();
+    void processDocEntites(std::string str, int doc_id);
+    pqxx::result updateDocScore(std::string gram, int doc_id);
 
 
 	public:
@@ -87,11 +92,9 @@ class IndexManager {
 		void processFeeds();
     void spawnProcessFeeds();
 		void indexDocument(std::string id, std::string doc, std::string lang);
-    void processDocEntites(std::string srt, int doc_id);
 		static void processDocInfo(std::vector<int> ids, std::string database, std::string table, std::string password, IndexManager* indexManager);
     static void runFragMerge(IndexManager* indexManager);
     pqxx::result getDocsToScore();
-    pqxx::result updateDocScore(std::string gram, int doc);
     pqxx::result getDocsToPurge();
 };
 
