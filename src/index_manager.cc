@@ -227,7 +227,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
     auto config = getConfig();
 
     while (indexManager->do_run) {
-        
+
         std::map<int,std::string> purge_docs;
         pqxx::result r = indexManager->getDocsToPurge();
 
@@ -258,8 +258,6 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         for (std::map<int,std::string>::const_iterator ii = purge_docs.begin(); ii != purge_docs.end(); ii++) {
             indexManager->purgeDocs(ii->first, ii->second);
         }
-
-        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " end runFragMerge with " << purge_docs.size() << " docs to purge" << std::endl;
         
         // running process_doc info here slows things down a lot.
         std::vector<int> empty;
@@ -267,10 +265,12 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         // processDocInfo MUST BE CALLED AFTER mergeFrags as idf calculation is needed
         processDocInfo(empty,indexManager->database,indexManager->table,config.postgres_password, indexManager);
         //std::cout << "runFragMerge done " << std::endl;
+
+        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " end runFragMerge with " << purge_docs.size() << " docs to purge" << std::endl;
         usleep(60000000);
     }
 
-    std::cout << "runFragMerge " << indexManager->database << " " << indexManager->table << " end " << std::endl;
+    std::cout << "runFragMerge " << indexManager->database << " " << indexManager->table << " finish " << std::endl;
     indexManager->merge_frags = false;
     return;
 }
