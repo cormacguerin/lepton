@@ -1,0 +1,32 @@
+form[role="search"] {
+    position: relative;
+    padding: 0;
+    margin: 0;
+}
+.ui-autocomplete {
+    position: absolute;
+    z-index: 1000;
+    float: left;
+    display: none;
+    min-width: 8em;
+    list-style: none;
+    background-color: white;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 0.25em rgba(0, 0, 0, 0.2);
+}
+.ui-autocomplete .ui-menu-item-wrapper {
+    display: block;
+    padding: 0.5em 1em;
+}
+.ui-state-hover,
+.ui-state-active {
+    color: white;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    /* You probably want to change the background-color */
+    background-color: blue;
+}
+.ui-helper-hidden-accessible {
+    display: none;
+}

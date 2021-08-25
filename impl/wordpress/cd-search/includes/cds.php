@@ -25,9 +25,9 @@ function genSignature($host,$keyId,$keyName,$apiScope,$secretKey,$method,$path,$
     $headersArr = [];
     $headerKeys = [];
     foreach($headers as $key=>$value) {     
-      $h = $key . ":" . $value;
-      $headersArr[] = strtolower($h);
-      $headerKeys[] = $key;
+        $h = $key . ":" . $value;
+        $headersArr[] = strtolower($h);
+        $headerKeys[] = $key;
     }
 
     $datestamp = strtotime('now') * 1000;
