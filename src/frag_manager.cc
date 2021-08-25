@@ -40,9 +40,8 @@ void FragManager::addTerms(std::map<std::string, Frag::Item> doc_grams) {
             termap.insert(std::pair<int,Frag::Item>((it->second).doc_id,it->second));
             grams_terms.insert(std::pair<std::string,std::map<int,Frag::Item>>(it->first,termap));
         }
-        //std::cout << "grams_terms.size(): " << grams_terms.size() << std::endl;
         if ((grams_terms.size()+1)%BATCH_SIZE==0) {
-            // std::cout << "frag_manager.cc : batch size reached grams_terms.size() " << grams_terms.size()+1 << std::endl;
+            std::cout << "frag_manager.cc : " << path << " batch size reached grams_terms.size() " << grams_terms.size()+1 << std::endl;
             syncFrags();
         }
     }
@@ -86,7 +85,7 @@ void FragManager::syncFrags() {
     saveFrags();
     time_t aftertime = time(0);
     double seconds = difftime(aftertime, beforetime);
-    // std::cout << "frag_manager.cc : syncFrags of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
+    // std::cout << "frag_manager.cc : " << path << " syncFrags of " << syncsize << " terms completed in " << seconds << " seconds. " << aftertime << std::endl;
 }
 
 /*
@@ -122,12 +121,14 @@ void FragManager::mergeFrags(int num_docs, std::string database, std::map<int,st
             std::string frag_lit = frag_string.substr(0, frag_string.find("."));
             int frag_id = stoi(frag_lit);
 
+            // std::cout << "frag_manager.cc : " << path << frag_string << " - [" << frag_id << "] " << frag_string << std::endl;
+
             // skip if we only have one frag (we need more than one to merge)
             // std::cout << "frag_manager.cc : mergeFrags for loop " << path << " frag " << this_frag_id << "." << std::endl;
             if (std::count_if(index_files.begin(), index_files.end(), [frag_lit](const std::string& str) {
                     return str.find(frag_lit + ".frag") != std::string::npos; }) < 2) {
                 main_frag = std::make_unique<Frag>(frag_type, frag_id, 1, path + lang);
-                // std::cout << "frag_manager.cc : " << path << " purge A " << std::endl;
+                // std::cout << "frag_manager.cc : " << path << " purge main frag " << frag_id << std::endl;
                 main_frag.get()->purgeDocs(purge_docs);
                 main_frag.get()->write();
                 continue;
@@ -145,7 +146,7 @@ void FragManager::mergeFrags(int num_docs, std::string database, std::map<int,st
             }
             if (frag_string.find(".frag.")!=std::string::npos) {
                 int frag_part_id = stoi(frag_string.substr(frag_string.find(".frag")+7,frag_string.length()));
-                // std::cout << "frag_manager.cc : frag " << frag_id << " : " << frag_part_id << " : " << *it << std::endl;
+                // std::cout << "frag_manager.cc : " << path << " frag " << frag_id << " : " << frag_part_id << " : " << *it << std::endl;
                 if (frag_part_id > 1) {
                     std::unique_ptr<Frag> frag_part = std::make_unique<Frag>(frag_type, frag_id, frag_part_id, path + lang);
                     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it=frag_part.get()->frag_map.begin(); it!=frag_part.get()->frag_map.end(); it++) {
@@ -236,9 +237,11 @@ void FragManager::loadContinueFrags() {
 
 
 void FragManager::saveFrags() {
-    // std::cout << "frag_manager.cc : save frags" << std::endl;
+    std::cout << "frag_manager.cc : " << path << " save frags" << std::endl;
     for (std::map<int,std::unique_ptr<Frag>>::iterator it = frags.begin() ; it != frags.end(); ++it) {
-        it->second.get()->write();
+        if (it->second.get()->size() > 0) {
+            it->second.get()->write();
+        }
         it->second.reset();
     }
     frags.clear();
@@ -286,7 +289,6 @@ void FragManager::loadFragIndex() {
                     // store a list of indices for easy access.
                     indices.push_back(atoi(jit->name.GetString()));
                 }
-
             }
             ifs.close();
         }

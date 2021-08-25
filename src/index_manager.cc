@@ -227,7 +227,7 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
     auto config = getConfig();
 
     while (indexManager->do_run) {
-        
+
         std::map<int,std::string> purge_docs;
         pqxx::result r = indexManager->getDocsToPurge();
 
@@ -242,7 +242,6 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " start runFragMerge with " << purge_docs.size() << " docs to purge" << std::endl;
 
         for (std::map<std::string, int>::iterator lit = num_docs.begin(); lit != num_docs.end(); lit++) {
-            std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " runFragMerge " << lit->first << std::endl;
             if (indexManager->unigramFragManager.find(lit->first) != indexManager->unigramFragManager.end()) {
                 indexManager->unigramFragManager.at(lit->first)->mergeFrags(lit->second, indexManager->database, purge_docs);
             }
@@ -259,8 +258,6 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         for (std::map<int,std::string>::const_iterator ii = purge_docs.begin(); ii != purge_docs.end(); ii++) {
             indexManager->purgeDocs(ii->first, ii->second);
         }
-
-        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " end runFragMerge with " << purge_docs.size() << " docs to purge" << std::endl;
         
         // running process_doc info here slows things down a lot.
         std::vector<int> empty;
@@ -268,10 +265,12 @@ void IndexManager::runFragMerge(IndexManager* indexManager) {
         // processDocInfo MUST BE CALLED AFTER mergeFrags as idf calculation is needed
         processDocInfo(empty,indexManager->database,indexManager->table,config.postgres_password, indexManager);
         //std::cout << "runFragMerge done " << std::endl;
+
+        std::cout << "index_manager.cc : " << indexManager->database << " " << indexManager->table << " end runFragMerge with " << purge_docs.size() << " docs to purge" << std::endl;
         usleep(60000000);
     }
 
-    std::cout << "runFragMerge " << indexManager->database << " " << indexManager->table << " end " << std::endl;
+    std::cout << "runFragMerge " << indexManager->database << " " << indexManager->table << " finish " << std::endl;
     indexManager->merge_frags = false;
     return;
 }
@@ -295,9 +294,7 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
         }
     }
 
-    // since this can be a thread so we need a new connection for each call.
-
-    // this statement calculates the idf
+    indexManager->initTxn();
 
     std::vector<std::pair<std::string,float>> grams;
 
@@ -355,6 +352,7 @@ void IndexManager::processDocInfo(std::vector<int> batch, std::string database, 
         grams.clear();
         indexManager->processDocEntites(strarray, *it_);
     }
+    indexManager->commitTxn();
 }
 
 /*
@@ -463,10 +461,21 @@ pqxx::result IndexManager::getDocsToScore() {
     return r;
 }
 
+/*
+ * This can only be called once at a time, this all runs in a single thread now so it's not an issue.
+ * If you call from another thread it will break.
+ */
+void IndexManager::initTxn() {
+    txn_ = new pqxx::work(*C_);
+}
+
+void IndexManager::commitTxn() {
+    txn_->commit();
+    delete txn_;
+}
+
 void IndexManager::processDocEntites(std::string str, int doc_id) {
-    pqxx::work txn(*C_);
-    pqxx::result r = txn.exec_prepared("process_doc_entities", str, doc_id);
-    txn.commit();
+    pqxx::result r = txn_->exec_prepared("process_doc_entities", str, doc_id);
 }
 
 /*
@@ -474,14 +483,12 @@ void IndexManager::processDocEntites(std::string str, int doc_id) {
  */
 pqxx::result IndexManager::updateDocScore(std::string gram, int doc_id) {
 
-    pqxx::work txn(*C_);
     // update the docuscore using the idf / term frequencies
-    pqxx::result rds = txn.exec_prepared("process_" + gram + "_docscore", doc_id);
+    pqxx::result rds = txn_->exec_prepared("process_" + gram + "_docscore", doc_id);
 
     // basic entity extraction function.
     // this should be deleted and moved to ML
-    pqxx::result r = txn.exec_prepared("process_"+ gram +"_batch", doc_id);
-    txn.commit();
+    pqxx::result r = txn_->exec_prepared("process_"+ gram +"_batch", doc_id);
     return r;
 }
 

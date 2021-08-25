@@ -14,6 +14,7 @@ class Postgres {
       console.log(db)
 
       this.pool = new Pool({
+        statement_timeout: 60000,
         user: db.postgres_user,
         host: db.postgres_host,
         database: db.postgres_database,
@@ -48,8 +49,11 @@ class Postgres {
         const reply = await client.query(statement, values)
         this.logger.write(statement + "\n");
         callback(null, reply.rows)
+      } catch (e) {
+        callback(null, null)
+        console.log(e)
       } finally {
-        client.release()
+        await client.release();
       }
     })().catch(
       e => {
@@ -76,8 +80,11 @@ class Postgres {
         const reply = await client.query(query)
         this.logger.write(statement + "\n");
         callback(null, reply.rows)
+      } catch (e) {
+        console.log(e);
+        callback(null, null)
       } finally {
-        client.release()
+        await client.release();
       }
     })().catch(
       e => {
@@ -96,7 +103,7 @@ class Postgres {
         await client.query("BEGIN");
         var promises = [];
         const promisePush = async function() {
-var it = new Date().getTime();
+          var it = new Date().getTime();
           for (const v in values) {
             var k = [...keys];
             for (var x in values[v]) {
@@ -142,7 +149,6 @@ var it = new Date().getTime();
           .then((r)=> {
             console.log("primises done, commit");
             client.query("COMMIT");
-            client.release();
             var et = new Date().getTime();
             var totaltime = et-it;
             console.log("promises finished in " + totaltime + "ms");
@@ -152,7 +158,6 @@ var it = new Date().getTime();
             console.log('error pushing statements')
             console.log(e);
             client.query("ROLLBACK");
-             client.release();
             callback(e);
           });
         }
@@ -161,10 +166,9 @@ var it = new Date().getTime();
         console.log('error in rollback');
         console.log(e);
         await client.query("ROLLBACK");
-        client.release();
       } finally {
         console.log("finally");
-        // client.release();
+        await client.release();
       }
     })().catch(
       e => {
@@ -198,7 +202,7 @@ var it = new Date().getTime();
         console.log(e)
         callback();
       } else {
-        callback(r)
+        callback(r);
       }
     });
   }
@@ -209,7 +213,7 @@ var it = new Date().getTime();
     this.execute(query, null, function(e,r) {
       if (e) {
         console.log(e)
-        callback(e,r);
+        callback(e,r)
       } else {
         callback(e,r)
       }
@@ -475,7 +479,7 @@ var it = new Date().getTime();
   }
 
   getTextTables(user_id, callback) {
-    var query = "SELECT d.database, t.tablename AS table, array_agg(tx._column ORDER BY t.tablename) AS column, display_field, indexing, serving from text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND indexing = true GROUP BY d.database, t.tablename, display_field, indexing, serving ORDER BY d.database;"
+    var query = "SELECT d.database, t.tablename AS table, array_agg(tx._column ORDER BY t.tablename) AS column, display_field, indexing from text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND indexing = true GROUP BY d.database, t.tablename, display_field, indexing ORDER BY d.database;"
     this.execute(query, [user_id], function(e,r) {
       callback(e,r);
     });
@@ -483,6 +487,7 @@ var it = new Date().getTime();
 
   getServingTables(user_id, callback) {
     var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null GROUP BY d.database, t.tablename;"
+    // var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null AND tx.serving = true GROUP BY d.database, t.tablename;"
     // var query = "SELECT d.database, t.tablename AS table, (SELECT array_agg(tx._column ORDER BY t.tablename) WHERE serving = true) AS column, serving from text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND serving IS NOT NULL GROUP BY d.database, t.tablename, serving ORDER BY d.database;"
     this.execute(query, [user_id], function(e,r) {
       callback(e,r);

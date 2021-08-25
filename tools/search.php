@@ -6,18 +6,18 @@ Class Search {
   public $apiKey;
 
   public function __construct() {
-      $this->apiKey = rtrim(file_get_contents(
-        "../api.key",
-        true
-      ));
+      $this->apiKey = json_decode(file_get_contents(
+        "../apikey.json", true
+      ), true);
   }
 
   function search($query, $database, $table, $endpoint, $filter, $pages) {
 
       $host = 'www.intradeep.com';
-      $keyId = '2';
-      $keyName = 'kcsearchkey';
-      $apiScope = 'search';
+      $keyId = $this->apiKey['id'];
+      $keyName = $this->apiKey['name'];
+      $apiScope = $this->apiKey['scope'];
+      $credential = $this->apiKey['credential'];
       $lang = 'en';
       $method = 'GET';
 
@@ -35,7 +35,7 @@ Class Search {
         'Host' => $host,
       ];
 
-      $headerSignature = genSignature($host,$keyId,$keyName,$apiScope,strval($this->apiKey),$method,$endpoint,$headers,$params);
+      $headerSignature = genSignature($host,$keyId,$keyName,$apiScope,$credential,$method,$endpoint,$headers,$params);
       $headers->authorization = $headerSignature;
 
       $headersArr = array();

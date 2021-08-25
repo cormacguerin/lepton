@@ -32,10 +32,10 @@ CREATE TABLE stop_suggest (
 );
 
 CREATE TABLE crawler_urls (
-    id serial PRIMARY KEY,
-    url VARCHAR (2048),
-    _table VARCHAR (256),
-    priority INT
+  id serial PRIMARY KEY,
+  url VARCHAR (2048),
+  _table VARCHAR (256),
+  priority INT
 )
 
 CREATE INDEX unigrams_id_idx ON unigrams(id);

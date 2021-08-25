@@ -713,9 +713,9 @@ std::string Segmenter::segmentTerm(std::string text, std::string lang) {
 
 std::string Segmenter::getSnippet(std::string text, std::string lang, int position) {
 
-	icu::UnicodeString uni_str = text.c_str();
+    icu::UnicodeString uni_str = text.c_str();
 
-	UErrorCode status = U_ZERO_ERROR;
+    UErrorCode status = U_ZERO_ERROR;
     icu::BreakIterator *wordIterator;
 
     // in this reparse, each space is considered a char, so if you want to match the segmented positions, you need to double.
@@ -725,9 +725,9 @@ std::string Segmenter::getSnippet(std::string text, std::string lang, int positi
     } else {
 	    wordIterator = icu::BreakIterator::createWordInstance(icu::Locale("en","US"), status);
     }
-	wordIterator->setText(uni_str);
-	int32_t p = wordIterator->first();
-	int32_t l = p;
+    wordIterator->setText(uni_str);
+  	int32_t p = wordIterator->first();
+  	int32_t l = p;
 
     bool start;
     if (position == 0) {
@@ -737,42 +737,42 @@ std::string Segmenter::getSnippet(std::string text, std::string lang, int positi
     }
 
 	// for simplicity were going to just count every term (for caculating term frequency)
-	int gramcount=0;
+    int gramcount=0;
     int end_position=position+50;
     std::string snippet = "";
 
-	while (p != icu::BreakIterator::DONE) {
-		bool isStopWord = false;
+    while (p != icu::BreakIterator::DONE) {
+        bool isStopWord = false;
         bool skipgram = false;
-		p = wordIterator->next();
-		std::string converted;
-		icu::UnicodeString tmp = uni_str.tempSubString(l,p-l);
-		tmp.toUTF8String(converted);
-		l=p;
-		
-		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
-		if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
-            // continue;
-		    skipgram = true;
-		}
-		if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
-            // continue;
-		    skipgram = true;
-		}
+        p = wordIterator->next();
+        std::string converted;
+        icu::UnicodeString tmp = uni_str.tempSubString(l,p-l);
+        tmp.toUTF8String(converted);
+        l=p;
+        
+        // skip special characters (we should perhaps strip all this out before getting into the segmenter)
+        if ( std::find(ascii_spec.begin(), ascii_spec.end(), converted) != ascii_spec.end() ) {
+                // continue;
+            skipgram = true;
+        }
+        if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
+                // continue;
+            skipgram = true;
+        }
 
-		// insert the vector occurrence position.
-		trimInPlace(converted);
-		if (converted.empty()) {
-            //continue;
-		    skipgram = true;
-		}  else {
-			// gramcount++;
+        // insert the vector occurrence position.
+        trimInPlace(converted);
+        if (converted.empty()) {
+            // continue;
+            skipgram = true;
+        } else {
+        // gramcount++;
         }
         if (skipgram == false) {
-			gramcount++;
-		}
+            gramcount++;
+        }
         // std::cout << converted << " " << gramcount << std::endl;
-		// skip special characters (we should perhaps strip all this out before getting into the segmenter)
+        // skip special characters (we should perhaps strip all this out before getting into the segmenter)
         if (gramcount >= position-25 && start == false) {
             if (skipgram = true) {
                 start = true;
@@ -803,7 +803,7 @@ std::string Segmenter::getSnippet(std::string text, std::string lang, int positi
             break;
         }
     }
-	delete wordIterator;
+	  delete wordIterator;
     return snippet;
 }
 

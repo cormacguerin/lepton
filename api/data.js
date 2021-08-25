@@ -67,7 +67,7 @@ exports.init = async function(v, callback) {
   }
 
   if (!db_pg['admin']) {
-    console.log('new pg')
+    console.log('new pg admin')
     db_pg['admin'] = new pg(config)
   }
 
@@ -248,15 +248,7 @@ exports.getServingTables = function(u,c) {
       if (r.length == 0) {
         c();
       } else {
-          console.log('r');
-          console.log(r);
         r.forEach(function(d) {
-          console.log('d');
-          console.log(d);
-          console.log('d.database');
-          console.log(d.database);
-          console.log('d.table');
-          console.log(d.table);
           initDB(d.database, function() {
             db_pg[d.database].getTableIndexStats(d.table, function(e,s) {
               d.total = parseInt(s[0].total);
