@@ -1,5 +1,5 @@
 <?php
-include 'cds.php';
+include('cds.php');
 
 Class Search {
 
@@ -7,7 +7,7 @@ Class Search {
 
   public function __construct() {
       $this->apiKey = json_decode(file_get_contents(
-        "../apikey.json", true
+        plugin_dir_path( __FILE__ ) . "../apikey.json", true
       ), true);
   }
 
