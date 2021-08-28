@@ -126,7 +126,6 @@ def crawl():
     results = pool.map(runCrawl, urls)
     pool.close();
     pool.join();
-    print(results);
 
     crawl()
 
@@ -137,6 +136,7 @@ def runCrawl(url):
         try:
             urldata = getUrl(url)
         except Exception:
+            print('error')
             # we should set this to an error code and then mark for no recrawl
             geturls.remove(url);
             return
@@ -152,7 +152,6 @@ def runCrawl(url):
                 if (not link in goturls) and (len(geturls) < 10000):
                     geturls.add(link)
 
-            print(data)
 
             # lets just remove now incase we get stuck in a loop
             if url in geturls:
@@ -186,9 +185,7 @@ def runCrawl(url):
             c.setopt(c.SSL_VERIFYHOST, 0)
             c.setopt(c.HTTPHEADER, FormattedHeaders)
             # c.setopt(c.POSTFIELDS, json.dumps(data))
-            if data:
-                print(data)
-            else:
+            if not data:
                 return
             c.setopt(c.POSTFIELDS, data)
 
@@ -265,6 +262,7 @@ def buildPayload(url, soup, head):
         else:
             return
 
+
     metadata = {}
     metadata["source"] = "reuters"
     if type:
@@ -304,7 +302,6 @@ def buildPayload(url, soup, head):
         base64_string = rawdata.decode('UTF-8')
         # data = UrlData(body.decode('UTF-8'),head.decode('UTF-8'))
     except UnicodeEncodeError as e:
-        print(str(e))
         return None
 
     urldata = {}
@@ -353,24 +350,18 @@ def getUrl(url):
         'cache-control:max-age=0',
         ])
     c.setopt(c.HEADERFUNCTION, headers.write)
-    print('deb 0')
     try:
-        print('deb a')
         c.perform()
     except pycurl.error:
-        print('deb b')
         return None
     c.close()
     body = buffer.getvalue()
     head = headers.getvalue()
     try:
-        print('deb c')
         data = UrlData(body.decode('UTF-8'),head.decode('UTF-8'))
     except UnicodeEncodeError as e:
-        print('deb d')
         print(str(e))
         return None
-    print('deb e')
     return data
 
 
