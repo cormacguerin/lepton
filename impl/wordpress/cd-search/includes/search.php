@@ -22,10 +22,10 @@ Class Search {
       $method = 'GET';
 
       $params = (object) [
-        'query' => $query,
-        'filter' => $filter,
-        'database' => $database,
-        'table' => $table
+        'query' => urlencode($query),
+        'filter' => urlencode($filter),
+        'database' => urlencode($database),
+        'table' => urlencode($table)
       ];
 
       $headers = (object) [

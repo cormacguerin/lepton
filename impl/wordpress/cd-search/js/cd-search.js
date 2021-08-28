@@ -7,8 +7,22 @@
 			source: customSearchSource,
 			select: searchSelectedItem
 		});
+		$('.cd-search').keypress(function(event){
+			if(event.keyCode == 13) {
+				event.preventDefault();
+				/*
+				 * TODO clean this
+				 */
+				var ui = {}
+				ui.item = {}
+				ui.item.label = this.value
+				console.log(this.value)
+				if (this.value) {
+					searchSelectedItem(event, ui)
+				}
+			}
+		});
 		function searchSelectedItem(event, ui) {
-			// $(event.target).val(ui.item.label);
 			$.post(cdData.ajaxUrl, {
 					action: cdData.ajaxAction,
 					requestType: 'search',
@@ -17,39 +31,28 @@
 				function(data, status) {
 					var responseData = null;
 					if (data) {
-						console.log('good response: ' + data);
-						// var responseData = JSON.parse(data);
+						console.log(data);
 						var results = document.getElementById('cd-results');
 						results.innerHTML = data;
 						console.log(results.innerHTML);
-					} else {
-						// console.log('bad response: ' + data);
-					}
-					if (Array.isArray(responseData)) {
-						// response(responseData);
 					}
 				}
 			);
 		}
 		function customSearchSource(request, response) {
-			// console.log('search: ' + request.term);
-			// Send the HTTP POST data to our server, with the action and
-			// search term (searchQuery).
 			let query = request.term.trim()
 			if (query) {
 				$.post(cdData.ajaxUrl, {
 						action: cdData.ajaxAction,
 						requestType: 'suggest',
 						searchQuery: request.term
+						// searchQuery: request.term.replace(/ /g, ":")
 					},
 					function(data, status) {
 						var responseData = null;
 						if (data) {
-							// console.log('good response: ' + data);
 							console.log(data)
 							var responseData = JSON.parse(data);
-						} else {
-							// console.log('bad response: ' + data);
 						}
 						if (Array.isArray(responseData)) {
 							response(responseData.map(item => item.replace(/:/g,' ')));

@@ -76,7 +76,7 @@ class CD_Search {
 					print '<div class="cd-result-card">';
 					print '<div class="cd-result-title">';
 					print '<a href="'.$item->{'url'}.'">';
-					print $item->{'title'};
+					print $item->{'data'}->{'title'};
 					print '</a></div>';
 					print '<div class="cd-result-snippet">';
 					print $item->{'snippet'};
