@@ -333,7 +333,7 @@ app.get('/api/setServing', user.authorize, function(req, res, next) {
     return;
   }
   data.setServing(req.user_id, queryData.database, queryData.table, queryData.serving, function(r) {
-    execute({'query':'toggle_serving','database':queryData.database,'table':queryData.table,'action':queryData.serving}, 3333, function(r_) {
+    execute({'query':'toggle_serving','database':req.user_id + '_' + queryData.database,'table':queryData.table,'action':queryData.serving}, 3333, function(r_) {
       res.json(r);
     });
   });
@@ -724,7 +724,6 @@ app.get('/suggest', user.authorize, function(req, res, next) {
     // validate scope
     var access = false;
     for (var i in req.scope) {
-      console.log(queryData)
       if (queryData.database === req.scope[i].database) {
         if (req.scope[i].table) {
           if (queryData.table === req.scope[i].table) {

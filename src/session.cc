@@ -6,7 +6,6 @@
 #include <future>
 
 
-//Session::Session(asio::ip::tcp::socket socket, std::shared_ptr<IndexServer> indexServer) : socket_(std::move(socket)), is_(std::move(indexServer))
 Session::Session(asio::ip::tcp::socket socket) : socket_(std::move(socket))
 {
 }

@@ -30,7 +30,7 @@
                 Disabled
               </div>
             </div>
-            <div class="backendstatus">
+            <div class="backendstatus" v-if="serving">
               Backend Status : <span :class="statusclass">{{ getStatus() }}</span>
             </div>
           </flex-row>

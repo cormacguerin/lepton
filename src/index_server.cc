@@ -52,15 +52,14 @@ void IndexServer::init() {
   C->prepare("get_stop_suggest", "SELECT stop,lang,gram,idf FROM stop_suggest ORDER BY lang, stop, idf DESC;");
   status = "loading";
   seg.init(db,tb);
-  //std::string ngrams[] = {"uni","bi","tri"};
-  //std::string langs[] = {"en","ja","zh"};
+  // std::string ngrams[] = {"uni","bi","tri"};
+  // std::string langs[] = {"en","ja","zh"};
 }
 
 void IndexServer::run() {
   do_run = true;
   while (do_run) {
     for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
-      //std::cout << "lit " << *lit << std::endl;
       if (softMutexLock(m)==true) {
         if (unigramurls_map.find(*lit) == unigramurls_map.end()) {
           unigramurls_map[*lit] = phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>();
@@ -69,7 +68,6 @@ void IndexServer::run() {
       } else {
         continue;
       }
-      //std::cout << "loadIndex " << *lit << std::endl;
       loadIndex(Frag::Type::UNIGRAM, *lit);
       loadIndex(Frag::Type::BIGRAM, *lit);
       loadIndex(Frag::Type::TRIGRAM, *lit);
@@ -152,12 +150,12 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
   } else {
     // std::cout << "unigramurls_map.size() " << unigramurls_map[lang].size() << std::endl;
     for (std::vector<std::string>::iterator it = index_files.begin(); it != index_files.end(); ++it) {
-      std::cout << *it << std::endl;
+      std::cout << "index_server.cc " << db << " " << *it << std::endl;
       int frag_id = stoi((*it).substr((*it).find('.')-5,(*it).find('.')));
       Frag frag(type, frag_id, 1, path + lang);
       frag.addToIndex(unigramurls_map[lang], m);
       percent_loaded[lang]=std::ceil((counter++/index_files.size())*100);
-      std::cout << counter << " percent_loaded " << lang << " " << percent_loaded[lang] << std::endl;
+      std::cout << "index_server.cc " << db << " " << counter << " percent_loaded " << lang << " " << percent_loaded[lang] << std::endl;
     }
   }
 
@@ -224,7 +222,7 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
      for (std::unordered_map<std::string, std::vector<int>>::iterator it = ngramurls_map.begin() ; it != ngramurls_map.end(); ++it) {
      std::cout << "index_server.cc :"  << it->first << ":" << std::endl;
      }
-     */
+  */
 }
 
 void IndexServer::execute(std::string lang, std::string type, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj) {
@@ -241,9 +239,7 @@ void IndexServer::execute(std::string lang, std::string type, std::string parsed
 
   time_t afterload = getTime();
   double seconds = difftime(afterload, beforeload);
-  std::cout << lang << std::endl;
-  std::cout << " unigramurls_map[query.lang].size " <<  unigramurls_map[lang].size() << std::endl;
-  std::cout << "index_server.cc search " << parsed_query << " executed in " << seconds << " miliseconds." << std::endl;
+  std::cout << "index_server.cc " << parsed_query << " executed in " << seconds << " miliseconds." << std::endl;
 }
 
 /*
@@ -402,13 +398,13 @@ void IndexServer::suggest(std::string lang, std::string parsed_query, std::promi
   time_t beforeload = indexServer->getTime();
   time_t afterload = indexServer->getTime();
   double seconds = difftime(afterload, beforeload);
-  
+
   /*
   for (std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator ssit = indexServer->suggestions[lang].begin(); ssit != indexServer->suggestions[lang].end(); ssit++) {
     std::cout << ssit->first << std::endl;
   }
   */
-  
+ 
   std::map<std::string, std::vector<std::pair<std::string,int>>>::const_iterator sit = indexServer->suggestions[lang].find(indexServer->seg.segmentTerm(parsed_query,lang));
   if (sit != indexServer->suggestions[lang].end()) {
     rapidjson::Document suggest_response;
@@ -416,7 +412,7 @@ void IndexServer::suggest(std::string lang, std::string parsed_query, std::promi
     rapidjson::Document::AllocatorType& allocator = suggest_response.GetAllocator();
     rapidjson::Value suggest_array(rapidjson::kArrayType);
     for (std::vector<std::pair<std::string,int>>::const_iterator it = sit->second.begin(); it != sit->second.end(); it++) {
-      //std::cout << it->first << std::endl;
+      std::cout << it->first << std::endl;
       suggest_array.PushBack(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), allocator);
     }
     suggest_response.AddMember("suggestions", rapidjson::Value(suggest_array, allocator).Move(), allocator);
@@ -433,8 +429,8 @@ void IndexServer::suggest(std::string lang, std::string parsed_query, std::promi
  * build suggestions
  */
 void IndexServer::buildSuggestions(std::string lang) {
+  std::cout << suggestions[lang].size() << std::endl;
   int j = 0;
-  std::cout << "unigramurls_map[lang].size() " << unigramurls_map[lang].size() << std::endl;
   for (phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[lang].begin(); urls != unigramurls_map[lang].end(); urls++) {
     //std::cout << "tb" << tb << " - " << urls->first << " " << urls->second.size() << std::endl;
     if (urls->second.size() > 1) {
@@ -480,8 +476,6 @@ void IndexServer::addSuggestion(std::string term, std::string lang, int count) {
         suggestions[lang][sugg].push_back(std::pair<std::string,int>(term,count));
       }
     }
-    //if (suggestions[lang][sugg].size() == 0) {
-    //}
   }
 }
 
@@ -502,7 +496,8 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
     columns += user_columns;
   }
 
- // C->prepare("get_docinfo_deep", "SELECT " + columns + " FROM \"" + tb + "\" WHERE id = $1");
+  std::cout << "COLUMNS " << columns << std::endl;
+
   auto C_ = pgPool.getConn();
   pqxx::work txn(*C_.get());
 
@@ -1138,7 +1133,6 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
         std::vector<Frag::Item> new_candidates;
         // AND/OR is counter intuitive, AND means intersect of results while OR is union.
         if (query.op==Query::Operator::AND) {
-          std::cout << "DEBUG AND " << candidates_.size() << std::endl;
           for (std::vector<Frag::Item>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
             // introduce AND , OR logic here.
             auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Frag::Item r) {
@@ -1156,14 +1150,11 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
             auto the_end = query.leafNodes.end();
             --the_end;
             //                        if (it != the_end) {
-            std::cout << "DEBUG - not the end" << std::endl;
             node_candidates = new_candidates;
             //                        } else {
-            std::cout << "DEBUG - the end" << std::endl;
             //                        }
           }
         } else if (query.op==Query::Operator::OR) {
-          std::cout << "DEBUG OR " << candidates_.size() << std::endl;
           for (std::vector<Frag::Item>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
             // introduce AND , OR logic here.
             auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Frag::Item r) {

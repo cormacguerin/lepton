@@ -50,11 +50,15 @@ pqxx::connection PgPool::createConnection(std::string database) {
     std::cout << " config.postgres_user " << std::endl;
     std::cout << config.postgres_user << std::endl;
 
-    pqxx::connection C = pqxx::connection("dbname = " + database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
-    if (C.is_open()) {
+    try {
+      pqxx::connection C = pqxx::connection("dbname = " + database + " user = " + config.postgres_user + " password = " + config.postgres_password + " hostaddr = " + config.postgres_host + " port = " + config.postgres_port);
+      if (C.is_open()) {
         std::cout << "Opened database successfully: " << C.dbname() << std::endl;
-    } else {
+      } else {
         std::cout << "Can't open database" << std::endl;
+      }
+      return C;
+    } catch(std::exception& e) {
+      std::cout << "Exception in open database: " << e.what() << std::endl;
     }
-    return C;
 }

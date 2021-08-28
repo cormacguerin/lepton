@@ -37,8 +37,8 @@ void ManagementServer::init() {
         std::cerr << e.what() << std::endl;
         exit;
     }
-    // SELECT all database table columns which have indexing enabled
-    std::string statement = "SELECT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table WHERE indexing = true";
+    // SELECT all database table columns which have serving enabled
+    std::string statement = "SELECT databases.database, tables.tablename, _column, display_field FROM text_tables_index INNER JOIN databases ON databases.id = text_tables_index.database INNER JOIN tables ON tables.id = text_tables_index._table WHERE serving = true";
     C->prepare("get_tables_to_serve", statement);
 }
 
@@ -61,13 +61,14 @@ std::string ManagementServer::do_management(std::string body) {
     rapidjson::Document parsed_query;
     parsed_query.Parse(body.c_str());
     std::string query = parsed_query.FindMember("query")->value.GetString();
-    std::cout << "ManagementServer.cc query : " << query << std::endl;
+    std::cout << "management_server.cc query : " << query << std::endl;
     if (query == std::string("stats")) {
         return getStats();
     } else if (query == std::string("toggle_serving")) {
         std::string database = parsed_query.FindMember("database")->value.GetString();
         std::string table = parsed_query.FindMember("table")->value.GetString();
         std::string action = parsed_query.FindMember("action")->value.GetString();
+        std::cout << "management_server.cc toggleServing : " << database << " " << table << " " << action << std::endl;
         return toggleServing(database,table,action);
     } else {
         return query;
@@ -107,17 +108,16 @@ void ManagementServer::run() {
      * spin up a new connection port for each instance.
      */
     for (std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>>::iterator dit = tables.begin(); dit != tables.end(); dit++) {
-        std::cout << "sereroot.cc : run() "  << dit->first << std::endl;
+        std::cout << "management_server.cc : run() "  << dit->first << std::endl;
         for (std::map<std::string, std::pair<std::string, std::string>>::iterator tit = dit->second.begin(); tit != dit->second.end(); tit++) {
-            std::cout << "indexroot.cc : run() - table : " << tit->first << std::endl;
-            std::cout << "indexroot.cc : run()   columns : " << (tit->second).second << std::endl;
-            std::cout << "indexroot.cc : run()   display_field : " << (tit->second).first << std::endl;
+            std::cout << "management_server.cc : run() - table : " << tit->first << std::endl;
+            std::cout << "management_server.cc : run()   columns : " << (tit->second).second << std::endl;
+            std::cout << "management_server.cc : run()   display_field : " << (tit->second).first << std::endl;
             servers.push_back(new QueryServer(port++, dit->first, tit->first));
         }
     }
 
     for (std::vector<QueryServer*>::iterator it = servers.begin(); it != servers.end(); it++) {
-        std::cout << "DEBUG *it->database" << (*it)->database << std::endl;
         std::thread t(std::bind(static_cast<void (QueryServer::*)()>(&QueryServer::run), *it));
         t.detach();
     }
@@ -126,9 +126,7 @@ void ManagementServer::run() {
     // io_context.run();
     // detach the asio thread so it can respond.
     std::thread t(std::bind(static_cast<size_t (asio::io_context::*)()>(&asio::io_context::run), &io_context));
-    std::cout << "1" << std::endl;
     t.join();
-    std::cout << "2" << std::endl;
 }
 
 void ManagementServer::startServerThread(int port, std::string database, std::string table) {

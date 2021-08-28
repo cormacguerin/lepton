@@ -74,9 +74,11 @@ class Crawler {
         var domains=[]
         for (var i=0; i < r.length; i++) {
           let d = psl.parse(extractHostname(r[i].url))
-          //let d = urlMod.parse(r[i].url).hostname
-          domains.push(d.subdomain + "." + d.domain)
-          console.log(d)
+          if (d.subdomain && d.domain) {
+            domains.push(d.subdomain + "." + d.domain)
+          } else if (d.domain) {
+            domains.push(d.domain)
+          }
         }
         vm.domains = domains
         console.log(domains)
@@ -120,6 +122,7 @@ class Crawler {
            "text/javascript",
            "text/csv"
           ], supercrawler.handlers.htmlLinkParser({
+            hostnames: domains,         
             urlFilter: function(url) {
               return false
             }
@@ -127,7 +130,7 @@ class Crawler {
 
         crawler.addHandler("text/html", supercrawler.handlers.htmlLinkParser({
           // Restrict discovered links to the following hostnames.
-          // hostnames: domains,         
+          hostnames: domains,         
           urlFilter: function(url) {
             if (url == undefined) {
               return false
@@ -136,10 +139,18 @@ class Crawler {
             if (url.match(ext_re)) {
               return false
             }
+            var domain
             let d = psl.parse(extractHostname(url))
-            if (domains.indexOf(d.subdomain + "." + d.domain) === -1) {
+            if (d.subdomain && d.domain) {
+              domain = d.subdomain + "." + d.domain
+            } else if (d.domain) {
+              domain = d.domain
+            }
+            if (domains.indexOf(domain) === -1) {
+              console.log("urlFilter " + domain + " rejected")
               return false
             }
+            console.log("urlFilter " + domain + " accepted")
             return true
           }
         }));
@@ -176,10 +187,15 @@ class Crawler {
         console.log("regex matched - return false")
         return false
       }
+      var domain
       let d = psl.parse(extractHostname(h.url))
-      console.log("domain : " + d.subdomain + "." + d.domain)
-      if (domains.indexOf(d.subdomain + "." + d.domain) !== -1) {
-        console.log('go')
+      if (d.subdomain && d.domain) {
+        domain = d.subdomain + "." + d.domain
+      } else if (d.domain) {
+        domain = d.domain
+      }
+      console.log(domain)
+      if (domains.indexOf(domain) !== -1) {
         textract.fromBufferWithMime(h.contentType, h.body, function( error, text ) {
           if (error) {
             console.log(error)
