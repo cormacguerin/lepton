@@ -76,8 +76,8 @@ RUN npm install
 RUN npm install bcrypto
 
 # install and build web app
-RUN npm install --prefix vue-app/
-RUN npm run build --prefix vue-app/
+# RUN npm install --prefix vue-app/
+# RUN npm run build --prefix vue-app/
 
 CMD ./start.sh
 
