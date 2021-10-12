@@ -1,5 +1,7 @@
 
 var express = require('express');
+var http = require('http');
+
 var app = express();
 var net = require('net');
 
@@ -481,21 +483,42 @@ app.get('/api/deleteApiScope', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
-app.get('/api/image', user.authorize, function(req, res, next) {
-  var queryData = url.parse(req.url, true).query;
-  if (!(queryData.key_id && queryData.api_scope && queryData.api_database)) {
-    res.json({status:'failed', message:'invalid parameters'});
-    return;
-  }
-  const { spawn } = require('child_process');
-  const pyProg = spawn('python', ['./../pypy.py']);
+//app.post('/api/image', user.authorize, function(req, res, next) {
+app.post('/api/image', function(req, res, next) {
+	var queryData = url.parse(req.url, true).query;
+	/*
+	if (!(queryData.key_id && queryData.api_scope && queryData.api_database)) {
+		res.json({status:'failed', message:'invalid parameters'});
+		return;
+	}
+	*/
 
-  pyProg.stdout.on('data', function(data) {
+	var post_options = {
+      host: '127.0.0.1',
+      port: '5000',
+      path: '/processImage',
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(JSON.stringify(req.body))
+      }
+	};
 
-      console.log(data.toString());
-      res.write(data);
-      res.end('end');
-  });
+	var im = ''
+
+	var post_req = http.request(post_options, function(fRes) {
+		fRes.setEncoding('utf8');
+		fRes.on('data', function (chunk) {
+			im += chunk
+		});
+		fRes.on('end', function () {
+			res.json({"image":im})
+		})
+	});
+
+	post_req.write(JSON.stringify(req.body));
+	post_req.end();
+
 });
 
 /*
