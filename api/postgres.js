@@ -1158,9 +1158,12 @@ class Postgres {
     if (t) {
       query = "INSERT INTO api_scopes(id,api,database,_table) VALUES ($1,$2,(SELECT id from databases WHERE database = $3 AND owner = $5),(SELECT id FROM tables WHERE tablename = $4))"
       values = [k,a,d,t,u]
-    } else {
+    } else if (d) {
       query = "INSERT INTO api_scopes(id,api,database) VALUES ($1,$2,(SELECT id from databases WHERE database = $3 AND owner = $4))"
       values = [k,a,d,u]
+    } else {
+      query = "INSERT INTO api_scopes(id,api) VALUES ($1,$2)"
+      values = [k,a,u]
     }
 
     this.execute(query, values, function(e,r) {

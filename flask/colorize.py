@@ -518,7 +518,7 @@ def evaluate(args):
                     else:
                         print('doCorrection')
                         # Apply Deep Learning Transfer
-                        if (img_stats['white_balance'] > 0.6):
+                        if (img_stats['white_balance'] > 1.6):
                             print('deep learning white balance')
                             img_tensor = transforms.ToTensor()(img)
                             img_tensor = img_tensor.unsqueeze(0)

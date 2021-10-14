@@ -87,7 +87,7 @@ export default {
   },
   data () {
     return {
-      apis: ['data', 'chart', 'search'],
+      apis: ['data', 'chart', 'search', 'model'],
       selectedApi: 'data',
       SelectedDatabase: 'select',
       SelectedTable: 'select',
@@ -110,7 +110,7 @@ export default {
       if (this.selectedApi === 'select') {
         return false
       }
-      if (this.selectedDatabase === 'select') {
+      if (this.selectedDatabase === 'select' && !(this.selectedApi === 'model')) {
         return false
       }
       if (this.selectedTable === 'select') {

@@ -1041,7 +1041,7 @@ exports.addApiKey = function(user_id,n,k,callback) {
  * add api scope
  */
 exports.addApiScope = function(user_id,k,a,d,t,callback) {
-  if (!(k&&a&&d)) {
+  if (!(k&&a)) {
     return callback({status:'failed'})
   }
   const db = user_id + '_' + d;
@@ -1062,7 +1062,7 @@ exports.addApiScope = function(user_id,k,a,d,t,callback) {
       console.log('db')
       console.log(db)
       // now we have a list lets check our database
-      if (Object.keys(sources).includes(db)) {
+      if (Object.keys(sources).includes(db) || a === 'model') {
         // if there is a table scope check that
         if (t) {
           console.log('sources')
@@ -1107,11 +1107,15 @@ exports.getApiKeys = function(user_id,callback) {
             keys[r[i].name] = {}
             keys[r[i].name].scope = []
           }
-          if (r[i].api && r[i].database) {
+          if (r[i].api) {
             var scope = {}
             scope.api = r[i].api
-            scope.database = r[i].database.replace(re,'')
-            scope.table = r[i].table
+            if (r[i].database) {
+              scope.database = r[i].database.replace(re,'')
+            }
+            if (r[i].table) {
+              scope.table = r[i].table
+            }
             keys[r[i].name].scope.push(scope)
           }
           keys[r[i].name].id = r[i].id

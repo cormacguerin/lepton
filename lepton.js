@@ -483,8 +483,8 @@ app.get('/api/deleteApiScope', user.authorize, function(req, res, next) {
     res.json(r);
   });
 });
-//app.post('/api/image', user.authorize, function(req, res, next) {
-app.post('/api/image', function(req, res, next) {
+app.post('/api/image', user.authorize, function(req, res, next) {
+//app.post('/api/image', function(req, res, next) {
 	var queryData = url.parse(req.url, true).query;
 	/*
 	if (!(queryData.key_id && queryData.api_scope && queryData.api_database)) {
@@ -492,6 +492,7 @@ app.post('/api/image', function(req, res, next) {
 		return;
 	}
 	*/
+  console.log('x')
 
 	var post_options = {
       host: '127.0.0.1',
@@ -507,12 +508,14 @@ app.post('/api/image', function(req, res, next) {
 	var im = ''
 
 	var post_req = http.request(post_options, function(fRes) {
+    console.log('y')
 		fRes.setEncoding('utf8');
 		fRes.on('data', function (chunk) {
 			im += chunk
 		});
 		fRes.on('end', function () {
-			res.json({"image":im})
+      console.log('z')
+			res.json(im)
 		})
 	});
 

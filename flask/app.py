@@ -39,7 +39,7 @@ WhiteBalanceModel = TransformerNet()
 state_dict = torch.load('model/matsumoto.mdl')
 
 WhiteBalanceModel = nn.DataParallel(WhiteBalanceModel)
-WhiteBalanceModel.load_state_dict(state_dict)
+WhiteBalanceModel.load_state_dict(state_dict, strict=False)
 WhiteBalanceModel.cpu()
 
 
@@ -71,7 +71,6 @@ def predict():
     b64image = base64.b64encode(colorize.eval_service(img, net, WhiteBalanceModel))
 
     response = {"image":b64image}
-    print(response)
 
     print('done')
     app.logger.info("Execution time: %0.02f seconds" % (dt))
