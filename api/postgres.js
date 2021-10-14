@@ -1115,24 +1115,35 @@ class Postgres {
     var values = [id]
 
     this.execute(query, values, function(e,r) {
-      console.log(e);
-      console.log(r);
       var key = {}
       key.scope = []
       const reg = /^[0-9]+_/gi;
+      console.log('r')
+      console.log(r)
       for (var i in r) {
-        if (r[i].id && r[i].key && r[i].database) {
-          key.id = r[i].id;
-          key.owner = r[i].owner;
-          key.name = r[i].name;
-          key.key = r[i].key;
-          var scope = {}
-          scope.api = r[i].api;
-          scope._database = r[i].database;
-          scope.database = r[i].database.replace(reg,'');
-          scope.table = r[i].table;    
-          key.scope.push(scope);
+        if (r[i].id === null) {
+          return callback(e,key);
         }
+        if (r[i].key ===null) {
+          return callback(e,key);
+        }
+        key.id = r[i].id;
+        key.owner = r[i].owner;
+        key.name = r[i].name;
+        key.key = r[i].key;
+        var scope = {}
+        scope.api = r[i].api;
+        scope._database = r[i].database;
+        if (scope.database) {
+          scope.database = r[i].database.replace(reg,'');
+        }
+        if (scope.table) {
+          scope.table = r[i].table;
+        }
+        if (scope.model) {
+          scope.model = r[i].model;
+        }
+        key.scope.push(scope);
       }
       console.log('key')
       console.log(key)

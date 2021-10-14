@@ -1116,6 +1116,9 @@ exports.getApiKeys = function(user_id,callback) {
             if (r[i].table) {
               scope.table = r[i].table
             }
+            if (r[i].model) {
+              scope.model = r[i].model
+            }
             keys[r[i].name].scope.push(scope)
           }
           keys[r[i].name].id = r[i].id
