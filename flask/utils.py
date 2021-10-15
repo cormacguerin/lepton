@@ -61,7 +61,8 @@ def save_image_preserv_length(tensor, ori, dir):
     if tensor.max() > 1:
         tensor = tensor / tensor.max()
 
-    tenlen = torch.zeros(tensor.size()[0], tensor.size()[1], tensor.size()[2]).cuda()
+    # tenlen = torch.zeros(tensor.size()[0], tensor.size()[1], tensor.size()[2]).cuda()
+    tenlen = torch.zeros(tensor.size()[0], tensor.size()[1], tensor.size()[2]).cpu()
     tenlen[:, :orilen.size()[1], :orilen.size()[2]] = orilen
     tensor = tensor * tenlen
 
