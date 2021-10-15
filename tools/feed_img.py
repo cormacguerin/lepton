@@ -38,20 +38,17 @@ Datestamp = Date.strftime('%Y%m%d')
 # In addition to key and scope information you also need to provide the 
 # Request Method, Host and Path. Path is the api endpoint including leading forward slash
 
-#Host = "34.219.14.175"
-Host = "127.0.0.1"
-KeyId = '1'
-KeyName = 'flip'
-ApiScope = 'data'
-SecretKey = 'M2VKAJRX-CGP6BJZN-EMT6M3DM-AMTPD2TZ'
+Host = "intradeep.com"
+KeyId = '3'
+KeyName = 'colorcorrect'
+ApiScope = 'model'
+SecretKey = 'CTZNBJG4-C2LVMJRH-EWXJZWDQ-BGD5DWXS'
 Method = 'POST'
 Path = '/api/image'
 
 # note params need to be sorted by code point
 params = {}
 QueryParameters = urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
-# print('QueryParameters')
-# print(QueryParameters)
 
 # credential is a / separated string of the key id, key name, datestamp and apiscope as created on the control panel
 Credential = KeyId + '/' + Datestamp + '/' + ApiScope + '/lt_request'
@@ -100,7 +97,7 @@ Headers['Authorization']  = genSignature()
 # print(' - Headers')
 # print(Headers)
 
-base_url = 'http://' + Host + ':3000/api/image?'
+base_url = 'https://' + Host + '/api/image?'
 url = base_url + urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
 
 FormattedHeaders = ([':'.join((k,v)) for k, v in Headers.items()])
