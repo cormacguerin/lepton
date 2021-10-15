@@ -454,10 +454,11 @@ def evaluate(args):
 
     # load model to correct white balance
     WhiteBalanceModel = TransformerNet()
-    if args.prod is not None:
-        state_dict = torch.jit.load('model/jit_matsumoto.pt')
-    else:
-        state_dict = torch.load(args.model)
+    #if args.prod is not None:
+    #    state_dict = torch.jit.load('model/jit_matsumoto.pt')
+    #else:
+    #    state_dict = torch.load(args.model)
+    state_dict = torch.load('model/matsumoto.mdl')
 
     if args.gpus is not None:
         WhiteBalanceModel = nn.DataParallel(WhiteBalanceModel, device_ids=args.gpus)
@@ -518,7 +519,11 @@ def evaluate(args):
                     else:
                         print('doCorrection')
                         # Apply Deep Learning Transfer
+<<<<<<< HEAD
                         if (img_stats['white_balance'] > 1.6):
+=======
+                        if (img_stats['white_balance'] > 0.0):
+>>>>>>> 916f5f3... add first revision of color correction code
                             print('deep learning white balance')
                             img_tensor = transforms.ToTensor()(img)
                             img_tensor = img_tensor.unsqueeze(0)
@@ -529,9 +534,9 @@ def evaluate(args):
                             dl_img = utils.save_image_preserv_length(rec_img[0], img_tensor[0], '.')
                             output = color_transfer(dl_img, output)
 
-                    #    else:
-                    #        print('simple white balance')
-                    #        output = simplest_cb(origin, 1, True)
+                        else:
+                            print('simple white balance')
+                            output = simplest_cb(origin, 1, True)
 
                     # debug code , delete
                     # x_output = simplest_cb(origin, 1, True)

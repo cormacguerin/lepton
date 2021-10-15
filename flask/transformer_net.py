@@ -38,7 +38,7 @@ class TransformerNet(nn.Module):
         self.ins5 = nn.InstanceNorm2d(32, affine=True)
         self.deconv3 = ConvLayer(32, 3, kernel_size=9, stride=1)
 
-        self.relu = nn.ReLU()
+        self.ReLU = nn.ReLU()
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
         self.softplus = nn.Softplus()
@@ -80,23 +80,27 @@ class ResidualBlock(nn.Module):
         self.ins1 = nn.InstanceNorm2d(channels, affine=True)
         self.conv2 = ConvLayer(channels, channels, 3, 1)
         self.ins2 = nn.InstanceNorm2d(channels, affine=True)
-        self.conv3 = ConvLayer(channels, channels, 3, 1)
-        self.ins3 = nn.InstanceNorm2d(channels, affine=True)
-        self.relu = nn.ReLU()
+        #self.conv3 = ConvLayer(channels, channels, 3, 1)
+        #self.ins3 = nn.InstanceNorm2d(channels, affine=True)
+        self.ReLU = nn.ReLU()
         self.softplus = nn.Softplus()
 
     def forward(self, x):
         residual = x
 
-        out = self.relu(self.ins1(self.conv1(x)))
+        out = self.ReLU(self.ins1(self.conv1(x)))
+        out = self.ins2(self.conv2(out))
+        #out = self.ins3(self.conv3(out))
+        out = out + residual
+        return out
 
         # Testing residual blocks
-        # out = self.ins2(self.conv2(out))
-        # residual = self.downsample(x)
-        # out += residual
-        # out = self.relu(out)
-        # return self.softplus(out)
-        return out
+        #out = self.ins2(self.conv2(out))
+        #residual = self.downsample(x)
+        #out += residual
+        #out = self.relu(out)
+        #return self.softplus(out)
+        #return out
 
 
 class UpsampleConvLayer(nn.Module):

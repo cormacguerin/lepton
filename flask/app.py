@@ -74,7 +74,8 @@ def predict():
 
     print('done')
     app.logger.info("Execution time: %0.02f seconds" % (dt))
-    return jsonify(response)
+    #return jsonify(response)
+    return response
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", debug=True, port=PORT)
