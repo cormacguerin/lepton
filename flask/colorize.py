@@ -519,24 +519,20 @@ def evaluate(args):
                     else:
                         print('doCorrection')
                         # Apply Deep Learning Transfer
-<<<<<<< HEAD
-                        if (img_stats['white_balance'] > 1.6):
-=======
-                        if (img_stats['white_balance'] > 0.0):
->>>>>>> 916f5f3... add first revision of color correction code
-                            print('deep learning white balance')
-                            img_tensor = transforms.ToTensor()(img)
-                            img_tensor = img_tensor.unsqueeze(0)
-                            print(img_tensor.device)
-                            rec_img = WhiteBalanceModel(img_tensor)
+                        #if (img_stats['white_balance'] > 10):
+                        #    print('deep learning white balance')
+                        #    img_tensor = transforms.ToTensor()(img)
+                        #    img_tensor = img_tensor.unsqueeze(0)
+                        #    print(img_tensor.device)
+                        #    rec_img = WhiteBalanceModel(img_tensor)
 
                             # utils.save_image(rec_img[0], save_path)
-                            dl_img = utils.save_image_preserv_length(rec_img[0], img_tensor[0], '.')
-                            output = color_transfer(dl_img, output)
+                        #    dl_img = utils.save_image_preserv_length(rec_img[0], img_tensor[0], '.')
+                        #    output = color_transfer(dl_img, output)
 
-                        else:
-                            print('simple white balance')
-                            output = simplest_cb(origin, 1, True)
+                        #else:
+                        print('simple white balance')
+                        output = simplest_cb(origin, 1, True)
 
                     # debug code , delete
                     # x_output = simplest_cb(origin, 1, True)
