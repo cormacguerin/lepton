@@ -518,12 +518,8 @@ def evaluate(args):
                         output = full_gamma_correct(origin, img_stats['brightness'])
                     else:
                         print('doCorrection')
-                        # Apply Deep Learning Transfer
-<<<<<<< HEAD
-                        if (img_stats['white_balance'] > 1.6):
-=======
-                        if (img_stats['white_balance'] > 0.0):
->>>>>>> 916f5f3... add first revision of color correction code
+                        # Apply Deep Learning Transfer (disabled for now > 10)
+                        if (img_stats['white_balance'] > 10):
                             print('deep learning white balance')
                             img_tensor = transforms.ToTensor()(img)
                             img_tensor = img_tensor.unsqueeze(0)
@@ -534,9 +530,9 @@ def evaluate(args):
                             dl_img = utils.save_image_preserv_length(rec_img[0], img_tensor[0], '.')
                             output = color_transfer(dl_img, output)
 
-                        else:
-                            print('simple white balance')
-                            output = simplest_cb(origin, 1, True)
+                        # else:
+                        print('simple white balance')
+                        output = simplest_cb(origin, 1, True)
 
                     # debug code , delete
                     # x_output = simplest_cb(origin, 1, True)
@@ -634,16 +630,18 @@ def eval_service(img, net, WhiteBalanceModel):
         else:
             print('doCorrection')
             # Apply Deep Learning Transfer
-            if (img_stats['white_balance'] > 0.6):
-                print('deep learning white balance')
-                img_tensor = transforms.ToTensor()(img)
-                img_tensor = img_tensor.unsqueeze(0)
-                print(img_tensor.device)
-                rec_img = WhiteBalanceModel(img_tensor)
+            # if (img_stats['white_balance'] > 0.6):
+            #    print('deep learning white balance')
+            #    img_tensor = transforms.ToTensor()(img)
+            #    img_tensor = img_tensor.unsqueeze(0)
+            #    print(img_tensor.device)
+            #    rec_img = WhiteBalanceModel(img_tensor)
 
-                # utils.save_image(rec_img[0], save_path)
-                dl_img = utils.save_image_preserv_length(rec_img[0], img_tensor[0], '.')
-                output = color_transfer(dl_img, output)
+            #    utils.save_image(rec_img[0], save_path)
+            #    dl_img = utils.save_image_preserv_length(rec_img[0], img_tensor[0], '.')
+            #    output = color_transfer(dl_img, output)
+            print('simple white balance')
+            output = simplest_cb(origin, 1, True)
 
         output = adjust_saturation(output, img_stats['saturation'])
 
