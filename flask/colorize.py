@@ -358,8 +358,11 @@ def adjust_saturation(image, q, b):
     image_32 = image.astype(np.float32)
     hsv_32 = cv2.cvtColor(image_32, cv2.COLOR_BGR2HSV_FULL)
     h, s, v = cv2.split(hsv_32)
-    s = s + (s/np.mean(v))*q
-    v = v + b
+    # s = s + (s/np.mean(v))*q/2
+    # v = v + b
+    s = s * 1.07
+    v = v * 1.07
+
     hsv = cv2.merge([h, s, v])
 
     return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR_FULL)
@@ -401,16 +404,22 @@ def clahe_gamma_correct(img, v):
 
 def full_gamma_correct(img, v):
 
-    gamma = math.sqrt((1 + math.sin((255-v)/255))/1.5)
+    # gamma = math.sqrt(math.tan(1-v/256))*1.3
+    gamma = math.sqrt(((1 + math.tan((255-v)/255))/2))
+
+    print('gamma')
+    print(gamma)
 
     lab = cv2.split(img.astype(np.uint8))
     gray = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
-    clip_limit = 1 - v/256
-    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
+    clip_limit = (1 - v/256)
+    print('clip_limit')
+    print(clip_limit)
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(4, 4))
 
-    #se=cv2.getStructuringElement(cv2.MORPH_RECT , (32,32))
-    #bg=cv2.morphologyEx(gray, cv2.MORPH_DILATE, se)
-    #out_gray=cv2.divide(gray, bg, scale=255)
+    # se=cv2.getStructuringElement(cv2.MORPH_RECT , (32,32))
+    # bg=cv2.morphologyEx(gray, cv2.MORPH_DILATE, se)
+    # out_gray=cv2.divide(gray, bg, scale=255)
 
     equalized = clahe.apply(gray)
 
@@ -617,10 +626,11 @@ def eval_service(img, net, WhiteBalanceModel):
         data=trans1(simg).to('cpu')
         score=net(data.unsqueeze(0))
 
-        print("color correction score : " + str(score))
-        if (score > 0.5):
-            print('perform simple white balance correction')
-            output = simplest_cb(origin, 1, True)
+        # disable color correctionf or now, remember to switch back origin to output in brightness when enabling again
+        print("color correction score : " + str(score))    
+        #if (score > 0.5):
+        #    print('perform simple white balance correction')
+        #    output = simplest_cb(origin, 1, True)
 
         output = full_gamma_correct(origin, img_stats['brightness'])
         output = adjust_saturation(output, img_stats['saturation'], img_stats['brightness'])
