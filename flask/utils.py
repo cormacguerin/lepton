@@ -15,10 +15,11 @@
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from skimage import io, color
+from skimage import io as skio, color
 from PIL import Image, ImageEnhance, ImageStat
 import os.path as osp
 import os
+import io
 import torch
 from torch import nn
 import numpy as np
@@ -49,21 +50,38 @@ def save_image(img, path, info):
     converter = ImageEnhance.Color(pil_img)
     img = converter.enhance(1.1)
 
-    img.save(path, exif=info['exif'], dpi=info['dpi'])
+    img.save(path, "JPEG", exif=info['exif'], dpi=info['dpi'])
+
 
 # In this function we also add color enhance
 # this is to compensate for a reduction of saturation during the clahe process
-def save_image_to_buffer(img, info):
+def save_image_buffer(img, info):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     pil_img = Image.fromarray(img.astype('uint8'))
 
     converter = ImageEnhance.Color(pil_img)
     img = converter.enhance(1.1)
 
-    with io.BytesIO() as output:
-        img.save(output, exif=info['exif'], dpi=info['dpi'])
+    exif = None
+    dpi = None
 
-    return output.getvalue()
+    if 'exif' in info.keys():
+        exif = info['exif']
+
+    if 'dpi' in info.keys():
+        dpi = info['dpi']
+
+    with io.BytesIO() as output:
+        if exif is not None and dpi is not None:
+            img.save(output, format = "JPEG", exif=exif, dpi=dpi)
+        elif exif is not None:
+            img.save(output, format = "JPEG", exif=exif)
+        elif dpi is not None:
+            img.save(output, format = "JPEG", dpi=dpi)
+        else:
+            img.save(output, format = "JPEG")
+
+        return output.getvalue()
 
 
 def save_image_preserv_length(tensor, ori, dir):
@@ -82,14 +100,14 @@ def save_image_preserv_length(tensor, ori, dir):
 
     img = tensor.cpu().clone().mul(255).clamp(0, 255).numpy()
     img = img.transpose(1, 2, 0).astype('uint8')
-    # io.imsave(dir, img)
+    # skio.imsave(dir, img)
     return img
 
 def save_labimage(tensor, dir):
     img = tensor.clone().mul(255).clamp(0, 255).numpy()
     img = img.transpose(1, 2, 0).astype('uint8')
     img = cv2.cvtColor(img, cv2.COLOR_Lab2RGB)
-    io.imsave(dir, img)
+    skio.imsave(dir, img)
 
 def gram_matrix(y):
     (b, ch, h, w) = y.size()
@@ -203,7 +221,7 @@ class PerturbBrightness():
         # perturbed
         img_p = img.clone().mul(255).clamp(0, 255).numpy()
         img_p = img_p.transpose(1, 2, 0).astype('uint8')
-        io.imsave('gen_p/' + str(avg_a) + '.jpg', img_p)
+        skio.imsave('gen_p/' + str(avg_a) + '.jpg', img_p)
 
         return img
 
@@ -233,7 +251,7 @@ class PerturbWhiteBalance():
         img_o = img_o.clone().mul(255).clamp(0, 255).numpy()
         img_o = img_o.transpose(1, 2, 0).astype('uint8')
         # save generated perturbed images for debugging
-        io.imsave('gen_o/' + str(avg_a) + '.jpg', img_o)
+        skio.imsave('gen_o/' + str(avg_a) + '.jpg', img_o)
 
         mod = False
 
@@ -269,7 +287,7 @@ class PerturbWhiteBalance():
         # perturbed
         img_p = img.clone().mul(255).clamp(0, 255).numpy()
         img_p = img_p.transpose(1, 2, 0).astype('uint8')
-        io.imsave('gen_p/' + str(avg_a) + '.jpg', img_p)
+        skio.imsave('gen_p/' + str(avg_a) + '.jpg', img_p)
 
         return img
 

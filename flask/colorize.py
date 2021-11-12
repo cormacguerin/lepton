@@ -639,9 +639,9 @@ def eval_service(img, net, WhiteBalanceModel):
         # output = adjust_saturation(output, img_stats['saturation'], img_stats['brightness'])
 
         # is_success, buffer = cv2.imencode(".jpg", output)
-        # return buffer
 
-        return utils.save_image_buffer(output, info)
+        buffer = utils.save_image_buffer(output, img_info)
+        return buffer
 
 
 def apply_mask(matrix, mask, fill_value):
