@@ -37,20 +37,34 @@ def is_image_file(filename):
 
 def load_image(path):
     img = Image.open(path).convert('RGB')
-    # img = transforms.ToTensor()(img)
-    # img = io.imread(path)
-    # img = img.transpose(2, 0, 1)
-    # img = torch.from_numpy(img).float()
     return img
 
 
-def save_image(tensor, dir):
-    if tensor.max() > 1:
-        tensor = tensor / tensor.max()
-    img = tensor.clone().mul(255).clamp(0, 255).numpy()
-    img = img.transpose(1, 2, 0).astype('uint8')
-    # io.imsave(dir, img)
-    return img
+# In this function we also add color enhance
+# this is to compensate for a reduction of saturation during the clahe process
+def save_image(img, path, info):
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    pil_img = Image.fromarray(img.astype('uint8'))
+
+    converter = ImageEnhance.Color(pil_img)
+    img = converter.enhance(1.1)
+
+    img.save(path, exif=info['exif'], dpi=info['dpi'])
+
+# In this function we also add color enhance
+# this is to compensate for a reduction of saturation during the clahe process
+def save_image_to_buffer(img, info):
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    pil_img = Image.fromarray(img.astype('uint8'))
+
+    converter = ImageEnhance.Color(pil_img)
+    img = converter.enhance(1.1)
+
+    with io.BytesIO() as output:
+        img.save(output, exif=info['exif'], dpi=info['dpi'])
+
+    return output.getvalue()
+
 
 def save_image_preserv_length(tensor, ori, dir):
     tensor = normalize(tensor, dim=0)

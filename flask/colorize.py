@@ -585,7 +585,7 @@ def evaluate(args):
                     #    filename =  'SA_' + filename
 
                     # TODO : reapply saturation
-                    output = adjust_saturation(output, img_stats['saturation'])
+                    # output = adjust_saturation(output, img_stats['saturation'])
 
                     save_path = osp.join(outdir, filename)
                     print('save_path')
@@ -602,6 +602,7 @@ def eval_service(img, net, WhiteBalanceModel):
     with torch.no_grad():
 
         img_stats = analyse(img)
+        img_info = img.info
 
         #origin = cv2.imread(img)
         origin = np.array(img) 
@@ -633,11 +634,14 @@ def eval_service(img, net, WhiteBalanceModel):
         #    output = simplest_cb(origin, 1, True)
 
         output = full_gamma_correct(origin, img_stats['brightness'])
-        output = adjust_saturation(output, img_stats['saturation'], img_stats['brightness'])
 
-        is_success, buffer = cv2.imencode(".jpg", output)
+        # remove adjust saturation as we now enhance with PIL instead during save.
+        # output = adjust_saturation(output, img_stats['saturation'], img_stats['brightness'])
 
-        return buffer
+        # is_success, buffer = cv2.imencode(".jpg", output)
+        # return buffer
+
+        return utils.save_image_buffer(output, info)
 
 
 def apply_mask(matrix, mask, fill_value):
