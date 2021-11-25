@@ -187,8 +187,8 @@ std::string ManagementServer::toggleServing(std::string database, std::string ta
       }
     }
     // reckless
-    servers.push_back(new QueryServer(port++, database, table));
-    return "{\"status\":\"loading\"}";
+    //servers.push_back(new QueryServer(port++, database, table));
+    //return "{\"status\":\"loading\"}";
 }
 
 /*

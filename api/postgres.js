@@ -1117,9 +1117,6 @@ class Postgres {
     this.execute(query, values, function(e,r) {
       var key = {}
       key.scope = []
-      const reg = /^[0-9]+_/gi;
-      console.log('r')
-      console.log(r)
       for (var i in r) {
         if (r[i].id === null) {
           return callback(e,key);
@@ -1134,9 +1131,6 @@ class Postgres {
         var scope = {}
         scope.api = r[i].api;
         scope.database = r[i].database;
-        if (r[i].database) {
-          scope.database = r[i].database.replace(reg,'');
-        }
         if (r[i].table) {
           scope.table = r[i].table;
         }

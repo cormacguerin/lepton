@@ -624,8 +624,6 @@ app.get('/search', user.authorize, function(req, res, next) {
   if (!queryData.database) {
     res.json({"error":"no database provided"});
     return;
-  } else {
-    database = queryData.database;
   }
   var queryData = url.parse(req.url, true).query;
   if (!queryData.table) {
@@ -639,19 +637,18 @@ app.get('/search', user.authorize, function(req, res, next) {
   if (req.user_id) {
     database = req.user_id + "_" + queryData.database;
   } else {
+    database = req.api_key_owner + "_" + queryData.database;
     var queryData = url.parse(req.url, true).query;
     // validate scope
     var access = false;
     for (var i in req.scope) {
-      if (queryData.database === req.scope[i].database) {
+      if (database === req.scope[i].database) {
         if (req.scope[i].table) {
           if (queryData.table === req.scope[i].table) {
             access = true;
-            database = req.scope[i]._database;
           }
         } else {
           access = true;
-          database = req.scope[i]._database;
         }
       }
     }
@@ -689,7 +686,6 @@ app.get('/search', user.authorize, function(req, res, next) {
         data.getServingColumns(user_id, database, table, function(c) {
           queryData.columns = c.join();
           execute(queryData,queryServers[database][table].port,function(r) {
-            console.log(r)
             res.json(r);
           });
         });
@@ -806,7 +802,6 @@ app.get('/manage', function(req, res, next) {
     }
   } catch(e) {
     res.send({"error":"\""+e+"\""});
-    console.log(e);
     return;
   }
 });
