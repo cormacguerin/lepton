@@ -1133,14 +1133,14 @@ class Postgres {
         key.key = r[i].key;
         var scope = {}
         scope.api = r[i].api;
-        scope._database = r[i].database;
-        if (scope.database) {
+        scope.database = r[i].database;
+        if (r[i].database) {
           scope.database = r[i].database.replace(reg,'');
         }
-        if (scope.table) {
+        if (r[i].table) {
           scope.table = r[i].table;
         }
-        if (scope.model) {
+        if (r[i].model) {
           scope.model = r[i].model;
         }
         key.scope.push(scope);
