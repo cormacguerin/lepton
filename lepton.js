@@ -728,22 +728,23 @@ app.get('/suggest', user.authorize, function(req, res, next) {
   } else {
     table = queryData.table;
   }
+  var queryData = url.parse(req.url, true).query;
   // handle user or token request
   if (req.user_id) {
     database = req.user_id + "_" + queryData.database;
   } else {
+    database = req.api_key_owner + "_" + queryData.database;
+    var queryData = url.parse(req.url, true).query;
     // validate scope
     var access = false;
     for (var i in req.scope) {
-      if (queryData.database === req.scope[i].database) {
+      if (database === req.scope[i].database) {
         if (req.scope[i].table) {
           if (queryData.table === req.scope[i].table) {
             access = true;
-            database = req.scope[i]._database;
           }
         } else {
           access = true;
-          database = req.scope[i]._database;
         }
       }
     }
