@@ -405,10 +405,8 @@ def clahe_gamma_correct(img, v):
 def full_gamma_correct(img, v):
 
     # gamma = math.sqrt(math.tan(1-v/256))*1.3
-    gamma = math.sqrt(((1 + math.tan((255-v)/255))/2))
-
-    print('gamma')
-    print(gamma)
+    # gamma = math.sqrt(((1 + math.tan((255-v)/255))/2))
+    gamma = math.sqrt(((1 + math.tan((255-v)/255))/1.5))
 
     lab = cv2.split(img.astype(np.uint8))
     gray = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
@@ -640,7 +638,7 @@ def eval_service(img, net, WhiteBalanceModel):
 
         # is_success, buffer = cv2.imencode(".jpg", output)
 
-        buffer = utils.save_image_buffer(output, img_info)
+        buffer = utils.save_image_buffer(output, img_info, img_stats)
         return buffer
 
 

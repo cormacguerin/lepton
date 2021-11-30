@@ -55,12 +55,18 @@ def save_image(img, path, info):
 
 # In this function we also add color enhance
 # this is to compensate for a reduction of saturation during the clahe process
-def save_image_buffer(img, info):
+def save_image_buffer(img, info, stats):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     pil_img = Image.fromarray(img.astype('uint8'))
 
-    converter = ImageEnhance.Color(pil_img)
-    img = converter.enhance(1.1)
+    b = 1+ math.atan(128 - stats['brightness']) / 16
+    s = 1.05+ abs(128 - stats['saturation']) / 256
+
+    brightnessEnhance = ImageEnhance.Brightness(pil_img)
+    img = brightnessEnhance.enhance(b)
+
+    colorEnhance = ImageEnhance.Color(img)
+    img = colorEnhance.enhance(s)
 
     exif = None
     dpi = None
