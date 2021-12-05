@@ -270,11 +270,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
     return;
   }
 
-  std::cout << "pages" << std::endl;
-  std::cout << pages << std::endl;
-
   if ( pagination.IsObject() == 1) {
-    std::cout << "pages is object" << std::endl;
     for (rapidjson::Value::ConstMemberIterator it = pagination.MemberBegin(); it != pagination.MemberEnd(); ++it) {
 
       if (strcmp(it->name.GetString(),"page_number")==0) {
@@ -437,9 +433,11 @@ void IndexServer::buildSuggestions(std::string lang) {
       addSuggestion(urls->first, lang, urls->second.size());
     }
     j++;
+    /*
     if (j%1000 == 0) {
       std::cout << j << " loading suggestions " << ((float)j*100/unigramurls_map[lang].size()) << " % " << std::endl;
     }
+    */
   }
 }
 

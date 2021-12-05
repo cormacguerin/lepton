@@ -16,7 +16,7 @@
         :total="item.total"
         :indexed="item.indexed"
         :refreshed="item.refreshed"
-        :servingstatus="item.status"
+        :status="item.status"
         :loaded="item.loaded"
       />
     </flex-col>

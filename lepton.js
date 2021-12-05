@@ -41,7 +41,7 @@ app.use(compression());
 app.use(cookieParser());
 app.use(bodyParser.json({limit: '100mb'}));
 app.use(bodyParser.urlencoded({limit: '100mb', extended: true, parameterLimit: 1000000})); // for parsing application/x-www-form-urlencoded
-app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '5mb'}));
+app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '15mb'}));
 app.use(bodyParser.raw({type:'image/jpeg',limit: '50mb'}));
  //app.use(cors())
 
@@ -611,6 +611,7 @@ app.post('/addTableData', user.authorize, function(req, res, next) {
  * TODO there is a lot of duplication and stuff here that could be cleaned up
  */
 app.get('/search', user.authorize, function(req, res, next) {
+
   var queryData = url.parse(req.url, true).query;
   var database;
 
@@ -832,7 +833,9 @@ function toggleServing(database, table, callback) {
 
 function execute(queryData, port, callback) {
   var tmpQuery = {}
-  queryData.lang = "en";
+  if (!queryData.lang) {
+    queryData.lang = "en";
+  }
   internalQuery = JSON.stringify(queryData);
 
   var socket = new net.Socket();
@@ -909,3 +912,4 @@ app.use('/', express.static(__dirname + '/vue-app/dist/'));
 var server = app.listen(process.env.PORT || 3000, function () {
   console.log('Web app listening on port 3000!')
 });
+server.setTimeout(300000);

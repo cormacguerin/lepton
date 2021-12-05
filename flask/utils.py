@@ -60,7 +60,8 @@ def save_image_buffer(img, info, stats):
     pil_img = Image.fromarray(img.astype('uint8'))
 
     b = 1+ math.cos(256 - stats['brightness']) / 16
-    s = 1+ abs(128 - stats['saturation']) / 512
+    # s = 1+ abs(128 - stats['saturation']) / 512
+    s = 1.07
 
     brightnessEnhance = ImageEnhance.Brightness(pil_img)
     img = brightnessEnhance.enhance(b)

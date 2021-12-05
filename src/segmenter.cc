@@ -92,7 +92,6 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 				   std::map<std::string, Frag::Item> &doc_bigram_map,
 				   std::map<std::string, Frag::Item> &doc_trigram_map,
                    std::map<std::vector<std::string>,double> &stopSuggest) {
-	// postgres worker
 
 	// prepared statements
 //	C->prepare("delete_doc_text", "UPDATE docs_en SET raw_text = NULL WHERE id=$1");
@@ -171,7 +170,8 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 		if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
 			continue;
 		}
-        char specchars[] = {':','(',')','-',',','\''};
+
+    char specchars[] = {':','(',')','-',',','\''};
 		for (unsigned int i = 0; i < sizeof(specchars)/sizeof(*specchars); ++i) {
 			converted.erase (std::remove(converted.begin(), converted.end(), specchars[i]), converted.end());
 		}
@@ -213,14 +213,14 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 				gramholder[j].erase(gramholder[j].begin());
 				stopholder[j].erase(stopholder[j].begin());
 			}
-            // "stopholder[j].back()" (if the previous term in this sequence is a stop work)
-            // "stopholder[j].at(0)" (if the first term in this sequence is a stop word.)
+      // "stopholder[j].back()" (if the previous term in this sequence is a stop work)
+      // "stopholder[j].at(0)" (if the first term in this sequence is a stop word.)
 			if (stopholder[j].back() == false) {
-                if (stopholder[j].at(0) == false) {
-				    gramCandidates[gramholder[j]].push_back(gramcount);
-                } else {
-				    stopSuggest[gramholder[j]]++;
-                }
+        if (stopholder[j].at(0) == false) {
+			    gramCandidates[gramholder[j]].push_back(gramcount);
+        } else {
+				  stopSuggest[gramholder[j]]++;
+        }
 			}
 		}
 	}

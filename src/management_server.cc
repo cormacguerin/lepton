@@ -79,54 +79,88 @@ void ManagementServer::run() {
     std::cout << "Run ManagementServer." << std::endl;
     pqxx::work txn(*C);
 
-    pqxx::result r = txn.exec_prepared("get_tables_to_serve");
-    txn.commit();
+    // detach the asio thread so it can respond.
+    std::thread t(std::bind(static_cast<size_t (asio::io_context::*)()>(&asio::io_context::run), &io_context));
+    t.detach();
 
-    std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>> tables;
+    while(true) {
 
-    /*
-     * format the output into a useful container
-     * database -> table -> pair<display_field,columns to index>
-     */
-    for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-        const pqxx::field database = (row)[0];
-        const pqxx::field table = (row)[1];
-        const pqxx::field column = (row)[2];
-        const pqxx::field display_field = (row)[3];
-        if (!database.is_null() && !table.is_null() && !column.is_null()) {
-            if (tables[database.c_str()][table.c_str()].second.empty()) {
-                tables[database.c_str()][table.c_str()].second = column.c_str();
-            } else {
-                std::string newcol = "," + std::string(column.c_str());
-                tables[database.c_str()][table.c_str()].second += newcol;
+        pqxx::result r = txn.exec_prepared("get_tables_to_serve");
+        txn.commit();
+
+        std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>> tables;
+
+        /*
+         * format the output into a useful container
+         * database -> table -> pair<display_field,columns to index>
+         */
+        for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
+            const pqxx::field database = (row)[0];
+            const pqxx::field table = (row)[1];
+            const pqxx::field column = (row)[2];
+            const pqxx::field display_field = (row)[3];
+            if (!database.is_null() && !table.is_null() && !column.is_null()) {
+                if (tables[database.c_str()][table.c_str()].second.empty()) {
+                    tables[database.c_str()][table.c_str()].second = column.c_str();
+                } else {
+                    std::string newcol = "," + std::string(column.c_str());
+                    tables[database.c_str()][table.c_str()].second += newcol;
+                }
+                tables[database.c_str()][table.c_str()].first = display_field.c_str();
             }
-            tables[database.c_str()][table.c_str()].first = display_field.c_str();
         }
+
+        // track loaded server
+        std::vector<std::pair<std::string, std::string>> st;
+
+        /*
+         * spin up a new connection port for each instance.
+         */
+        for (std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>>::iterator dit = tables.begin(); dit != tables.end(); dit++) {
+            std::cout << "management_server.cc : run() "  << dit->first << std::endl;
+            for (std::map<std::string, std::pair<std::string, std::string>>::iterator tit = dit->second.begin(); tit != dit->second.end(); tit++) {
+                std::cout << "management_server.cc : run() - table : " << tit->first << std::endl;
+                std::cout << "management_server.cc : run()   columns : " << (tit->second).second << std::endl;
+                std::cout << "management_server.cc : run()   display_field : " << (tit->second).first << std::endl;
+                bool  e = false;
+                for (std::vector<QueryServer*>::iterator it = servers.begin(); it != servers.end(); it++) {
+                    if ((*it)->database == dit->first && (*it)->table == tit->first) {
+                        e = true;
+                        st.push_back(std::pair<std::string,std::string>(dit->first, tit->first));
+                    }
+                }
+                if (e == false) {
+                    st.push_back(std::pair<std::string,std::string>(dit->first, tit->first));
+                    servers.push_back(new QueryServer(port++, dit->first, tit->first));
+                    std::thread t(std::bind(static_cast<void (QueryServer::*)()>(&QueryServer::run), servers.back()));
+                    t.detach();
+                }
+            }
+        }
+
+        /*
+         * in case database was deleted or renamed we need to clean up
+         * reverse loop of above.
+         * TODO: inefficient
+         */
+        for (std::vector<QueryServer*>::iterator it = servers.begin(); it != servers.end(); it++) {
+            if (std::find_if( st.begin(), st.end(),
+                  [&it](const std::pair<std::string, std::string>& p){ return (p.first == (*it)->database && p.second == (*it)->table );} ) == st.end()) {
+                servers.erase(it);
+            }
+        }
+        usleep(6000000);
     }
 
     /*
-     * spin up a new connection port for each instance.
-     */
-    for (std::map<std::string, std::map<std::string, std::pair<std::string,std::string>>>::iterator dit = tables.begin(); dit != tables.end(); dit++) {
-        std::cout << "management_server.cc : run() "  << dit->first << std::endl;
-        for (std::map<std::string, std::pair<std::string, std::string>>::iterator tit = dit->second.begin(); tit != dit->second.end(); tit++) {
-            std::cout << "management_server.cc : run() - table : " << tit->first << std::endl;
-            std::cout << "management_server.cc : run()   columns : " << (tit->second).second << std::endl;
-            std::cout << "management_server.cc : run()   display_field : " << (tit->second).first << std::endl;
-            servers.push_back(new QueryServer(port++, dit->first, tit->first));
-        }
-    }
-
     for (std::vector<QueryServer*>::iterator it = servers.begin(); it != servers.end(); it++) {
         std::thread t(std::bind(static_cast<void (QueryServer::*)()>(&QueryServer::run), *it));
         t.detach();
     }
+    */
 
     // start the management interface
     // io_context.run();
-    // detach the asio thread so it can respond.
-    std::thread t(std::bind(static_cast<size_t (asio::io_context::*)()>(&asio::io_context::run), &io_context));
-    t.join();
 }
 
 void ManagementServer::startServerThread(int port, std::string database, std::string table) {
@@ -177,7 +211,6 @@ std::string ManagementServer::getStats() {
 std::string ManagementServer::toggleServing(std::string database, std::string table, std::string action) {
     for (std::vector<QueryServer*>::iterator it = servers.begin(); it != servers.end(); it++) {
       if ((*it)->database == database && (*it)->table == table) {
-        std::cout << "AAA action " << action << std::endl;
         if (action == "serving") {
           (*it)->stop();
         } else if (action == "shutdown") {

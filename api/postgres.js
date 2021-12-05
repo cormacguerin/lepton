@@ -486,7 +486,9 @@ class Postgres {
   }
 
   getServingTables(user_id, callback) {
-    var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx.serving = True AND tx._column is not null GROUP BY d.database, t.tablename;"
+    var query = "SELECT d.database, t.tablename AS table, tx.serving, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null GROUP BY d.database, t.tablename, tx.serving;"
+    //var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null GROUP BY d.database, t.tablename;"
+    //var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx.serving = True AND tx._column is not null GROUP BY d.database, t.tablename;"
     // var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null AND tx.serving = true GROUP BY d.database, t.tablename;"
     // var query = "SELECT d.database, t.tablename AS table, (SELECT array_agg(tx._column ORDER BY t.tablename) WHERE serving = true) AS column, serving from text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND serving IS NOT NULL GROUP BY d.database, t.tablename, serving ORDER BY d.database;"
     this.execute(query, [user_id], function(e,r) {
