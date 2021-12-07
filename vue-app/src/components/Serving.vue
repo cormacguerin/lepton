@@ -38,10 +38,10 @@ export default {
     }
   },
   created () {
-    this.getIndexTables()
+    this.getServeTables()
   },
   methods: {
-    getIndexTables () {
+    getServeTables () {
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/getServingInfo', {
         params: {

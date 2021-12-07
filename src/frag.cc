@@ -464,7 +464,7 @@ void Frag::purgeDocs(std::map<int,std::string> purge_docs) {
             it = frag_map.erase(it);
         } else {
             if (removed > 0) {
-                std::cout << "frag.cc purged " << removed << " docs for term " << it->first << " from frag " << frag_id << std::endl; 
+            //    std::cout << "frag.cc purged " << removed << " docs for term " << it->first << " from frag " << frag_id << std::endl; 
             }
             ++it;
         }

@@ -89,9 +89,12 @@ app.get('/api/getIndexingInfo', user.authorize, function(req,res,next) {
 app.get('/api/getServingInfo', user.authorize, function(req,res,next) {
   var queryData = url.parse(req.url, true).query;
   data.getServingTables(req.user_id, function(d) {
+    console.log('d')
+    console.log(d)
     getStats(function(s) {
       if (s) {
         for (var i in d) {
+          console.log(d[i])
           if (s[req.user_id + "_" +d[i].database]) {
             if (s[req.user_id + "_" +d[i].database][d[i].table]) {
               d[i].terms = s[req.user_id + "_" +d[i].database][d[i].table].terms;

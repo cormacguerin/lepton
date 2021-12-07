@@ -345,7 +345,7 @@ class Postgres {
    */
   createSearchTable(database, table, callback) {
 
-    var query = "CREATE TABLE \""
+    var table_query = "CREATE TABLE \""
       + table
       + "\" ("
       + "lang VARCHAR(2),"
@@ -367,6 +367,8 @@ class Postgres {
       + "raw_text text,"
       + "segmented_grams jsonb);"
 
+    var index_query = "CREATE INDEX idx_btree_meta ON jademo USING GIN (metadata jsonb_path_ops);"
+
     /*
       + "feed jsonb,"
       + "raw_text text[],"
@@ -378,7 +380,7 @@ class Postgres {
       + "trigram_positions text[],"
     */
 
-    this.execute(query, null, function(e,r) {
+    this.execute(table_query, null, function(e,r) {
       if (r) {
         var i_dir = "index/"
         if (!fs.existsSync(i_dir)){
@@ -393,7 +395,13 @@ class Postgres {
           fs.mkdirSync(idt_dir);
         }
       }
-      callback(e,r);
+      if (e) {
+        callback(e,r);
+      } else {
+        this.execute(index_query, null, function(e_,r_) {
+          callback(e_,r_);
+        });
+      }
     });
   }
 
@@ -486,7 +494,7 @@ class Postgres {
   }
 
   getServingTables(user_id, callback) {
-    var query = "SELECT d.database, t.tablename AS table, tx.serving, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null GROUP BY d.database, t.tablename, tx.serving;"
+    var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(tx.serving))) AS serving, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null GROUP BY d.database, t.tablename;"
     //var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null GROUP BY d.database, t.tablename;"
     //var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx.serving = True AND tx._column is not null GROUP BY d.database, t.tablename;"
     // var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null AND tx.serving = true GROUP BY d.database, t.tablename;"
@@ -966,7 +974,7 @@ class Postgres {
   }
 
   addServingColumn(u,d,t,c,callback) {
-    var query = "INSERT INTO text_tables_index(database,_table,_column,serving) VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $4), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)), $3, true) ON CONFLICT DO NOTHING";
+    var query = "INSERT INTO text_tables_index(database,_table,_column,serving) VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $4), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)), $3, true) ON CONFLICT (database, _table, _column) DO UPDATE SET serving = true";
 
     var values = [d,t,c,u]
 

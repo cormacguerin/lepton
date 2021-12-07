@@ -41,8 +41,8 @@ class Frag {
          */
         struct Item {
             int doc_id;
-            double tf;
-            double weight;
+            float tf;
+            float weight;
         };
         typedef std::pair<int,Frag::Item> itempair;
         std::map<std::string, std::map<int, Frag::Item>> frag_map;

@@ -331,7 +331,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 
 					Frag::Item frag_term;
 					if ((git->first).size() == 1 && git->second.size() > 0) {
-						double tf = (double)git->second.size()/sqrt(gramcount);
+						float tf = (float)git->second.size()/sqrt(gramcount);
 						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
@@ -348,7 +348,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 					if ((git->first).size() == 2 && git->second.size() > 1) {
 						// unsure about this, should we compensate for fequency with ngrams..
 						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
-						double tf = (double)git->second.size()/sqrt((gramcount));
+						float tf = (float)git->second.size()/sqrt((gramcount));
 						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
@@ -363,7 +363,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 					// - Same for tri grams we need more occurrences to count them.
 					if ((git->first).size() == 3 && git->second.size() > 2) {
 						// same as above.
-						double tf = (double)git->second.size()/sqrt((gramcount));
+						float tf = (float)git->second.size()/sqrt((gramcount));
 						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
@@ -380,7 +380,7 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
                     // That's because you can have a lot of unwanted ngrams that ballon the index
 					if ((git->first).size() > 3 && git->second.size() > 3) {
 						// same as above.
-						double tf = (double)git->second.size()/sqrt((gramcount));
+						float tf = (float)git->second.size()/sqrt((gramcount));
 						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
