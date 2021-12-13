@@ -62,7 +62,7 @@ void IndexServer::run() {
     for (std::vector<std::string>::iterator lit = langs.begin(); lit != langs.end(); lit++) {
       if (softMutexLock(m)==true) {
         if (unigramurls_map.find(*lit) == unigramurls_map.end()) {
-          unigramurls_map[*lit] = phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>();
+          unigramurls_map[*lit] = phmap::parallel_flat_hash_map<std::string, int[3]>();
         }
         m.unlock();
       } else {
@@ -148,81 +148,21 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
     status = "noindex";
     return;
   } else {
-    // std::cout << "unigramurls_map.size() " << unigramurls_map[lang].size() << std::endl;
     for (std::vector<std::string>::iterator it = index_files.begin(); it != index_files.end(); ++it) {
-      std::cout << "index_server.cc " << db << " " << *it << std::endl;
       int frag_id = stoi((*it).substr((*it).find('.')-5,(*it).find('.')));
-      Frag frag(type, frag_id, 1, path + lang);
-      frag.addToIndex(unigramurls_map[lang], m);
+      if (mmapped_frags.find(frag_id) != mmapped_frags.end()) {
+          mmapped_frags[frag_id].reset();
+      }
+      // load frag
+      mmapped_frags[frag_id] = std::make_unique<Frag>(type, frag_id, 1, path + lang, true);
+      mmapped_frags.at(frag_id).get()->addToIndex(unigramurls_map[lang], m);
       percent_loaded[lang]=std::ceil((counter++/index_files.size())*100);
       std::cout << "index_server.cc " << db << " " << counter << " percent_loaded " << lang << " " << percent_loaded[lang] << std::endl;
     }
   }
 
-  /*
-     pqxx::work txn(*C);
-     C->prepare("load_"+ng+"gram_"+lang+"_urls_batch", "SELECT "+ng+"grams_"+lang+".gram, array_agg(doc_id)::int[] FROM (SELECT gram_id, doc_id, weight FROM docunigrams_en ORDER BY score) AS dng INNER JOIN "+ng+"grams_"+lang+" ON ("+ng+"grams_"+lang+".id = dng.gram_id) GROUP BY "+ng+"grams_"+lang+".gram");
-
-     pqxx::result r = txn.prepared("load_"+ng+"gram_"+lang+"_urls_batch").exec();
-     std::cout << "index_server.cc " << ng << "gram database query complete processing.." << std::endl;
-
-  // int t = 0;
-  for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-  const pqxx::field gram = (row)[0];
-  const pqxx::field urls = (row)[1];
-  const char* urls_c = urls.c_str();
-  if (gram.is_null()) {
-  std::cout << "index_server.cc skip : url is null" << std::endl;;
-  continue;
-  } else {
-  std::vector<int> gramurls; // mximum no of grams per url
-  csvToIntVector(urls.as<std::string>(), gramurls);
-
-  int k=0; // char array position tracker
-  char j[10]; // url
-  -- delete below --
-  for (int i=1; i<strlen(urls_c)-1; i++) {
-  if (i > 100000) {
-  break;
-  }
-  if ((urls_c)[i]==',') {
-  char u[k];
-  strncpy(u, j, k);
-  gramurls.push_back(atoi(u));
-  k=0;
-  j[0] = '\0';
-  continue;
-  } else {
-  j[k]=(urls_c)[i];
-  k++;
-  }
-  }
-  -- delete above --
-  if (ng == "uni") {
-  unigramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
-  } else if (ng == "bi") {
-  bigramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
-  } else if (ng == "tri") {
-  trigramurls_map.insert(std::pair<std::string, std::vector<int>>(gram.as<std::string>(),gramurls));
-  } else {
-  continue;
-  }
-  }
-  if (urls.is_null()) {
-  std::cout << "index_server.cc skip : feed is null" << std::endl;;
-  continue;
-  }
-  }
-  txn.commit();
-  */
   time_t afterload = getTime();
   double seconds = difftime(afterload, beforeload);
-  // std::cout << "index_server.cc finished loading " << ng << "gram " << lang << " index in " << seconds << " seconds." << std::endl;
-  /*
-     for (std::unordered_map<std::string, std::vector<int>>::iterator it = ngramurls_map.begin() ; it != ngramurls_map.end(); ++it) {
-     std::cout << "index_server.cc :"  << it->first << ":" << std::endl;
-     }
-  */
 }
 
 void IndexServer::execute(std::string lang, std::string type, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj) {
@@ -408,7 +348,6 @@ void IndexServer::suggest(std::string lang, std::string parsed_query, std::promi
     rapidjson::Document::AllocatorType& allocator = suggest_response.GetAllocator();
     rapidjson::Value suggest_array(rapidjson::kArrayType);
     for (std::vector<std::pair<std::string,int>>::const_iterator it = sit->second.begin(); it != sit->second.end(); it++) {
-      std::cout << it->first << std::endl;
       suggest_array.PushBack(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), allocator);
     }
     suggest_response.AddMember("suggestions", rapidjson::Value(suggest_array, allocator).Move(), allocator);
@@ -427,17 +366,12 @@ void IndexServer::suggest(std::string lang, std::string parsed_query, std::promi
 void IndexServer::buildSuggestions(std::string lang) {
   std::cout << suggestions[lang].size() << std::endl;
   int j = 0;
-  for (phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[lang].begin(); urls != unigramurls_map[lang].end(); urls++) {
-    //std::cout << "tb" << tb << " - " << urls->first << " " << urls->second.size() << std::endl;
-    if (urls->second.size() > 1) {
-      addSuggestion(urls->first, lang, urls->second.size());
+  for (phmap::parallel_flat_hash_map<std::string, int[3]>::const_iterator urls = unigramurls_map[lang].begin(); urls != unigramurls_map[lang].end(); urls++) {
+    // TODO - needs work after moving to mmap
+    if (urls->second[0] > 1) {
+      addSuggestion(urls->first, lang, *urls->second);
     }
     j++;
-    /*
-    if (j%1000 == 0) {
-      std::cout << j << " loading suggestions " << ((float)j*100/unigramurls_map[lang].size()) << " % " << std::endl;
-    }
-    */
   }
 }
 
@@ -502,9 +436,9 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
   for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
     /*
        for (std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.begin(); tit__ != rit->terms.end(); tit__++) {
-       for (std::vector<int>::iterator tit___ = tit__->second.begin(); tit___ != tit__->second.end(); tit___++) {
-       std::cout << tit__->first << " " << *tit___ << std::endl;
-       }
+         for (std::vector<int>::iterator tit___ = tit__->second.begin(); tit___ != tit__->second.end(); tit___++) {
+         std::cout << tit__->first << " " << *tit___ << std::endl;
+         }
        }
     */
     std::map<int,int> best_match;
@@ -977,11 +911,6 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
   seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc : results time : " << seconds << std::endl;
 
-  beforeload = getTime();
-  afterload = getTime();
-  seconds = difftime(afterload, beforeload);
-  std::cout << "index_server.cc : commit time : " << seconds << std::endl;
-
   // if this is the next url, the process the previous one testing for
   // adjecent terms in multi terms queries and prioritize if necessary
   /*
@@ -1067,44 +996,41 @@ std::map<std::string,std::vector<int>> IndexServer::getTermPositions(int doc_id,
 
 /*
  * Retrieval function populate the query.
- * This all looks pretty efficient to me, but what do I know.
- * Would be great to get review / rewrite.
  */
 void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates) {
-  /*
-     for (phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator it = unigramurls_map.begin(); it != unigramurls_map.end(); it++) {
-     for (std::vector<Frag::Item>::const_iterator vit = (it->second).begin() ; vit != (it->second).end(); ++vit) {
-     std::cout << " map " << it->first << " : " << (*vit).doc_id << std::endl;
-     }
-     }
-     */
 
-  std::cout << "index_server.cc : add query candidates" << std::endl;
-  if (query.leafNodes.empty()) {
+  if (query.leafNodes.empty() && query.term.term.length() > 0) {
     std::string converted;
     query.term.term.toUTF8String(converted);
     std::cout << "index_server.cc - looking for \'" << converted << "\'" << std::endl;
 
     // hard lock here, we want to always honor incoming queries.
     // TODO separately we will need to DOS protections
-    m.lock();		
-    phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>::const_iterator urls = unigramurls_map[query.lang].find(converted);
-    m.unlock();
-    if (urls != unigramurls_map[query.lang].end()) {
-      std::cout << "index_server.cc Found " << urls->second.size() << " candidates for " << urls->first << std::endl;
+    // PROBLEM IS BETWEEN A AND B, MAYBE the lock
+    // m.lock();		
+    phmap::parallel_flat_hash_map<std::string, int[3]>::const_iterator frag_id = unigramurls_map[query.lang].find(converted);
+    //m.unlock();
+    if (frag_id != unigramurls_map[query.lang].end()) {
 
+      time_t beforeload = getTime();
+      std::vector<Frag::Item> docs = mmapped_frags.at(frag_id->second[0]).get()->getItems(frag_id->second[1], frag_id->second[2]);
+      time_t afterload = getTime();
+      time_t seconds = difftime(afterload, beforeload);
+      std::cout << "index_server.cc - found " << docs.size() << "docs for \"" << converted << "\" in " << seconds << std::endl;
+
+      // XX TODO - get std::vector<Frag::Item> from mmap
       /*
-         for (std::vector<Frag::Item>::const_iterator it = (urls->second).begin() ; it != (urls->second).end(); ++it) {
-         std::cout << "index_server.cc - at " << (urls->second).begin() - it << " : " << it->doc_id << std::endl;
-         }
-         */
+      for (std::vector<Frag::Item>::const_iterator it = docs.begin() ; it != docs.end(); ++it) {
+        std::cout << "index_server.cc - at " << it->doc_id << std::endl;
+      }
+      */
 
-      std::vector<Frag::Item>::const_iterator bit = urls->second.begin();
+      std::vector<Frag::Item>::const_iterator bit = docs.begin();
       std::vector<Frag::Item>::const_iterator eit;
-      if (urls->second.size() > MAX_CANDIDATES_COUNT*3) {
-        eit = urls->second.begin() + MAX_CANDIDATES_COUNT*3;
+      if (docs.size() > MAX_CANDIDATES_COUNT*3) {
+        eit = docs.begin() + MAX_CANDIDATES_COUNT*3;
       } else {
-        eit = urls->second.end();
+        eit = docs.end();
       }
       candidates=std::vector<Frag::Item>(bit,eit);
     }
@@ -1137,7 +1063,6 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
                 return r.doc_id == tit->doc_id;
                 });
             if (ait != node_candidates.end()) {
-              // std::cout << "index_server.cc add candidate " << ait->doc_id << std::endl;
               ait->weight=ait->weight + tit->weight;
               new_candidates.push_back(*ait);
             }
@@ -1206,9 +1131,12 @@ std::map<std::string,int> IndexServer::getServingInfo() {
   std::cout << "getServingInfo try lock" << std::endl;
   if (softMutexLock(m)==true) {
     std::cout << "getServingInfo lock success" << std::endl;
-    for (std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>>::const_iterator it = unigramurls_map.begin(); it != unigramurls_map.end(); it++) {
+    for (std::map<std::string, phmap::parallel_flat_hash_map<std::string, int[3]>>::const_iterator it = unigramurls_map.begin(); it != unigramurls_map.end(); it++) {
       std::cout << "getServingInfo : " << it->first << " " << it->second.size() << std::endl;
       lang_term_count[it->first] = it->second.size();
+      //lang_term_count[it->first] = sizeof(it->second)/sizeof(it->second[0]);
+      //std::cout << "sizeof(it->second)/sizeof((it->second)[0])" << std::endl;
+      //std::cout << sizeof(it->second)/sizeof(it->second[0]) << std::endl;
     }
     std::cout << "getServingInfo unlock" << std::endl;
     // softMutexLock locks, so make sure to unlock before returning.

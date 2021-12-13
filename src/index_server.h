@@ -42,11 +42,13 @@ class IndexServer {
         PgPool pgPool;
         pqxx::connection* C;
         // pqxx::work* txn;
+        // a map of memory mapped fragments which we can query
+        std::map<int,std::unique_ptr<Frag>> mmapped_frags;
 
         // a map of langages to a parallel flat hash map of terms(words) to fragments (url id and weight) 
-        std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> unigramurls_map;
-        std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> bigramurls_map;
-        std::map<std::string,phmap::parallel_flat_hash_map<std::string, std::vector<Frag::Item>>> trigramurls_map;
+        std::map<std::string,phmap::parallel_flat_hash_map<std::string, int[3]>> unigramurls_map;
+        std::map<std::string,phmap::parallel_flat_hash_map<std::string, int[3]>> bigramurls_map;
+        std::map<std::string,phmap::parallel_flat_hash_map<std::string, int[3]>> trigramurls_map;
         std::map<std::string,int> percent_loaded;
         QueryBuilder queryBuilder;
         // a map of languages to a map of strings (partial words)) to a map of suggestions (the int is the number of occurrences in the corpus)
