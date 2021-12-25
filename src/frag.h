@@ -33,6 +33,7 @@ class Frag {
 
         int frag_id;
         int fragment_id;
+        int MAX_CANDIDATES = 10000;
         std::string path;
         std::string lang;
         std::string filename;
@@ -46,6 +47,8 @@ class Frag {
             int doc_id;
             float tf;
             float weight;
+            int no_positions;
+            int positions[20];
         };
         size_t size();
         void addToIndex(phmap::parallel_flat_hash_map<std::string, int[3]> &index, std::mutex &m);

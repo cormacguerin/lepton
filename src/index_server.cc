@@ -155,7 +155,9 @@ void IndexServer::loadIndex(Frag::Type type, std::string lang) {
       }
       // load frag
       mmapped_frags[frag_id] = std::make_unique<Frag>(type, frag_id, 1, path + lang, true);
-      mmapped_frags.at(frag_id).get()->addToIndex(unigramurls_map[lang], m);
+      if (type == Frag::Type::UNIGRAM) {
+          mmapped_frags.at(frag_id).get()->addToIndex(unigramurls_map[lang], m);
+      }
       percent_loaded[lang]=std::ceil((counter++/index_files.size())*100);
       std::cout << "index_server.cc " << db << " " << counter << " percent_loaded " << lang << " " << percent_loaded[lang] << std::endl;
     }
@@ -238,8 +240,9 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   // queueRewrite->otherServlet.addOther();
   // indexServer->retrieveResults();
   // indexServer->resolveQuery(query, indexServer);
+
   time_t beforeload = indexServer->getTime();
-  std::vector<Frag::Item> candidates;
+  std::vector<Result::Item> candidates;
   indexServer->addQueryCandidates(query, indexServer, candidates);
   time_t afterload = indexServer->getTime();
   double seconds = difftime(afterload, beforeload);
@@ -247,17 +250,17 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
 
   // new
   std::sort(candidates.begin(), candidates.end(),
-      [](const Frag::Item& l, const Frag::Item& r) {
+      [](const Result::Item& l, const Result::Item& r) {
       return l.weight > r.weight;
       });
-  std::vector<Frag::Item>::const_iterator bit = candidates.begin();
-  std::vector<Frag::Item>::const_iterator eit;
+  std::vector<Result::Item>::const_iterator bit = candidates.begin();
+  std::vector<Result::Item>::const_iterator eit;
   if (candidates.size() > indexServer->MAX_CANDIDATES_COUNT) {
     eit = candidates.begin() + indexServer->MAX_CANDIDATES_COUNT;
   } else {
     eit = candidates.end();
   }
-  candidates=std::vector<Frag::Item>(bit, eit);
+  candidates=std::vector<Result::Item>(bit, eit);
 
   // filter the candidates against supplied filters
   // TODO ACLs can be done in the same way.
@@ -288,8 +291,7 @@ void IndexServer::search(std::string lang, std::string parsed_query, std::string
   result.page_result_num = page_result_num;
   afterload = indexServer->getTime();
   seconds = difftime(afterload, beforeload);
-  std::cout << "index_server.cc getResult " << parsed_query << " completed in " << seconds << " miliseconds." << std::endl;
-  std::cout << "result size " << result.items.size() << std::endl;
+  std::cout << "index_server.cc getResult for " << parsed_query << " retrned " << result.items.size() << " results in " << seconds << " miliseconds." << std::endl;
 
   // order the first 20 documents according to score 
   // TODO add pagination
@@ -434,13 +436,6 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
   pqxx::work txn(*C_.get());
 
   for (std::vector<Result::Item>::iterator rit = result.items.begin(); rit != result.items.end(); ++rit) {
-    /*
-       for (std::map<std::string,std::vector<int>>::iterator tit__ = rit->terms.begin(); tit__ != rit->terms.end(); tit__++) {
-         for (std::vector<int>::iterator tit___ = tit__->second.begin(); tit___ != tit__->second.end(); tit___++) {
-         std::cout << tit__->first << " " << *tit___ << std::endl;
-         }
-       }
-    */
     std::map<int,int> best_match;
     int position = 0;
     int tophits = 0;
@@ -484,14 +479,6 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
         continue;
       }
     }
-    /*
-    // std::cout << "position " << " " << rit->doc_id << " " << position << std::endl;
-    // std::cout << "tophits " << tophits << std::endl;
-    // std::cout << "position " << tophits << std::endl;
-    for (std::map<int,int>::iterator it = best_match.begin(); it != best_match.end(); ++it) {
-    std::cout << "best match " << it->first << " : " << it->second << std::endl;
-    }
-    */
 
     pqxx::result r;
     try {
@@ -519,7 +506,7 @@ void IndexServer::getResultInfo(Result& result, std::vector<std::string> terms, 
 
 }
 
-void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidates, bool has_query) {
+void IndexServer::doFilter(std::string filter, std::vector<Result::Item> &candidates, bool has_query) {
 
   if (filter == "") {
     return;
@@ -528,8 +515,9 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
   std::cout << "filter " << filter << std::endl;
 
   std::string prepstr_="";
-  for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
-    tit->doc_id;
+  for (std::vector<Result::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
+    // wtf is this
+    // tit->doc_id;
     prepstr_ += std::to_string(tit->doc_id);
     if (std::next(tit) != candidates.end()) {
       prepstr_ += ",";
@@ -618,7 +606,6 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
           if (it->value.IsString()) {
             key = it->value.GetString();
           } else {
-            std::cout << "KEY IS NOT STRING CONTINUEa" << std::endl;
             continue;
           }
         }
@@ -714,10 +701,10 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
     // std::cout << "index_server.cc doFilter id " << id << std::endl;
 
     if (has_query) {
-      std::vector<Frag::Item>::iterator fit = std::find_if(
+      std::vector<Result::Item>::iterator fit = std::find_if(
           candidates.begin(),
           candidates.end(),
-          [id](const Frag::Item& f) { return f.doc_id == id; }
+          [id](const Result::Item& f) { return f.doc_id == id; }
           );
       if (fit != candidates.end() && num < candidates.size()) {
         // std::cout << num << " index_server.cc doFilter id " << fit->doc_id << " found." << std::endl;
@@ -725,11 +712,11 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
         num++;
       }
     } else {
-      Frag::Item F;
-      F.doc_id = id;
-      F.weight = 1.0;
-      F.tf = 1.0;
-      candidates.push_back(F);
+      Result::Item R;
+      R.doc_id = id;
+      R.weight = 1.0;
+      R.tf = 1.0;
+      candidates.push_back(R);
     }
   }
 
@@ -741,7 +728,7 @@ void IndexServer::doFilter(std::string filter, std::vector<Frag::Item> &candidat
   }
 }
 
-Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates) {
+Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Result::Item> candidates) {
 
   Result result;
 
@@ -749,16 +736,11 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
     return result;
   }
 
-  /*
-  if (terms.empty()) {
-    return result;
-  }
-  */
-
   int p = 0;
   std::string prepstr="(";
   std::string termsstr="";
   std::vector<std::string> prepterms;
+  
   for (std::vector<std::string>::const_iterator it = terms.begin(); it != terms.end(); ++it) {
     p++;
     prepstr += "$" + std::to_string(p);
@@ -774,17 +756,13 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
   std::map<int,int> c_map;
   int x = 0;
   std::string prepstr_="";
-  for (std::vector<Frag::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
-    Result::Item item;
-    item.tf = tit->tf;
-    item.weight = tit->weight;
-    item.doc_id = tit->doc_id;
-    result.items.push_back(item);
+  for (std::vector<Result::Item>::const_iterator tit = candidates.begin(); tit != candidates.end(); ++tit) {
+    result.items.push_back(*tit);
     prepstr_ += std::to_string(tit->doc_id);
     if (std::next(tit) != candidates.end()) {
       prepstr_ += ",";
     }
-    c_map[item.doc_id]=x;
+    c_map[tit->doc_id]=x;
     x++;
   }
 
@@ -796,14 +774,16 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
   time_t getResultTime = 0;
   std::string statement;
 
-
   if (terms.size() > 0) {
     statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ") AND docterms.key IN " + prepstr + ";";
+    //statement = "SELECT id, url, tdscore, docscore FROM \"" + tb + "\" d WHERE d.id IN (" + prepstr_ + ")";
   } else {
-    statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ")";
+    //statement = "SELECT id, url, tdscore, docscore, key, value FROM \"" + tb + "\" d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id IN (" + prepstr_ + ")";
+    statement = "SELECT id, url, tdscore, docscore FROM \"" + tb + "\" d WHERE d.id IN (" + prepstr_ + ")";
   }
 
-  std::cout << "index_server.cc getResult : " << statement << std::endl;
+  std::cout << "index_server.cc getResult statement : " << statement << std::endl;
+  std::cout << "index_server.cc getResult prepstr_ : " << statement << std::endl;
 
   auto C_ = pgPool.getConn();
   pqxx::work txn(*C_.get());
@@ -835,8 +815,8 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
     const pqxx::field u = (row)[1];
     const pqxx::field q = (row)[2];
     const pqxx::field s = (row)[3];
-    const pqxx::field term = (row)[4];
-    const pqxx::field position = (row)[5];
+    //const pqxx::field term = (row)[4];
+    //const pqxx::field position = (row)[5];
 
     if (!c_map.count(atoi(i.c_str()))) {
       continue;
@@ -895,109 +875,25 @@ Result IndexServer::getResult(std::vector<std::string> terms, std::vector<Frag::
     }
     last_id = id;
 
-    std::string term_(term.c_str());
-
-    std::vector<int> positions;
-    stringstream sterm(position.c_str());
-
-    std::string p;
-    while (getline(sterm, p, ',')) {
-      positions.push_back(atoi(p.c_str()));
-    }
-    result.items.at(id).terms[term_] = positions;
   }
   std::cout << "index_server.cc : getResult  processed in " << getResultTime << std::endl;
   afterload = getTime();
   seconds = difftime(afterload, beforeload);
   std::cout << "index_server.cc : results time : " << seconds << std::endl;
 
-  // if this is the next url, the process the previous one testing for
-  // adjecent terms in multi terms queries and prioritize if necessary
-  /*
-     for (std::vector<Result::Item>::iterator it = result.items.begin(); it != result.items.end(); ++it) {
-     if (it->terms.size() > 1) {
-     for (std::vector<std::string>::const_iterator s = terms.begin(); s != terms.end(); ++s) {
-     if (std::next(s) == terms.end()) {
-     break;
-     }
-     std::map<std::string,std::vector<int>>::iterator xit = it->terms.find(*s);
-     std::map<std::string,std::vector<int>>::iterator yit = it->terms.find(*(std::next(s)));
-     if (xit!=it->terms.end() && yit!=it->terms.end()) {
-     int w=1;
-     for (std::vector<int>::iterator zit = it->terms.at(*s).begin(); zit != it->terms.at(*s).end(); zit++) {
-     w += std::count(it->terms.at(*(std::next(s))).begin(), it->terms.at(*(std::next(s))).end(), (*zit)+1);
-     }
-     it->score += log(w);
-     }
-     }
-     }
-     }
-     */
-
   return result;
 }
 
 /*
-pqxx::prepare::invocation& IndexServer::prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv)
-{
-  for(auto data_val : data)
-    inv(data_val);
-  return inv;
-}
-*/
-
-/*
-std::vector<std::string> IndexServer::getDocInfo(int doc_id) {
-  pqxx::work txn(*C);
-  C->prepare("get_url","SELECT url,tdscore,docscore FROM \"" + tb + "\" WHERE id = $1");
-  pqxx::result r = txn.prepared("get_url")(doc_id).exec();
-  txn.commit();
-  const pqxx::field u = r.back()[0];
-  const pqxx::field q = r.back()[1];
-  const pqxx::field s = r.back()[2];
-  std::vector<std::string> docinfo;
-  docinfo.push_back(pqxx::to_string(u));
-  docinfo.push_back(pqxx::to_string(q));
-  docinfo.push_back(pqxx::to_string(s));
-  return docinfo;
-}
-
-std::map<std::string,std::vector<int>> IndexServer::getTermPositions(int doc_id, std::vector<std::string> terms) {
-  std::string termstr;
-  pqxx::work txn(*C);
-  for (std::vector<std::string>::const_iterator it = terms.begin(); it != terms.end(); ++it) {
-    termstr += txn.quote(*it);
-    if (std::next(it) != terms.end()) {
-      termstr += ",";
-    }
-  }
-  C->prepare("get_positions","SELECT key, value FROM docs_en d, jsonb_each_text(d.segmented_grams->'unigrams') docterms WHERE d.id=$1 AND docterms.key IN ($2)");
-  pqxx::result r = txn.prepared("get_positions")(doc_id)(termstr).exec();
-  txn.commit();
-  std::map<std::string,std::vector<int>> term_positions;
-  for (pqxx::result::const_iterator row = r.begin(); row != r.end(); ++row) {
-    const pqxx::field term = (row)[0];
-    const pqxx::field position = (row)[1];
-    std::string term_(term.c_str());
-
-    std::vector<int> positions;
-    stringstream sterm(position.c_str());
-
-    std::string p;
-    while (getline(sterm, p, ','))
-    {
-      positions.push_back(atoi(p.c_str()));
-    }
-    term_positions[term_] = positions;
-  }
-  return term_positions;
-}
-*/
-
-/*
  * Retrieval function populate the query.
  */
-void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates) {
+void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Result::Item> &candidates) {
+
+  // load the terms as convenience.
+  std::vector<std::string> terms = query.getTerms();
+  // to manage duplicates efficiently we store a map doc it <int> to a pointer pair for that result.
+  // this might be faster if we just used a candidates map instead of a vector for candidates, but has some architecture implications.
+  std::map<int, std::pair<bool, Result::Item*>> ex;
 
   if (query.leafNodes.empty() && query.term.term.length() > 0) {
     std::string converted;
@@ -1006,7 +902,6 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
 
     // hard lock here, we want to always honor incoming queries.
     // TODO separately we will need to DOS protections
-    // PROBLEM IS BETWEEN A AND B, MAYBE the lock
     // m.lock();		
     phmap::parallel_flat_hash_map<std::string, int[3]>::const_iterator frag_id = unigramurls_map[query.lang].find(converted);
     //m.unlock();
@@ -1016,14 +911,7 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
       std::vector<Frag::Item> docs = mmapped_frags.at(frag_id->second[0]).get()->getItems(frag_id->second[1], frag_id->second[2]);
       time_t afterload = getTime();
       time_t seconds = difftime(afterload, beforeload);
-      std::cout << "index_server.cc - found " << docs.size() << "docs for \"" << converted << "\" in " << seconds << std::endl;
-
-      // XX TODO - get std::vector<Frag::Item> from mmap
-      /*
-      for (std::vector<Frag::Item>::const_iterator it = docs.begin() ; it != docs.end(); ++it) {
-        std::cout << "index_server.cc - at " << it->doc_id << std::endl;
-      }
-      */
+      std::cout << "index_server.cc - found " << docs.size() << " docs for \"" << converted << "\" in " << seconds << " miliseconds" << std::endl;
 
       std::vector<Frag::Item>::const_iterator bit = docs.begin();
       std::vector<Frag::Item>::const_iterator eit;
@@ -1032,10 +920,43 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
       } else {
         eit = docs.end();
       }
-      candidates=std::vector<Frag::Item>(bit,eit);
+
+      /*
+      for (eit; eit != bit; --bit) {
+          candidates.push_back(Result::Item());
+          candidates.back().doc_id = bit->doc_id;
+          candidates.back().tf = bit->tf;
+          candidates.back().weight = bit->weight;
+          if(std::find(terms.begin(), terms.end(), converted) != terms.end()) {
+            std::cout << "bit->positions[0] " << bit->positions[0] << std::endl;
+            std::cout << "converted " << converted << std::endl;
+            std::cout << bit->positions[0] << std::endl;
+            std::cout << bit->positions[0]+bit->no_positions << std::endl;
+            std::vector<int> p(bit->positions[0],bit->positions[0]+bit->no_positions);
+            candidates.back().terms[converted]=p;
+          }
+      }
+*/
+      // copy the candidates to result structure.
+      for (std::vector<Frag::Item>::const_iterator it = docs.begin() ; it != eit; ++it) {
+          // std::cout << "index_server.cc - at " << it->doc_id << std::endl;
+          candidates.push_back(Result::Item());
+          candidates.back().doc_id = it->doc_id;
+          candidates.back().tf = it->tf;
+          candidates.back().weight = it->weight;
+          if(std::find(terms.begin(), terms.end(), converted) != terms.end()) {
+            std::cout << "it->positions[0] " << it->positions[0] << std::endl;
+            std::cout << "converted " << converted << std::endl;
+            std::cout << it->positions[0] << std::endl;
+            std::cout << it->positions[0]+it->no_positions << std::endl;
+            std::vector<int> p(it->positions[0],it->positions[0]+it->no_positions);
+            candidates.back().terms[converted]=p;
+          }
+      }
+      // candidates=std::vector<Frag::Item>(bit,eit);
     }
   } else {
-    std::vector<Frag::Item> node_candidates;
+    std::vector<Result::Item> node_candidates;
     for (std::vector<Query::Node>::iterator it = query.leafNodes.begin() ; it != query.leafNodes.end(); ++it) {
       bool isStopWord = false;
       for (std::vector<std::pair<Query::Modifier, Query::AttributeValue>>::iterator mit = it->term.mods.begin() ; mit != it->term.mods.end(); ++mit) {
@@ -1049,17 +970,17 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
         std::cout << "index_server.cc this is an en stopword - continue" << std::endl;
         continue;
       }
-      std::vector<Frag::Item> candidates_;
+      std::vector<Result::Item> candidates_;
       addQueryCandidates(*it, this, candidates_);
       if (node_candidates.empty()) {
         node_candidates=candidates_;
       } else {
-        std::vector<Frag::Item> new_candidates;
+        std::vector<Result::Item> new_candidates;
         // AND/OR is counter intuitive, AND means intersect of results while OR is union.
         if (query.op==Query::Operator::AND) {
-          for (std::vector<Frag::Item>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
+          for (std::vector<Result::Item>::iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
             // introduce AND , OR logic here.
-            auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Frag::Item r) {
+            auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Result::Item r) {
                 return r.doc_id == tit->doc_id;
                 });
             if (ait != node_candidates.end()) {
@@ -1078,9 +999,9 @@ void IndexServer::addQueryCandidates(Query::Node &query, IndexServer *indexServe
             //                        }
           }
         } else if (query.op==Query::Operator::OR) {
-          for (std::vector<Frag::Item>::const_iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
+          for (std::vector<Result::Item>::iterator tit = candidates_.begin(); tit != candidates_.end(); ++tit) {
             // introduce AND , OR logic here.
-            auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Frag::Item r) {
+            auto ait = find_if(node_candidates.begin(), node_candidates.end(), [tit](const Result::Item r) {
                 return r.doc_id == tit->doc_id;
                 });
             if (ait != node_candidates.end()) {

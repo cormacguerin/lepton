@@ -68,23 +68,18 @@ void Frag::load() {
 
     if (is_serving == true) {
         writeRawMemMapFrag();
+    }
+    if (prefix_type==Frag::Type::UNIGRAM) {
         loadMmap();
     }
-
-    /*
-       for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-         for (std::map<int, Frag::Item>::const_iterator vit = (it->second).begin() ; vit != (it->second).end(); ++vit) {
-           std::cout << filename << " : " << it->first << " : " << vit->first << " : " << (vit->second).doc_id << std::endl;
-         }
-       }
-    */
-
 }
 
 void Frag::loadMmap() {
     const char *frag_file;
     struct stat s;
+    struct stat s_;
     int fd;
+    int fd_;
 
     std::string serve_filename = filename;
     serve_filename.append(".serve");
@@ -104,27 +99,31 @@ void Frag::loadMmap() {
     }
 
     serve_filename.append(".x");
-    if ((fd = open (serve_filename.c_str(), O_RDONLY)) < 0) {
+    if ((fd_ = open (serve_filename.c_str(), O_RDONLY)) < 0) {
       std::cout << "can't open " << serve_filename << " for reading" << std::endl;
       return;
     }
-    if (fstat (fd,&s) < 0) {
+    if (fstat (fd_,&s_) < 0) {
       std::cout << "can't stat file " << serve_filename << std::endl;
       return;
     }
-    // frag_file = (char*)mmap(0, s.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    frag_mem_map_pos = (int*)mmap(0, s.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    frag_mem_map_pos = (int*)mmap(0, s_.st_size, PROT_READ, MAP_SHARED, fd_, 0);
     if (frag_file == (caddr_t) -1) {
       std::cout << "frag.cc : read error mmapping " << serve_filename << std::endl;
       return;
     }
 
-    std::cout << "frag.cc : loadMmap sizeof(frag_mem_map_pos)" << std::endl;
-    std::cout << sizeof(frag_mem_map_pos) << std::endl;
-    for( unsigned int a = 0; a < sizeof(frag_mem_map_pos)/sizeof(frag_mem_map_pos[0]); a = a + 1 ) {
-        std::cout << "frag_mem_map_pos[a] " << std::endl;
-        std::cout << frag_mem_map_pos[a] << std::endl;
+    /*
+    std::cout << "filenmae " << filename << std::endl;
+    if (filename == "index/1_demo/jademo/ja_unigram_00064.frag.00001") {
+      for (int i=0; i < 10; i++) {
+          std::cout << "frag.cc : frag_id - " << frag_id << " frag_mem_map[" << i << "] doc_id " << frag_mem_map[i].doc_id << std::endl;
+          std::cout << "frag.cc : frag_id - " << frag_id << " frag_mem_map[" << i << "] weight " << frag_mem_map[i].weight << std::endl;
+          std::cout << "frag.cc : frag_id - " << frag_id << " frag_mem_map_pos[" << i << "] ps " << frag_mem_map_pos[i] << std::endl;
+      }
     }
+    */
+
 }
 
 void Frag::loadJsonFrag() {
@@ -183,28 +182,32 @@ void Frag::addToIndex(phmap::parallel_flat_hash_map<std::string, int[3]> &index,
   std::cout << "frag_mem_map_pos_len " << frag_mem_map_pos_len << std::endl;
   if (frag_mem_map_pos_len > 0) {
       for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-          if (softMutexLock(m)==true) {
-              // here we return a list of pairs for each document for the given term all sorted by their term weight
-              // d[0] = frag id (indicating we should search in this frag)
-              // d[1] = position in the .serve mmap file that the frags start at.
-              // d[2] = position in the .serve mmap file that the frags ends at. 
+          // here we return a list of pairs for each document for the given term all sorted by their term weight
+          // d[0] = frag id (indicating we should search in this frag)
+          // d[1] = position in the .serve mmap file that the frags start at.
+          // d[2] = position in the .serve mmap file that the frags ends at. 
 
-              int pos_start = frag_mem_map_pos[std::distance(frag_map.begin(), it)];
-              int pos_end;
-              std::map<std::string, std::map<int, Frag::Item>>::iterator last_it = std::prev(frag_map.end(), 1);
-              std::map<std::string, std::map<int, Frag::Item>>::iterator next_it = std::next(it, 1);
-              if (it == last_it) {
-                  pos_end = frag_mem_map_pos[frag_mem_map_pos_len];
-              } else {
-                  pos_end = frag_mem_map_pos[std::distance(frag_map.begin(), next_it)];
-              }
-              index[it->first][0] = frag_id;
-              index[it->first][1] = pos_start;
-              index[it->first][2] = pos_end;
-              m.unlock();
+          int pos_start = frag_mem_map_pos[std::distance(frag_map.begin(), it)];
+          int pos_end;
+          std::map<std::string, std::map<int, Frag::Item>>::iterator final_it = std::prev(frag_map.end(), 1);
+          std::map<std::string, std::map<int, Frag::Item>>::iterator next_it = std::next(it, 1);
+          if (it == final_it) {
+              pos_end = frag_mem_map_pos[frag_mem_map_pos_len];
           } else {
-              continue;
+              pos_end = frag_mem_map_pos[std::distance(frag_map.begin(), next_it)]-1;
           }
+          index[it->first][0] = frag_id;
+          index[it->first][1] = pos_start;
+          index[it->first][2] = pos_end;
+          /*
+          std::cout << std::distance(frag_map.begin(), it) << "" << " " << pos_start << " - " << pos_end << std::endl;
+          for (int i=pos_start; i<= pos_end; i++) {
+              std::cout << "frag_mem_map_pos[" << i << "] " << it->first <<" : " << frag_mem_map[i].doc_id << " " << frag_mem_map[i].weight << std::endl;
+          }
+          std::cout << " - - - - '" << it->first << "' - - - -  " << std::endl;
+          std::cout << "pos_start " << pos_start << std::endl;
+          std::cout << "pos_end " << pos_end << std::endl;
+          */
       }
   }
   frag_map.clear();
@@ -222,14 +225,17 @@ void Frag::writeRawMemMapFrag() {
     int frag_arr_pos[frag_map.size()] = {0};
     
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it_ = frag_map.begin(); it_ != frag_map.end(); ++it_) {
-        arr_size+=it_->second.size();
         frag_arr_pos[i]=arr_size;
+        arr_size+=it_->second.size();
         i++;
     }
     
-    // Frag::Item frag_arr[arr_size*sizeof(Frag::Item)];
     Frag::Item* frag_arr = new Frag::Item[arr_size];
     for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
+
+        //frag_arr_pos[i]=j;
+        //i++;
+
         usleep(1);
         std::vector<Frag::Item> tmp;
         /*
@@ -295,6 +301,13 @@ void Frag::writeRawMemMapFrag() {
     serve_filename.append(".x");
     tmp_serve_filename = serve_filename;
     tmp_serve_filename.append("_");
+
+    std::cout << "frag_id : " << frag_id << " - - - - - " << std::endl;
+    /*
+    for (int y=0;y<frag_map.size();y++) {
+      std::cout << "frag_arr_pos[y] " << frag_arr_pos[y] << std::endl;
+    }
+    */
     
     FILE * f_;
     f_ = fopen(serve_filename.c_str(), "wb");
@@ -348,11 +361,8 @@ void Frag::writeIndex() {
     index_.SetObject();
 
     rapidjson::Value index_arr(rapidjson::kArrayType);
-    if (softMutexLock(m_frag_map)==true) {
-        for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-            index_arr.PushBack(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), d_.GetAllocator());
-        }
-        m_frag_map.unlock();
+    for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
+        index_arr.PushBack(rapidjson::Value(const_cast<char*>(it->first.c_str()), allocator).Move(), d_.GetAllocator());
     }
     std::string d_id = std::to_string(frag_id);
     d_.SetObject();
@@ -459,8 +469,12 @@ std::vector<std::string> Frag::getItemKeys() {
 }
 
 std::vector<Frag::Item> Frag::getItems(int start, int end) {
-    std::cout << "frag.cc : getItems" << std::endl;
     time_t beforeload = getTime();
+    /*
+    if (end-start > MAX_CANDIDATES) {
+      end = start + MAX_CANDIDATES;
+    }
+    */
     std::vector<Frag::Item> x(frag_mem_map + start, frag_mem_map + end);
     time_t afterload = getTime();
     double seconds = difftime(afterload, beforeload);
@@ -518,51 +532,20 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
     C->prepare(update_gram_idf, "INSERT INTO " + gram + " (idf,gram,lang) VALUES ($1,$2,$3) ON CONFLICT "
             "ON CONSTRAINT " + gram + "_lang_gram_key DO UPDATE SET idf = $1, lang = $3 WHERE " + gram + ".gram = $2");
 
-    if (softMutexLock(m_frag_map)==true) {
-        for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-            int counter = 1;
-            std::string pn_str = "(";
-            std::string pv_str = "(";
-            std::vector<std::string> pv;
+    for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
+        int counter = 1;
+        std::string pn_str = "(";
+        std::string pv_str = "(";
+        std::vector<std::string> pv;
 
-            double idf = log((double)num_docs/(double)it->second.size());
-            for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
-                tit->second.weight = idf*tit->second.tf*gram_boost;
-            }
-            // std::cout << "frag.cc addWeights it->first.c_str() " << " " << gram << " " << it->first.c_str() << std::endl;
-            pqxx::result r = txn.exec_prepared(update_gram_idf, std::to_string(idf), it->first.c_str(), lang);
-            /*
-               int n = pv.size();
-               for (int i=1; i<=n;i++) {
-               pn_str += "$";
-               pn_str += std::to_string(counter++);
-               if (i == n) {
-               pn_str += ") ";
-               } else if (i % 3 == 0) {
-               pn_str += "),(";
-               } else {
-               pn_str += ",";
-               }
-               }
-
-               std::string ss =  "INSERT INTO " + gram + " (gram,lang,idf) VALUES " + pn_str + " ON CONFLICT "
-               "ON CONSTRAINT " + gram + "_gram_key DO UPDATE SET idf = (SELECT v.v_idf FROM (VALUES " + pn_str + ") "
-               "AS v(v_gram,v_lang,v_idf) WHERE " + gram + ".gram = v.v_gram AND " + gram + ".lang = v_lang)";
-               std::cout << ss << std::endl;
-
-               C->prepare(update_gram_idf, "INSERT INTO " + gram + " (gram,lang,idf) VALUES " + pn_str + " ON CONFLICT "
-               "ON CONSTRAINT " + gram + "_gram_key DO UPDATE SET idf = (SELECT v.v_idf FROM (VALUES " + pn_str + ") "
-               "AS v(v_gram,v_lang,v_idf) WHERE " + gram + ".gram = v.v_gram AND " + gram + ".lang = v_lang)");
-               pqxx::prepare::invocation w_invocation = txn.prepared(update_gram_idf);
-               prep_dynamic(pv, w_invocation);
-               std::cout << " - exec start " << pv.size() << std::endl;
-               pqxx::result r = w_invocation.exec();
-               std::cout << " - exec end " << std::endl;
-               pv.clear();
-               */
+        double idf = log((double)num_docs/(double)it->second.size());
+        for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
+            tit->second.weight = idf*tit->second.tf*gram_boost;
         }
-        m_frag_map.unlock();
+        // std::cout << "frag.cc addWeights it->first.c_str() " << " " << gram << " " << it->first.c_str() << std::endl;
+        pqxx::result r = txn.exec_prepared(update_gram_idf, std::to_string(idf), it->first.c_str(), lang);
     }
+
     time_t afterload = getTime();
     double seconds = difftime(afterload, beforeload);
     std::cout << "finish addWeights for " << update_gram_idf << " executed in " << seconds << " milliseconds." << std::endl;
@@ -576,77 +559,36 @@ void Frag::addWeights(int num_docs, std::string database, std::string lang) {
  * Similar to add weights above, the difference here is that we only purge docs from index.
  */
 void Frag::purgeDocs(std::map<int,std::string> purge_docs) {
-	time_t beforeload = getTime();
-    if (softMutexLock(m_frag_map)==true) {
-        for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end();) {
-            int removed = 0;
-            for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end();) {
-                std::map<int,std::string>::iterator pit = purge_docs.find(tit->first);
-                /*
-                if ((it->first == "beirut") || (it->first == "cormac")) {
-                    std::cout << "frag.cc debug  " << it->first << " " << path << frag_id << " - term : " << it->first <<  " - id : " << tit->first << " - doc_id : " << tit->second.doc_id << std::endl;
-                }
-                */
-                if (pit != purge_docs.end()) {
-                  /*
-                    if ((it->first == "beirut") || (it->first == "cormac")) {
-                        std::cout << "frag.cc debug "<<  it->first << " FOUND in doc id " << tit->second.doc_id << std::endl;
-                    }
-                   */
-                    tit = it->second.erase(tit);
-                    removed++;
-                } else {
-                    ++tit;
-                }
-            }
-            // I've encountered scenarios where you can have empty maps in unknown circumstances.
-            // probably from me messing with the index, but this could probably happen in the real world too say during crashes
-            // this causes problems at serving time as you have have a good index (.idx) but the same terms in more than one frag
-            // to heal this, just delete if empty.
-            if (it->second.empty()) {
-              /*
-                if ((it->first == "beirut") || (it->first == "cormac")) {
-                    std::cout << "frag.cc "<< path << " " << frag_id <<  " found empty map for " << it->first << std::endl;
-                }
-                if (removed > 0) {
-                    std::cout << "frag.cc purged " << removed << " docs for term " << it->first << " from frag " << frag_id << std::endl; 
-                }
-               */
-                it = frag_map.erase(it);
+    time_t beforeload = getTime();
+    for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end();) {
+        int removed = 0;
+        for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end();) {
+            std::map<int,std::string>::iterator pit = purge_docs.find(tit->first);
+            if (pit != purge_docs.end()) {
+                tit = it->second.erase(tit);
+                removed++;
             } else {
-                if (removed > 0) {
-                //    std::cout << "frag.cc purged " << removed << " docs for term " << it->first << " from frag " << frag_id << std::endl; 
-                }
-                ++it;
+                ++tit;
             }
         }
-        m_frag_map.unlock();
-    }
-    /*
-    for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-        if ((it->first == "beirut") || (it->first == "cormac")) {
-            std::cout << "frag.cc after purge " << path << " - term : " << it->first <<  " map size " << it->second.size() << std::endl;
-            for (std::map<int, Frag::Item>::iterator tit = it->second.begin(); tit != it->second.end(); ++tit) {
-                std::cout << "frag.cc after purge_ " << path << " " << frag_id << " - term : " << it->first <<  " - id : " << tit->first << " - doc_id : " << tit->second.doc_id << std::endl;
+        // I've encountered scenarios where you can have empty maps in unknown circumstances.
+        // probably from me messing with the index, but this could probably happen in the real world too say during crashes
+        // this causes problems at serving time as you have have a good index (.idx) but the same terms in more than one frag
+        // to heal this, just delete if empty.
+        if (it->second.empty()) {
+            it = frag_map.erase(it);
+        } else {
+            if (removed > 0) {
+            //    std::cout << "frag.cc purged " << removed << " docs for term " << it->first << " from frag " << frag_id << std::endl; 
             }
+            ++it;
         }
     }
-    */
-	time_t afterload = getTime();
-	double seconds = difftime(afterload, beforeload);
+    time_t afterload = getTime();
+    double seconds = difftime(afterload, beforeload);
 }
 
 void Frag::insert(std::string s, std::map<int,Frag::Item> m) {
-    /*
-       std::cout << "frag_map.size()" << std::endl;
-       std::cout << frag_map.size() << std::endl;
-       std::cout << "s" << std::endl;
-       std::cout << s << std::endl;
-       for (std::map<int, Frag::Item>::iterator it = m.begin(); it != m.end(); ++it) {
-         std::cout << " m : " << it->first << " : "  << it->second.doc_id << std::endl;
-       }
-    */
-       
     if (softMutexLock(m_frag_map)==true) {
         frag_map.insert(std::pair<std::string,std::map<int,Frag::Item>>(s,m));
         m_frag_map.unlock();
@@ -654,33 +596,11 @@ void Frag::insert(std::string s, std::map<int,Frag::Item> m) {
 }
 
 void Frag::update(std::string s, std::map<int,Frag::Item> m) {
-    /*
-    for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-        std::cout << "frag.cc : " << path << " : before : " << it->first << " : size()  " << (it->second).size() << std::endl;
-    }
-    if ((s == "beirut") || (s == "cormac")) {
-        for (std::map<int, Frag::Item>::iterator it = m.begin(); it != m.end(); ++it) {
-            std::cout << "frag.cc frag id : " << s << " " << frag_id << " : new insert : " << s << " : " << it->first << " : " << it->second.doc_id << std::endl;
-        }
-    }
-    for (std::map<std::string, std::map<int, Frag::Item>>::iterator it = frag_map.begin(); it != frag_map.end(); ++it) {
-        std::cout << "frag.cc frag_id : " << frag_id << " : after : " << it->first << " : size()  " << (it->second).size() << std::endl;
-    }
-    */
-    if (softMutexLock(m_frag_map)==true) {
-        frag_map[s].insert(m.begin(), m.end());
-        m_frag_map.unlock();
-    }
-    /*
-    for (std::map<int, Frag::Item>::iterator it = m.begin(); it != m.end(); ++it) {
-       frag_map[s].insert(std::pair<int, Frag::Item>(m->first, m->second);
-    }
-    */
+    frag_map[s].insert(m.begin(), m.end());
 }
 
 void Frag::remove() {
     std::string esc_filename = filename;
-    //  std::replace(esc_filename.begin(),esc_filename.end(),' ','_');
     if (std::remove(esc_filename.c_str()) != 0) {
         std::cout << "frag.cc : ERROR delete " << filename << " failed." << std::endl;
     } else {
@@ -689,8 +609,8 @@ void Frag::remove() {
 }
 
 int Frag::getTime() {
-	return std::chrono::duration_cast<std::chrono::milliseconds>(
-		std::chrono::system_clock::now().time_since_epoch()
-	).count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::system_clock::now().time_since_epoch()
+    ).count();
 }
 

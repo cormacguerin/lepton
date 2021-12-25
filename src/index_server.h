@@ -27,7 +27,7 @@ class IndexServer {
         void init();
         void run();
         void stop();
-        void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Frag::Item> &candidates);
+        void addQueryCandidates(Query::Node &query, IndexServer *indexServer, std::vector<Result::Item> &candidates);
         void execute(std::string lang, std::string type, std::string query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj);
         static void search(std::string lang, std::string parsed_query, std::string columns, std::string filter, std::string pages, std::promise<std::string> promiseObj, IndexServer *indexServer, QueryBuilder queryParser);
         static void suggest(std::string lang, std::string parsed_query, std::promise<std::string> promiseObj, IndexServer *indexServer);
@@ -57,8 +57,8 @@ class IndexServer {
         std::string tb;
         // std::vector<std::string> getDocInfo(int doc_id);
         // std::map<std::string,std::vector<int>> getTermPositions(int doc_id, std::vector<std::string> terms);
-        Result getResult(std::vector<std::string> terms, std::vector<Frag::Item> candidates);
-        void doFilter(std::string filter, std::vector<Frag::Item> &candidates, bool has_query);
+        Result getResult(std::vector<std::string> terms, std::vector<Result::Item> candidates);
+        void doFilter(std::string filter, std::vector<Result::Item> &candidates, bool has_query);
         void getResultInfo(Result& result, std::vector<std::string> terms, std::string columns, std::string lang);
         // pqxx::prepare::invocation& prep_dynamic(std::vector<std::string> data, pqxx::prepare::invocation& inv);
         void loadIndex(Frag::Type type, std::string lang);
