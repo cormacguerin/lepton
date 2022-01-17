@@ -27,6 +27,7 @@ CREATE TABLE users (
     facebook_user_id VARCHAR(64),
     facebook_info VARCHAR(2048),
     organization_code INTEGER,
+    metamask VARCHAR(64),
     created_date BIGINT
 );
 
