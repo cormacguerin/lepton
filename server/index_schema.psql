@@ -36,7 +36,7 @@ CREATE TABLE crawler_urls (
   url VARCHAR (2048),
   _table VARCHAR (256),
   priority INT
-)
+);
 
 CREATE INDEX unigrams_id_idx ON unigrams(id);
 CREATE INDEX bigrams_id_idx ON bigrams(id);

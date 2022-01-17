@@ -147,10 +147,8 @@ class Crawler {
               domain = d.domain
             }
             if (domains.indexOf(domain) === -1) {
-              console.log("urlFilter " + domain + " rejected")
               return false
             }
-            console.log("urlFilter " + domain + " accepted")
             return true
           }
         }));
@@ -233,7 +231,6 @@ class Crawler {
               delete feed.metadata.image
               delete feed.metadata.icon
               db_pg.addTableData(tb_, [feed], function(r) {
-                console.log(r)
               })
             })
           }

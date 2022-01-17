@@ -16,7 +16,7 @@
         :total="item.total"
         :indexed="item.indexed"
         :refreshed="item.refreshed"
-        :servingstatus="item.status"
+        :status="item.status"
         :loaded="item.loaded"
       />
     </flex-col>
@@ -38,10 +38,10 @@ export default {
     }
   },
   created () {
-    this.getIndexTables()
+    this.getServeTables()
   },
   methods: {
-    getIndexTables () {
+    getServeTables () {
       var vm = this
       this.$axios.get(this.$SERVER_URI + '/api/getServingInfo', {
         params: {

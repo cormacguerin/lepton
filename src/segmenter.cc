@@ -92,7 +92,6 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 				   std::map<std::string, Frag::Item> &doc_bigram_map,
 				   std::map<std::string, Frag::Item> &doc_trigram_map,
                    std::map<std::vector<std::string>,double> &stopSuggest) {
-	// postgres worker
 
 	// prepared statements
 //	C->prepare("delete_doc_text", "UPDATE docs_en SET raw_text = NULL WHERE id=$1");
@@ -171,7 +170,8 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 		if ( std::find(uni_spec.begin(), uni_spec.end(), converted) != uni_spec.end() ) {
 			continue;
 		}
-        char specchars[] = {':','(',')','-',',','\''};
+
+    char specchars[] = {':','(',')','-',',','\''};
 		for (unsigned int i = 0; i < sizeof(specchars)/sizeof(*specchars); ++i) {
 			converted.erase (std::remove(converted.begin(), converted.end(), specchars[i]), converted.end());
 		}
@@ -213,14 +213,14 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 				gramholder[j].erase(gramholder[j].begin());
 				stopholder[j].erase(stopholder[j].begin());
 			}
-            // "stopholder[j].back()" (if the previous term in this sequence is a stop work)
-            // "stopholder[j].at(0)" (if the first term in this sequence is a stop word.)
+      // "stopholder[j].back()" (if the previous term in this sequence is a stop work)
+      // "stopholder[j].at(0)" (if the first term in this sequence is a stop word.)
 			if (stopholder[j].back() == false) {
-                if (stopholder[j].at(0) == false) {
-				    gramCandidates[gramholder[j]].push_back(gramcount);
-                } else {
-				    stopSuggest[gramholder[j]]++;
-                }
+        if (stopholder[j].at(0) == false) {
+			    gramCandidates[gramholder[j]].push_back(gramcount);
+        } else {
+				  stopSuggest[gramholder[j]]++;
+        }
 			}
 		}
 	}
@@ -331,31 +331,51 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 
 					Frag::Item frag_term;
 					if ((git->first).size() == 1 && git->second.size() > 0) {
-						double tf = (double)git->second.size()/sqrt(gramcount);
+						float tf = (float)git->second.size()/sqrt(gramcount);
 						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
-						doc_unigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
-                        // addSuggestCandidate(git->first,(double)git->second.size(),suggestCandidates);
 
-                        //std::cout << "unigram " << git->first.size() << " " << trim(gram).c_str() << std::endl;
+            frag_term.no_positions = {0};
+            if (git->second.size() > 20) {
+              frag_term.no_positions = 20;
+            } else {
+              frag_term.no_positions = git->second.size();
+            }
+            for (int i=0; i<frag_term.no_positions; i++) {
+              frag_term.positions[i] = git->second[i];
+            }
+
+						doc_unigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
+            // addSuggestCandidate(git->first,(double)git->second.size(),suggestCandidates);
+            //std::cout << "unigram " << git->first.size() << " " << trim(gram).c_str() << std::endl;
 						rapidjson::Value k((trim(gram).c_str()), allocator);
 						unigrams.AddMember(k, rapidjson::Value(concat_positions(git->second).c_str(), allocator).Move(), allocator);
-//						pqxx::result d_ = txn.prepared("update_doc_unigrams")(trim(gram).c_str())(id).exec();
-//						pqxx::result e_ = txn.prepared("update_doc_unigram_p")(concat_positions(git->second).c_str())(id).exec();
+            // pqxx::result d_ = txn.prepared("update_doc_unigrams")(trim(gram).c_str())(id).exec();
+            // pqxx::result e_ = txn.prepared("update_doc_unigram_p")(concat_positions(git->second).c_str())(id).exec();
 						isAdd = true;
 					}
 					if ((git->first).size() == 2 && git->second.size() > 1) {
 						// unsure about this, should we compensate for fequency with ngrams..
 						// in a bi gram for example there are two terms.. so makes sense that there half the number of possibilities..
-						double tf = (double)git->second.size()/sqrt((gramcount));
+						float tf = (float)git->second.size()/sqrt((gramcount));
 						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
-						doc_bigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
-                        // addSuggestCandidate(git->first,(double)git->second.size()*2,suggestCandidates);
 
-                        //std::cout << "bigram " << git->first.size() << " " << trim(gram).c_str() << std::endl;
+            frag_term.no_positions = {0};
+            if (git->second.size() > 20) {
+              frag_term.no_positions = 20;
+            } else {
+              frag_term.no_positions = git->second.size();
+            }
+            for (int i=0; i<frag_term.no_positions; i++) {
+              frag_term.positions[i] = git->second[i];
+            }
+
+						doc_bigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
+            // addSuggestCandidate(git->first,(double)git->second.size()*2,suggestCandidates);
+            // std::cout << "bigram " << git->first.size() << " " << trim(gram).c_str() << std::endl;
 						rapidjson::Value k((trim(gram).c_str()), allocator);
 						bigrams.AddMember(k, rapidjson::Value(concat_positions(git->second).c_str(), allocator).Move(), allocator);
 						isAdd = true;
@@ -363,31 +383,52 @@ void Segmenter::parse(std::string id, std::string lang, std::string str_in,
 					// - Same for tri grams we need more occurrences to count them.
 					if ((git->first).size() == 3 && git->second.size() > 2) {
 						// same as above.
-						double tf = (double)git->second.size()/sqrt((gramcount));
+						float tf = (float)git->second.size()/sqrt((gramcount));
 						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
-						doc_trigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
-                        // addSuggestCandidate(git->first,(double)git->second.size()*3,suggestCandidates);
 
-                        //std::cout << "trigram " << git->first.size() << " " << trim(gram).c_str() << std::endl;
+            frag_term.no_positions = {0};
+            if (git->second.size() > 20) {
+              frag_term.no_positions = 20;
+            } else {
+              frag_term.no_positions = git->second.size();
+            }
+            for (int i=0; i<frag_term.no_positions; i++) {
+              frag_term.positions[i] = git->second[i];
+            }
+
+						doc_trigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
+            // addSuggestCandidate(git->first,(double)git->second.size()*3,suggestCandidates);
+            // std::cout << "trigram " << git->first.size() << " " << trim(gram).c_str() << std::endl;
 						rapidjson::Value k((trim(gram).c_str()), allocator);
 						trigrams.AddMember(k, rapidjson::Value(concat_positions(git->second).c_str(), allocator).Move(), allocator);
 						isAdd = true;
 					}
-                    // the rest are ngrams ( I'm storing them in trigrams for now )
-                    // I'm breaking it out so we can have a higher condition on occurrences (git->second.size())
-                    // That's because you can have a lot of unwanted ngrams that ballon the index
+          // the rest are ngrams ( I'm storing them in trigrams for now )
+          // I'm breaking it out so we can have a higher condition on occurrences (git->second.size())
+          // That's because you can have a lot of unwanted ngrams that ballon the index
 					if ((git->first).size() > 3 && git->second.size() > 3) {
 						// same as above.
-						double tf = (double)git->second.size()/sqrt((gramcount));
+						float tf = (float)git->second.size()/sqrt((gramcount));
 						frag_term.doc_id = atoi(id.c_str());
 						frag_term.weight = 0;
 						frag_term.tf = tf;
-						doc_trigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
-                        // addSuggestCandidate(git->first,(double)git->second.size()*4,suggestCandidates);
 
-                        //std::cout << "ngram " << git->first.size() << " " << trim(gram).c_str() << std::endl;
+            frag_term.no_positions = {0};
+            if (git->second.size() > 20) {
+              frag_term.no_positions = 20;
+            } else {
+              frag_term.no_positions = git->second.size();
+            }
+            for (int i=0; i<frag_term.no_positions; i++) {
+              frag_term.positions[i] = git->second[i];
+            }
+
+						doc_trigram_map.insert(std::pair<std::string, Frag::Item>(trim(gram).c_str(),frag_term));
+            // addSuggestCandidate(git->first,(double)git->second.size()*4,suggestCandidates);
+
+            // std::cout << "ngram " << git->first.size() << " " << trim(gram).c_str() << std::endl;
 						rapidjson::Value k((trim(gram).c_str()), allocator);
 						trigrams.AddMember(k, rapidjson::Value(concat_positions(git->second).c_str(), allocator).Move(), allocator);
 						isAdd = true;

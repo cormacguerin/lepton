@@ -143,7 +143,6 @@ exports.getTables = function(database, c) {
 
 exports.getTableSchema = function(user_id, d, table, c) {
   const database = user_id + '_' + d;
-  console.log('getTableSchema for database ' + database + ' table ' + table);
   initDB('admin', function() {
     db_pg['admin'].getTableMeta(user_id, database, table, function(e, m) {
       if (e) {
@@ -275,10 +274,6 @@ exports.addDatabase = function(u,d,c) {
     c({status:'failed'})
   }
   const db = u + '_' + d;
-  console.log('u')
-  console.log(u)
-  console.log('db')
-  console.log(db)
 	db_pg['admin'].addDatabase(u, db, function(e,r) {
 		if (e){
 			console.log("unable to retrieve user_clients");
@@ -878,9 +873,6 @@ exports.addCrawlerUrl = function(u,d,t,url,c) {
         console.log(err);
         c({status:'failed',error:err})
       } else {
-        console.log(r);
-        console.log('r.length');
-        console.log(r.length);
         if (r.length === 0) {
           c({status:'success'})
         } else {

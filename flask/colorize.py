@@ -340,10 +340,10 @@ def color_transfer(s, t):
     return transfer
 
 
-def adjust_saturation(image, q):
+def adjust_saturation(image, q, b):
 
-    #q = ((255-q)/255)    
     q = math.sqrt(255 - q)
+    b = math.sqrt(255 - b)
     print('q : ' +  str(q))
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
@@ -358,7 +358,11 @@ def adjust_saturation(image, q):
     image_32 = image.astype(np.float32)
     hsv_32 = cv2.cvtColor(image_32, cv2.COLOR_BGR2HSV_FULL)
     h, s, v = cv2.split(hsv_32)
-    s = s + (s/np.mean(v))*q
+    # s = s + (s/np.mean(v))*q/2
+    # v = v + b
+    s = s * 1.07
+    v = v * 1.07
+
     hsv = cv2.merge([h, s, v])
 
     return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR_FULL)
@@ -400,16 +404,20 @@ def clahe_gamma_correct(img, v):
 
 def full_gamma_correct(img, v):
 
-    gamma = math.sqrt(((1 + math.sin((255-v)/255))/2))
+    # gamma = math.sqrt(math.tan(1-v/256))*1.3
+    # gamma = math.sqrt(((1 + math.tan((255-v)/255))/2))
+    gamma = math.sqrt(((1 + math.tan((255-v)/255))/1.5))
 
     lab = cv2.split(img.astype(np.uint8))
     gray = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
-    clip_limit = 1 - v/256
-    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
+    clip_limit = (1 - v/256)
+    print('clip_limit')
+    print(clip_limit)
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(4, 4))
 
-    #se=cv2.getStructuringElement(cv2.MORPH_RECT , (32,32))
-    #bg=cv2.morphologyEx(gray, cv2.MORPH_DILATE, se)
-    #out_gray=cv2.divide(gray, bg, scale=255)
+    # se=cv2.getStructuringElement(cv2.MORPH_RECT , (32,32))
+    # bg=cv2.morphologyEx(gray, cv2.MORPH_DILATE, se)
+    # out_gray=cv2.divide(gray, bg, scale=255)
 
     equalized = clahe.apply(gray)
 
@@ -518,22 +526,13 @@ def evaluate(args):
                         output = full_gamma_correct(origin, img_stats['brightness'])
                     else:
                         print('doCorrection')
-                        # Apply Deep Learning Transfer
-<<<<<<< HEAD
-                        if (img_stats['white_balance'] > 1.6):
-=======
-                        if (img_stats['white_balance'] > 0.0):
->>>>>>> 916f5f3... add first revision of color correction code
+                        # Apply Deep Learning Transfer (disabled for now > 10)
+                        if (img_stats['white_balance'] > 10):
                             print('deep learning white balance')
                             img_tensor = transforms.ToTensor()(img)
                             img_tensor = img_tensor.unsqueeze(0)
                             print(img_tensor.device)
                             rec_img = WhiteBalanceModel(img_tensor)
-
-                            # utils.save_image(rec_img[0], save_path)
-                            dl_img = utils.save_image_preserv_length(rec_img[0], img_tensor[0], '.')
-                            output = color_transfer(dl_img, output)
-
                         else:
                             print('simple white balance')
                             output = simplest_cb(origin, 1, True)
@@ -584,7 +583,7 @@ def evaluate(args):
                     #    filename =  'SA_' + filename
 
                     # TODO : reapply saturation
-                    output = adjust_saturation(output, img_stats['saturation'])
+                    # output = adjust_saturation(output, img_stats['saturation'])
 
                     save_path = osp.join(outdir, filename)
                     print('save_path')
@@ -601,6 +600,7 @@ def eval_service(img, net, WhiteBalanceModel):
     with torch.no_grad():
 
         img_stats = analyse(img)
+        img_info = img.info
 
         #origin = cv2.imread(img)
         origin = np.array(img) 
@@ -625,30 +625,20 @@ def eval_service(img, net, WhiteBalanceModel):
         data=trans1(simg).to('cpu')
         score=net(data.unsqueeze(0))
 
+        # disable color correctionf or now, remember to switch back origin to output in brightness when enabling again
+        print("color correction score : " + str(score))    
+        #if (score > 0.5):
+        #    print('perform simple white balance correction')
+        #    output = simplest_cb(origin, 1, True)
+
         output = full_gamma_correct(origin, img_stats['brightness'])
 
-        print("color correction score : " + str(score))
-        if (score < 0.5):
-            print('noCorrection')
-            output = full_gamma_correct(origin, img_stats['brightness'])
-        else:
-            print('doCorrection')
-            # Apply Deep Learning Transfer
-            if (img_stats['white_balance'] > 0.6):
-                print('deep learning white balance')
-                img_tensor = transforms.ToTensor()(img)
-                img_tensor = img_tensor.unsqueeze(0)
-                print(img_tensor.device)
-                rec_img = WhiteBalanceModel(img_tensor)
+        # remove adjust saturation as we now enhance with PIL instead during save.
+        # output = adjust_saturation(output, img_stats['saturation'], img_stats['brightness'])
 
-                # utils.save_image(rec_img[0], save_path)
-                dl_img = utils.save_image_preserv_length(rec_img[0], img_tensor[0], '.')
-                output = color_transfer(dl_img, output)
+        # is_success, buffer = cv2.imencode(".jpg", output)
 
-        output = adjust_saturation(output, img_stats['saturation'])
-
-        is_success, buffer = cv2.imencode(".jpg", output)
-
+        buffer = utils.save_image_buffer(output, img_info, img_stats)
         return buffer
 
 

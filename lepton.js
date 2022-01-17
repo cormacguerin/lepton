@@ -41,7 +41,7 @@ app.use(compression());
 app.use(cookieParser());
 app.use(bodyParser.json({limit: '100mb'}));
 app.use(bodyParser.urlencoded({limit: '100mb', extended: true, parameterLimit: 1000000})); // for parsing application/x-www-form-urlencoded
-app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '5mb'}));
+app.use(bodyParser.raw({type:'image/jpeg;base64',limit: '15mb'}));
 app.use(bodyParser.raw({type:'image/jpeg',limit: '50mb'}));
  //app.use(cors())
 
@@ -89,9 +89,12 @@ app.get('/api/getIndexingInfo', user.authorize, function(req,res,next) {
 app.get('/api/getServingInfo', user.authorize, function(req,res,next) {
   var queryData = url.parse(req.url, true).query;
   data.getServingTables(req.user_id, function(d) {
+    console.log('d')
+    console.log(d)
     getStats(function(s) {
       if (s) {
         for (var i in d) {
+          console.log(d[i])
           if (s[req.user_id + "_" +d[i].database]) {
             if (s[req.user_id + "_" +d[i].database][d[i].table]) {
               d[i].terms = s[req.user_id + "_" +d[i].database][d[i].table].terms;
@@ -611,6 +614,7 @@ app.post('/addTableData', user.authorize, function(req, res, next) {
  * TODO there is a lot of duplication and stuff here that could be cleaned up
  */
 app.get('/search', user.authorize, function(req, res, next) {
+
   var queryData = url.parse(req.url, true).query;
   var database;
 
@@ -624,8 +628,6 @@ app.get('/search', user.authorize, function(req, res, next) {
   if (!queryData.database) {
     res.json({"error":"no database provided"});
     return;
-  } else {
-    database = queryData.database;
   }
   var queryData = url.parse(req.url, true).query;
   if (!queryData.table) {
@@ -639,19 +641,18 @@ app.get('/search', user.authorize, function(req, res, next) {
   if (req.user_id) {
     database = req.user_id + "_" + queryData.database;
   } else {
+    database = req.api_key_owner + "_" + queryData.database;
     var queryData = url.parse(req.url, true).query;
     // validate scope
     var access = false;
     for (var i in req.scope) {
-      if (queryData.database === req.scope[i].database) {
+      if (database === req.scope[i].database) {
         if (req.scope[i].table) {
           if (queryData.table === req.scope[i].table) {
             access = true;
-            database = req.scope[i]._database;
           }
         } else {
           access = true;
-          database = req.scope[i]._database;
         }
       }
     }
@@ -689,7 +690,6 @@ app.get('/search', user.authorize, function(req, res, next) {
         data.getServingColumns(user_id, database, table, function(c) {
           queryData.columns = c.join();
           execute(queryData,queryServers[database][table].port,function(r) {
-            console.log(r)
             res.json(r);
           });
         });
@@ -732,22 +732,23 @@ app.get('/suggest', user.authorize, function(req, res, next) {
   } else {
     table = queryData.table;
   }
+  var queryData = url.parse(req.url, true).query;
   // handle user or token request
   if (req.user_id) {
     database = req.user_id + "_" + queryData.database;
   } else {
+    database = req.api_key_owner + "_" + queryData.database;
+    var queryData = url.parse(req.url, true).query;
     // validate scope
     var access = false;
     for (var i in req.scope) {
-      if (queryData.database === req.scope[i].database) {
+      if (database === req.scope[i].database) {
         if (req.scope[i].table) {
           if (queryData.table === req.scope[i].table) {
             access = true;
-            database = req.scope[i]._database;
           }
         } else {
           access = true;
-          database = req.scope[i]._database;
         }
       }
     }
@@ -806,7 +807,6 @@ app.get('/manage', function(req, res, next) {
     }
   } catch(e) {
     res.send({"error":"\""+e+"\""});
-    console.log(e);
     return;
   }
 });
@@ -836,7 +836,9 @@ function toggleServing(database, table, callback) {
 
 function execute(queryData, port, callback) {
   var tmpQuery = {}
-  queryData.lang = "en";
+  if (!queryData.lang) {
+    queryData.lang = "en";
+  }
   internalQuery = JSON.stringify(queryData);
 
   var socket = new net.Socket();
@@ -913,3 +915,4 @@ app.use('/', express.static(__dirname + '/vue-app/dist/'));
 var server = app.listen(process.env.PORT || 3000, function () {
   console.log('Web app listening on port 3000!')
 });
+server.setTimeout(300000);

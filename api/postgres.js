@@ -345,7 +345,7 @@ class Postgres {
    */
   createSearchTable(database, table, callback) {
 
-    var query = "CREATE TABLE \""
+    var table_query = "CREATE TABLE \""
       + table
       + "\" ("
       + "lang VARCHAR(2),"
@@ -367,6 +367,8 @@ class Postgres {
       + "raw_text text,"
       + "segmented_grams jsonb);"
 
+    var index_query = "CREATE INDEX idx_btree_meta ON jademo USING GIN (metadata jsonb_path_ops);"
+
     /*
       + "feed jsonb,"
       + "raw_text text[],"
@@ -378,7 +380,7 @@ class Postgres {
       + "trigram_positions text[],"
     */
 
-    this.execute(query, null, function(e,r) {
+    this.execute(table_query, null, function(e,r) {
       if (r) {
         var i_dir = "index/"
         if (!fs.existsSync(i_dir)){
@@ -393,7 +395,13 @@ class Postgres {
           fs.mkdirSync(idt_dir);
         }
       }
-      callback(e,r);
+      if (e) {
+        callback(e,r);
+      } else {
+        this.execute(index_query, null, function(e_,r_) {
+          callback(e_,r_);
+        });
+      }
     });
   }
 
@@ -486,7 +494,9 @@ class Postgres {
   }
 
   getServingTables(user_id, callback) {
-    var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx.serving = True AND tx._column is not null GROUP BY d.database, t.tablename;"
+    var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(tx.serving))) AS serving, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null GROUP BY d.database, t.tablename;"
+    //var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null GROUP BY d.database, t.tablename;"
+    //var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx.serving = True AND tx._column is not null GROUP BY d.database, t.tablename;"
     // var query = "SELECT d.database, t.tablename AS table, (SELECT (array_agg(_column))) AS column FROM text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND tx._column is not null AND tx.serving = true GROUP BY d.database, t.tablename;"
     // var query = "SELECT d.database, t.tablename AS table, (SELECT array_agg(tx._column ORDER BY t.tablename) WHERE serving = true) AS column, serving from text_tables_index tx INNER JOIN databases d on d.id = tx.database INNER JOIN tables t on tx._table = t.id WHERE d.owner = $1 AND serving IS NOT NULL GROUP BY d.database, t.tablename, serving ORDER BY d.database;"
     this.execute(query, [user_id], function(e,r) {
@@ -964,7 +974,7 @@ class Postgres {
   }
 
   addServingColumn(u,d,t,c,callback) {
-    var query = "INSERT INTO text_tables_index(database,_table,_column,serving) VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $4), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)), $3, true) ON CONFLICT DO NOTHING";
+    var query = "INSERT INTO text_tables_index(database,_table,_column,serving) VALUES ((SELECT id FROM databases WHERE database = $1 AND owner = $4), (SELECT id FROM tables where tablename = $2 AND database = (SELECT id from databases where database = $1 AND owner = $4)), $3, true) ON CONFLICT (database, _table, _column) DO UPDATE SET serving = true";
 
     var values = [d,t,c,u]
 
@@ -1117,9 +1127,6 @@ class Postgres {
     this.execute(query, values, function(e,r) {
       var key = {}
       key.scope = []
-      const reg = /^[0-9]+_/gi;
-      console.log('r')
-      console.log(r)
       for (var i in r) {
         if (r[i].id === null) {
           return callback(e,key);
@@ -1133,14 +1140,11 @@ class Postgres {
         key.key = r[i].key;
         var scope = {}
         scope.api = r[i].api;
-        scope._database = r[i].database;
-        if (scope.database) {
-          scope.database = r[i].database.replace(reg,'');
-        }
-        if (scope.table) {
+        scope.database = r[i].database;
+        if (r[i].table) {
           scope.table = r[i].table;
         }
-        if (scope.model) {
+        if (r[i].model) {
           scope.model = r[i].model;
         }
         key.scope.push(scope);

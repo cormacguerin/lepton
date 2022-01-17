@@ -36,11 +36,10 @@
           </flex-row>
           <flex-row class="columnContainer">
             <div
-              v-for="c in column"
+              v-for="(c, i) in column"
               :key="c"
-              class="column"
             >
-              <flex-row>
+              <flex-row v-if="serving[i] == true" class="column">
                 <div class="columnName">
                   {{ c }}
                 </div>
@@ -234,7 +233,7 @@ export default {
           console.log(response)
           if (response.data.status === 'success') {
             vm.addServingColumnModal = false
-            vm.$parent.getIndexTables()
+            vm.$parent.getServeTables()
           }
         })
     },
@@ -250,7 +249,7 @@ export default {
         .then(function (response) {
           console.log(response)
           if (response.data.status === 'success') {
-            vm.$parent.getIndexTables()
+            vm.$parent.getServeTables()
           }
         })
     },

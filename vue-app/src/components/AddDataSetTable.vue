@@ -106,10 +106,12 @@ export default {
   },
   watch: {
     dataset: function (val) {
-      var ds = JSON.parse(val)
-      console.log(ds)
-      this.query = ds.query
-      this.fields = ds.fields
+      console.log(val)
+      if (val) {
+        var ds = JSON.parse(val)
+        this.query = ds.query
+        this.fields = ds.fields
+      }
     }
   },
   created () {

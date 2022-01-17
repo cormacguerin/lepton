@@ -68,14 +68,13 @@ def predict():
         print("err")
         print(err)
 
-    b64image = base64.b64encode(colorize.eval_service(img, net, WhiteBalanceModel))
+    b64image = base64.b64encode(colorize.eval_service(img, net, WhiteBalanceModel)).decode("ascii")
 
     response = {"image":b64image}
 
     print('done')
     app.logger.info("Execution time: %0.02f seconds" % (dt))
-    #return jsonify(response)
-    return response
+    return jsonify(response)
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", debug=True, port=PORT)

@@ -111,7 +111,6 @@ exports.genApiKey = function() {
   const e2 = Buffer.from(genRandStr()).toString('base64').substr(0,8).toUpperCase();
   const e3 = Buffer.from(genRandStr()).toString('base64').substr(0,8).toUpperCase();
   const e4 = Buffer.from(genRandStr()).toString('base64').substr(0,8).toUpperCase();
-   // console.log(e1)
   return `${e1}-${e2}-${e3}-${e4}`;
 }
 
@@ -120,10 +119,6 @@ exports.genApiKey = function() {
  * determine if this is API or token.
  */
 exports.authorize = function(req, res, next) {
-    //console.log('req.headers')
-    //console.log(req.headers)
-    //console.log('req.headers.authorization')
-    //console.log(req.headers.authorization)
 
     if (req.headers.authorization) {
         console.log('api auth');
@@ -405,12 +400,14 @@ function authorizeApi(req, res, next) {
 }
 
 function getSigningKey(key_secret, key_datestamp, key_name, key_scope) {
-      console.log(' - - - - ')
+  /*
+    console.log(' - - - - ')
     console.log(key_secret)
     console.log(key_datestamp)
     console.log(key_name)
     console.log(key_scope)
     console.log(' - - - - ')
+    */
   var kDate = hmac("LT" + key_secret, key_datestamp);
   var kName = hmac(kDate, key_name);
   var kScope = hmac(kName, key_scope);
@@ -541,7 +538,6 @@ exports.checkUserEmail = function(req, res) {
  * Accepts email and password and if present attempt login.
  */
 exports.login = function(req, res, next) {
-  console.log(req.body);
 	if (req.body.email && req.body.password) {
 		valueExists("users", "email", req.body.email, function(response) {
 			if (response === false) {

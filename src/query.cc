@@ -21,9 +21,11 @@ std::string Query::Node::serialize() {
 	serialized_query.Parse("{}");
 	std::cout << "query.cc : raw_query " << raw_query << std::endl;
 	std::cout << "query.cc : raw_query length " << (raw_query).length() << std::endl;
+  /*
 	if ((this->raw_query).length()==0) {
 		return "";
 	}
+  */
 	rapidjson::Document d;
 	this->serialize_(d);
 	rapidjson::StringBuffer buffer;
